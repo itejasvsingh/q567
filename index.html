@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>IIT Madras MBA — Elective Planner</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#fff;--bg2:#f5f4f0;--bg3:#e8e7e3;--bg-info:#e6f1fb;--bg-danger:#fcebeb;--bg-success:#e6f6ee;--bg-warn:#fdf3e3;
+  --tx:#1a1a1a;--tx2:#6b6b68;--tx3:#9b9b98;--tx-info:#185fa5;--tx-danger:#a32d2d;--tx-success:#1a6b3c;--tx-warn:#7a4a00;
+  --bd:rgba(0,0,0,0.10);--bd2:rgba(0,0,0,0.20);--bd-info:rgba(24,95,165,0.30);--bd-success:rgba(26,107,60,0.30);--bd-warn:rgba(122,74,0,0.30);--bd-danger:rgba(163,45,45,0.30);
+  --r:10px;--rl:14px;--font:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --col-F:#185fa5;--col-HR:#0f6e56;--col-M:#854f0b;--col-IS:#534ab7;--col-O:#993c1d;--col-S:#993556;--col-X:#777;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#1c1c1a;--bg2:#272724;--bg3:#333330;--bg-info:#0c2a45;--bg-danger:#3a1515;--bg-success:#0a2e1a;--bg-warn:#2e1f00;
+  --tx:#f0efea;--tx2:#a0a09a;--tx3:#6a6a65;--tx-info:#85b7eb;--tx-danger:#f09595;--tx-success:#6dd4a0;--tx-warn:#f0b955;
+  --bd:rgba(255,255,255,0.09);--bd2:rgba(255,255,255,0.18);--bd-info:rgba(133,183,235,0.28);--bd-success:rgba(109,212,160,0.28);--bd-warn:rgba(240,185,85,0.28);--bd-danger:rgba(240,149,149,0.28);
+}}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px;line-height:1.6;min-height:100vh}
+.page{max-width:960px;margin:0 auto;padding:1.25rem 1rem 6rem}
+
+/* ── HEADER ── */
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;padding-bottom:1rem;border-bottom:.5px solid var(--bd);margin-bottom:1.5rem}
+.hdr h1{font-size:17px;font-weight:700;line-height:1.3}
+.hdr p{font-size:11px;color:var(--tx2);margin-top:3px}
+
+/* ── GOAL MODE ── */
+.panel{background:var(--bg2);border:.5px solid var(--bd);border-radius:var(--rl);padding:1rem 1.1rem;margin-bottom:1.25rem}
+.panel-title{font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.chip{padding:6px 14px;border-radius:20px;border:.5px solid var(--bd2);background:var(--bg);color:var(--tx2);font-size:12px;font-weight:500;cursor:pointer;transition:all .12s;font-family:var(--font);-webkit-tap-highlight-color:transparent;min-height:34px;display:flex;align-items:center}
+.chip:active,.chip:hover{background:var(--bg3)}
+.chip.on{border-color:var(--bd-info);background:var(--bg-info);color:var(--tx-info)}
+.goal-section{margin-top:8px;display:none}
+.goal-section.show{display:block}
+.goal-row{margin-bottom:8px}
+.goal-row-label{font-size:11px;color:var(--tx3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+.suggestion{border-radius:var(--r);padding:9px 13px;font-size:12px;line-height:1.65;margin-top:8px}
+.sug-ok{background:var(--bg-success);border:.5px solid var(--bd-success);color:var(--tx-success)}
+.sug-info{background:var(--bg-info);border:.5px solid var(--bd-info);color:var(--tx-info)}
+.sug-warn{background:var(--bg-warn);border:.5px solid var(--bd-warn);color:var(--tx-warn)}
+.sug-item{margin-bottom:6px;padding-bottom:6px;border-bottom:.5px solid rgba(0,0,0,0.06)}
+.sug-item:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none}
+
+/* ── DEGREE RULES ── */
+.rules-toggle{font-size:12px;font-weight:600;color:var(--tx2);cursor:pointer;display:flex;align-items:center;gap:6px;-webkit-tap-highlight-color:transparent}
+.rules-body{display:none;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:7px;margin-top:10px}
+.rules-body.open{display:grid}
+.rule-card{background:var(--bg);border:.5px solid var(--bd);border-radius:var(--r);padding:9px 12px}
+.rule-card.rq{border-color:var(--bd-info)}.rule-card.rmaj{border-color:var(--bd-success)}.rule-card.rdual{border-color:var(--bd-warn)}.rule-card.rmin{border-color:var(--bd-danger)}
+.rc-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:3px}
+.rc-val{font-size:12px;font-weight:600;color:var(--tx)}.rc-note{font-size:11px;color:var(--tx2);margin-top:2px}
+
+/* ── DOMAIN TRACKER ── */
+.tracker{margin-bottom:1.25rem}
+.sec-lbl{font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px}
+.total-pill{display:inline-flex;align-items:center;gap:8px;padding:5px 13px;background:var(--bg2);border-radius:20px;border:.5px solid var(--bd);font-size:12px;color:var(--tx2);margin-bottom:9px}
+.total-pill strong{color:var(--tx)}
+.deg-banner{padding:8px 13px;border-radius:var(--r);font-size:12px;font-weight:700;margin-bottom:9px;display:none}
+.deg-banner.show-maj{display:block;background:var(--bg-success);border:.5px solid var(--bd-success);color:var(--tx-success)}
+.deg-banner.show-dual{display:block;background:var(--bg-warn);border:.5px solid var(--bd-warn);color:var(--tx-warn)}
+.ach-warn{font-size:12px;padding:8px 12px;border-radius:var(--r);background:var(--bg-danger);border:.5px solid var(--bd-danger);color:var(--tx-danger);margin-bottom:9px;display:none}
+.dom-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px}
+.dcard{background:var(--bg);border:.5px solid var(--bd);border-radius:var(--r);padding:9px 11px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.dcard.flt{border-color:var(--bd-info);background:var(--bg-info)}
+.dc-top{display:flex;justify-content:space-between;margin-bottom:5px}
+.dc-name{font-size:12px;font-weight:700;color:var(--tx)}.dcard.flt .dc-name{color:var(--tx-info)}
+.dc-n{font-size:11px;color:var(--tx2)}
+.bar-bg{height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:4px}
+.bar-fill{height:5px;border-radius:3px;transition:width .3s}
+.dc-st{font-size:10px;font-weight:600}
+.st0{color:var(--tx3)}.st-min{color:var(--tx-info)}.st-maj{color:var(--tx-success)}
+
+/* ── QUARTER TABS + FILTER ── */
+.ctrl{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:1rem}
+.qtabs{display:flex;gap:6px;flex-wrap:wrap}
+.qtab{padding:8px 16px;border-radius:var(--r);border:.5px solid var(--bd2);background:transparent;color:var(--tx2);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent;position:relative;min-height:40px;display:flex;align-items:center}
+.qtab.on{background:var(--bg-info);color:var(--tx-info);border-color:var(--bd-info)}
+.qbadge{position:absolute;top:-5px;right:-5px;background:#185fa5;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;display:none}
+.qbadge.show{display:block}
+.fbar{display:flex;align-items:center;flex-wrap:wrap;gap:5px}
+.flbl{font-size:10px;color:var(--tx3)}
+.fchip{padding:4px 10px;border-radius:20px;border:.5px solid var(--bd);background:var(--bg2);color:var(--tx2);font-size:11px;font-weight:500;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent;min-height:28px;display:flex;align-items:center}
+.fchip.on{border-color:var(--bd-info);background:var(--bg-info);color:var(--tx-info)}
+.sel-ctr{font-size:13px;color:var(--tx2);margin-bottom:7px}
+.sel-ctr strong{color:var(--tx)}
+.wmsg{font-size:12px;color:var(--tx-danger);padding:7px 11px;background:var(--bg-danger);border-radius:var(--r);border:.5px solid var(--bd-danger);margin-bottom:9px;display:none}
+
+/* ── SUBJECT CARDS ── */
+.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:6px;margin-bottom:1.25rem}
+@media(max-width:540px){.sgrid{grid-template-columns:1fr}}
+.scard{display:flex;align-items:flex-start;gap:10px;padding:11px 13px;border-radius:var(--r);border:.5px solid var(--bd);background:var(--bg);cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;transition:background .1s,border-color .1s}
+.scard.sel{border-color:var(--bd-info);background:var(--bg-info)}
+.scard.conf,.scard.dis{opacity:.32;cursor:not-allowed}
+.scard.hl:not(.sel):not(.conf):not(.dis){border-color:var(--bd-success);background:var(--bg-success)}
+.schk{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--bd2);flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;transition:all .12s}
+.scard.sel .schk{background:#185fa5;border-color:#185fa5}
+.sname{font-size:13px;font-weight:500;color:var(--tx);line-height:1.4}
+.scard.sel .sname{color:var(--tx-info)}
+.smeta{font-size:11px;color:var(--tx2);margin-top:3px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.slotb{display:inline-block;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--bg2);color:var(--tx2);border:.5px solid var(--bd)}
+.vb{display:inline-block;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:600}
+.vF{background:#deeefb;color:#185fa5}.vH{background:#d8f4ea;color:#0f6e56}.vM{background:#faedda;color:#854f0b}
+.vI{background:#edeefe;color:#534ab7}.vO{background:#faeae7;color:#993c1d}.vS{background:#faeaf2;color:#993556}.vX{background:#efefef;color:#555}
+@media(prefers-color-scheme:dark){
+  .vF{background:#0c2a45;color:#85b7eb}.vH{background:#043428;color:#5dcaa5}.vM{background:#412402;color:#ef9f27}
+  .vI{background:#26215c;color:#afa9ec}.vO{background:#4a1b0c;color:#f0997b}.vS{background:#4b1528;color:#ed93b1}.vX{background:#2a2a2a;color:#aaa}
+}
+
+
+/* ── SHARE ── */
+.share-bar{background:var(--bg-success);border:.5px solid var(--bd-success);border-radius:var(--rl);padding:.9rem 1.1rem;margin-bottom:1.25rem;display:none}
+.share-bar.show{display:block}
+.share-bar-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.share-bar-title{font-size:13px;font-weight:700;color:var(--tx-success)}
+.share-url-row{display:flex;gap:7px;align-items:stretch}
+.share-url-input{flex:1;padding:8px 11px;border-radius:var(--r);border:.5px solid var(--bd-success);background:var(--bg);color:var(--tx);font-size:11px;font-family:var(--font);outline:none;min-width:0}
+.share-btn{padding:8px 14px;border-radius:var(--r);border:.5px solid var(--bd-success);background:var(--bg-success);color:var(--tx-success);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;gap:5px}
+.share-btn:active{opacity:.75}
+.share-btn.wa{background:#25d366;border-color:#25d366;color:#fff}
+.share-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+.share-copied{font-size:11px;color:var(--tx-success);margin-top:6px;display:none}
+.share-copied.show{display:block}
+/* Incoming shared view banner */
+.shared-banner{background:var(--bg-info);border:.5px solid var(--bd-info);border-radius:var(--rl);padding:.9rem 1.1rem;margin-bottom:1.25rem;display:none}
+.shared-banner.show{display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.shared-banner-icon{font-size:22px;flex-shrink:0}
+.shared-banner-text strong{font-size:13px;font-weight:700;color:var(--tx-info);display:block}
+.shared-banner-text span{font-size:12px;color:var(--tx-info);opacity:.8}
+.shared-banner-btn{margin-top:8px;padding:7px 14px;border-radius:var(--r);border:.5px solid var(--bd-info);background:var(--bg);color:var(--tx-info);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);display:inline-block}
+
+/* ── GROUP COMPARE ── */
+.group-panel{background:var(--bg2);border:.5px solid var(--bd);border-radius:var(--rl);padding:1rem 1.1rem;margin-bottom:1.25rem}
+.group-name-row{display:flex;gap:7px;margin-bottom:10px;flex-wrap:wrap}
+.group-name-input{flex:1;padding:9px 12px;border-radius:var(--r);border:.5px solid var(--bd2);background:var(--bg);color:var(--tx);font-size:13px;font-family:var(--font);outline:none;min-width:120px}
+.group-name-input:focus{border-color:var(--bd-info)}
+.group-save-btn{padding:9px 16px;border-radius:var(--r);border:.5px solid var(--bd-info);background:var(--bg-info);color:var(--tx-info);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.group-save-btn:active{opacity:.7}
+.group-note{font-size:11px;color:var(--tx3);margin-bottom:10px;line-height:1.5}
+.roster{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.roster-chip{display:flex;align-items:center;gap:6px;padding:5px 9px 5px 11px;border-radius:20px;border:.5px solid var(--bd);background:var(--bg);font-size:12px;font-weight:600;color:var(--tx2)}
+.roster-chip.me{border-color:var(--bd-info);background:var(--bg-info);color:var(--tx-info)}
+.roster-x{cursor:pointer;color:var(--tx3);font-weight:700;padding:0 2px;-webkit-tap-highlight-color:transparent}
+.roster-x:hover{color:var(--tx-danger)}
+.roster-dot{width:7px;height:7px;border-radius:50%;background:#1a6b3c}
+.roster-empty{font-size:12px;color:var(--tx3);padding:6px 0}
+
+/* ── OVERLAP VIEW ── */
+.overlap-section{margin-top:12px;display:none}
+.overlap-section.show{display:block}
+.overlap-q-tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.ov-qtab{padding:6px 14px;border-radius:var(--r);border:.5px solid var(--bd2);background:var(--bg);color:var(--tx2);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent}
+.ov-qtab.on{background:var(--bg-info);color:var(--tx-info);border-color:var(--bd-info)}
+.overlap-card{border-radius:var(--r);border:.5px solid var(--bd);padding:10px 13px;margin-bottom:7px;background:var(--bg)}
+.overlap-card.together{border-color:var(--bd-success);background:var(--bg-success)}
+.ov-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px}
+.ov-name{font-size:13px;font-weight:600;color:var(--tx)}
+.overlap-card.together .ov-name{color:var(--tx-success)}
+.ov-slot{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--bg2);color:var(--tx2);flex-shrink:0}
+.ov-people{display:flex;flex-wrap:wrap;gap:5px}
+.ov-person{font-size:11px;font-weight:600;padding:3px 9px;border-radius:14px;background:var(--bg2);color:var(--tx2)}
+.ov-person.together{background:#1a6b3c;color:#fff}
+.ov-count{font-size:11px;color:var(--tx-success);font-weight:700;margin-top:5px}
+.overlap-empty{text-align:center;padding:1.5rem;color:var(--tx3);font-size:12px;border:.5px dashed var(--bd);border-radius:var(--r)}
+.matrix-toggle{font-size:11px;color:var(--tx-info);cursor:pointer;text-decoration:underline;margin-bottom:8px;display:inline-block;-webkit-tap-highlight-color:transparent}
+
+/* ── TIMETABLE ── */
+.tt-section{margin-top:1.25rem}
+.tt-header-row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.tt-title{font-size:13px;font-weight:700;color:var(--tx)}
+.export-row{display:flex;gap:6px;flex-wrap:wrap}
+.exp-btn{display:flex;align-items:center;gap:5px;padding:7px 13px;border-radius:var(--r);border:.5px solid var(--bd2);background:var(--bg2);color:var(--tx2);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent;min-height:36px;transition:all .12s}
+.exp-btn:hover,.exp-btn:active{background:var(--bg3);color:var(--tx)}
+.exp-btn.xl{border-color:var(--bd-success);background:var(--bg-success);color:var(--tx-success)}
+.exp-btn.img{border-color:var(--bd-info);background:var(--bg-info);color:var(--tx-info)}
+.tt-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--r)}
+#tt-render{min-width:580px;background:var(--bg)}
+.tt-grid{display:grid;grid-template-columns:72px repeat(6,1fr);gap:3px;margin-bottom:3px}
+.tt-hcell{font-size:9px;font-weight:700;color:var(--tx3);text-align:center;padding:4px 2px;letter-spacing:.03em}
+.tt-day{font-size:11px;font-weight:600;color:var(--tx2);display:flex;align-items:center;padding-right:4px}
+.tcell{border-radius:6px;border:.5px solid var(--bd);padding:6px 7px;min-height:62px;background:var(--bg)}
+.tcell.emp{background:var(--bg2);border-color:transparent}
+.tcell.has{border-color:var(--bd-info);background:var(--bg-info)}
+.tc-slot{font-size:9px;color:var(--tx3);margin-bottom:2px}
+.tc-name{font-size:10px;font-weight:700;color:var(--tx-info);line-height:1.3}
+.tc-instr{font-size:9px;color:var(--tx-info);opacity:.7;margin-top:2px}
+.lc{border-radius:6px;border:.5px dashed var(--bd);min-height:62px;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--tx3);font-style:italic}
+.empty-tt{text-align:center;padding:2.5rem;color:var(--tx3);font-size:13px;border:.5px dashed var(--bd);border-radius:var(--rl)}
+.no-tt-box{padding:1.1rem;background:var(--bg2);border:.5px solid var(--bd);border-radius:var(--rl)}
+.no-tt-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:.5px solid var(--bd)}
+.no-tt-item:last-of-type{border-bottom:none}
+.legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:1rem}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--tx2)}
+.leg-dot{width:8px;height:8px;border-radius:50%}
+.divider{border:none;border-top:.5px solid var(--bd);margin:1rem 0}
+
+/* ── EXPORT MODAL ── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:flex;align-items:flex-end;justify-content:center;padding:0}
+@media(min-width:600px){.modal-bg{align-items:center;padding:1rem}}
+.modal-bg{display:none}
+.modal-bg.open{display:flex}
+.modal{background:var(--bg);border-radius:var(--rl) var(--rl) 0 0;padding:1.25rem;width:100%;max-width:480px}
+@media(min-width:600px){.modal{border-radius:var(--rl)}}
+.modal h3{font-size:15px;font-weight:700;margin-bottom:4px}
+.modal p{font-size:12px;color:var(--tx2);margin-bottom:14px}
+.modal-opts{display:flex;flex-direction:column;gap:8px}
+.mopt{display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:var(--r);border:.5px solid var(--bd);background:var(--bg2);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:all .12s}
+.mopt:hover,.mopt:active{background:var(--bg3)}
+.mopt-icon{font-size:22px;width:32px;text-align:center}
+.mopt-text strong{font-size:14px;font-weight:600;display:block}
+.mopt-text span{font-size:11px;color:var(--tx2)}
+.modal-close{margin-top:12px;width:100%;padding:11px;border-radius:var(--r);border:.5px solid var(--bd);background:var(--bg2);color:var(--tx2);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font)}
+.modal-q-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.mq{padding:6px 14px;border-radius:20px;border:.5px solid var(--bd2);background:var(--bg2);color:var(--tx2);font-size:12px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.mq.active{border-color:var(--bd-info);background:var(--bg-info);color:var(--tx-info)}
+.spinner{display:none;text-align:center;padding:1rem;font-size:13px;color:var(--tx2)}
+.spinner.show{display:block}
+
+/* ── SUPPLY PANEL ── */
+.supply-panel{background:var(--bg2);border:.5px solid var(--bd);border-radius:var(--rl);padding:.9rem 1.1rem;margin-bottom:1.1rem}
+.supply-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px}
+.supply-title{font-size:12px;font-weight:700;color:var(--tx);display:flex;align-items:center;gap:6px}
+.supply-qlabel{font-size:11px;font-weight:600;color:var(--tx2);background:var(--bg3);padding:3px 10px;border-radius:20px}
+.supply-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:5px}
+.sdom{border-radius:var(--r);border:.5px solid var(--bd);padding:7px 9px;background:var(--bg);display:flex;flex-direction:column;gap:3px}
+.sdom.scarce{border-color:#f0997b;background:#fff4f1}
+.sdom.empty{border-color:rgba(163,45,45,.25);background:#fcebeb}
+@media(prefers-color-scheme:dark){
+  .sdom.scarce{border-color:#7a3a20;background:#2e1808}
+  .sdom.empty{border-color:rgba(240,149,149,.25);background:#3a1515}
+}
+.sdom-name{font-size:11px;font-weight:700;color:var(--tx)}
+.sdom-count{font-size:12px;font-weight:700}
+.sdom-pill{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;width:fit-content;margin-top:1px}
+.pill-ok{background:var(--bg-success);color:var(--tx-success)}
+.pill-lim{background:#fdf3e3;color:#7a4a00}
+.pill-scarce{background:#fde8e0;color:#a33000}
+.pill-none{background:var(--bg-danger);color:var(--tx-danger)}
+@media(prefers-color-scheme:dark){
+  .pill-lim{background:#2e1f00;color:#f0b955}
+  .pill-scarce{background:#3d1800;color:#f0997b}
+}
+.supply-note{font-size:11px;color:var(--tx3);margin-top:8px;line-height:1.5}
+.supply-note span{font-weight:600;color:var(--tx-danger)}
+
+/* ── VIEW TABS ── */
+.view-tabs{display:flex;gap:6px;margin-bottom:1.25rem;border-bottom:.5px solid var(--bd);padding-bottom:0}
+.view-tab{padding:10px 16px;border:none;background:transparent;color:var(--tx2);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent;border-bottom:2px solid transparent;margin-bottom:-1px;display:flex;align-items:center;gap:6px}
+.view-tab.on{color:var(--tx-info);border-bottom-color:#185fa5}
+
+/* ── COMPARE VIEW ── */
+.cmp-intro{font-size:12px;color:var(--tx2);margin-bottom:1rem;line-height:1.6}
+.cmp-setup{background:var(--bg2);border:.5px solid var(--bd);border-radius:var(--rl);padding:1rem 1.1rem;margin-bottom:1.25rem}
+.cmp-row{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px}
+.cmp-row:last-child{margin-bottom:0}
+.cmp-input{flex:1;min-width:140px;padding:10px 12px;border-radius:var(--r);border:.5px solid var(--bd2);background:var(--bg);color:var(--tx);font-size:13px;font-family:var(--font);outline:none}
+.cmp-input:focus{border-color:var(--bd-info)}
+.cmp-btn{padding:10px 16px;border-radius:var(--r);border:.5px solid var(--bd-info);background:var(--bg-info);color:var(--tx-info);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.cmp-btn:active{opacity:.7}
+.cmp-status{font-size:11px;color:var(--tx3);line-height:1.5}
+.cmp-status.connected{color:var(--tx-success)}
+.cmp-share-row{display:flex;gap:7px;align-items:stretch;margin-top:8px}
+.cmp-share-row .cmp-input{font-size:11px}
+.cmp-copybtn{padding:8px 13px;border-radius:var(--r);border:.5px solid var(--bd-success);background:var(--bg-success);color:var(--tx-success);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.cmp-manage-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:.5px solid var(--bd)}
+.cmp-managebtn{padding:7px 12px;border-radius:var(--r);border:.5px solid var(--bd2);background:var(--bg);color:var(--tx2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.cmp-managebtn:hover{background:var(--bg3)}
+.cmp-managebtn.danger{border-color:var(--bd-danger);background:var(--bg-danger);color:var(--tx-danger)}
+
+.cmp-friends-sec{margin-bottom:1.25rem}
+.cmp-friends-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
+.cmp-chip{display:flex;align-items:center;gap:7px;padding:6px 10px 6px 8px;border-radius:20px;border:.5px solid var(--bd);background:var(--bg)}
+.cmp-avatar{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
+.cmp-chip-name{font-size:12px;font-weight:600;color:var(--tx)}
+.cmp-chip-count{font-size:10px;color:var(--tx3)}
+.cmp-chip.me{border-color:var(--bd-info);background:var(--bg-info)}
+.cmp-chip.active{border-color:var(--bd-success);background:var(--bg-success);box-shadow:0 0 0 1px var(--bd-success) inset}
+.cmp-allchip{font-size:12px;font-weight:700;color:var(--tx2)}
+.cmp-allchip.active{border-color:var(--bd-info);background:var(--bg-info);color:var(--tx-info);box-shadow:0 0 0 1px var(--bd-info) inset}
+.cmp-chip-x{cursor:pointer;color:var(--tx3);font-weight:700;font-size:13px;padding:0 2px;-webkit-tap-highlight-color:transparent}
+.cmp-chip-x:hover{color:var(--tx-danger)}
+.cmp-empty{text-align:center;padding:1.75rem 1rem;color:var(--tx3);font-size:12px;border:.5px dashed var(--bd);border-radius:var(--rl);line-height:1.6}
+
+.cmp-qtabs{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap}
+.cmp-qtab{padding:8px 16px;border-radius:var(--r);border:.5px solid var(--bd2);background:transparent;color:var(--tx2);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent;min-height:40px;display:flex;align-items:center}
+.cmp-qtab.on{background:var(--bg-info);color:var(--tx-info);border-color:var(--bd-info)}
+
+.cmp-legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:1rem}
+.cmp-leg{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx2);font-weight:600}
+.cmp-leg-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+
+.cmp-grid-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:1.25rem}
+#cmp-grid-render{min-width:640px}
+.cmp-tgrid{display:grid;grid-template-columns:76px repeat(6,1fr);gap:3px;margin-bottom:3px}
+.cmp-hcell{font-size:9px;font-weight:700;color:var(--tx3);text-align:center;padding:4px 2px;letter-spacing:.03em}
+.cmp-day{font-size:11px;font-weight:600;color:var(--tx2);display:flex;align-items:center;padding-right:4px}
+.cmp-cell{border-radius:6px;border:.5px solid var(--bd);padding:5px 6px;min-height:64px;background:var(--bg);display:flex;flex-direction:column;gap:3px}
+.cmp-cell.emp{background:var(--bg2);border-color:transparent}
+.cmp-cell.together{border-color:var(--bd-success);background:var(--bg-success)}
+.cmp-cell.clash{border-color:var(--bd-warn);background:var(--bg-warn)}
+.cmp-lc{border-radius:6px;border:.5px dashed var(--bd);min-height:64px;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--tx3);font-style:italic}
+.cmp-pplrow{display:flex;align-items:center;gap:4px}
+.cmp-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.cmp-classname{font-size:9px;font-weight:700;color:var(--tx);line-height:1.25;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.cmp-together-tag{font-size:8px;font-weight:700;color:var(--tx-success);margin-top:1px}
+.cmp-clash-tag{font-size:8px;font-weight:700;color:var(--tx-warn);margin-top:1px}
+
+.cmp-together-sec{margin-bottom:1.25rem}
+.cmp-tcard{border-radius:var(--r);border:.5px solid var(--bd-success);background:var(--bg-success);padding:10px 13px;margin-bottom:7px}
+.cmp-tcard-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px}
+.cmp-tcard-name{font-size:13px;font-weight:700;color:var(--tx-success)}
+.cmp-tcard-slot{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--bg);color:var(--tx2);flex-shrink:0}
+.cmp-tcard-ppl{display:flex;flex-wrap:wrap;gap:5px}
+.cmp-tperson{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px 3px 5px;border-radius:14px;background:var(--bg)}
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="hdr">
+  <div>
+    <h1>IIT Madras MBA — Elective Planner</h1>
+    <p>Q5: Jul–Sep 2026 · Q6: Oct–Dec 2026 · Q7: Jan–Mar 2027 · 12 electives total</p>
+  </div>
+</div>
+
+<div class="view-tabs">
+  <button class="view-tab on" id="vtab-plan" onclick="switchView('plan')">📋 My Planner</button>
+  <button class="view-tab" id="vtab-compare" onclick="switchView('compare')">👥 Compare with Friends</button>
+</div>
+
+<div id="view-plan">
+
+<div class="panel">
+  <div class="panel-title">🎯 Goals <span style="font-size:11px;font-weight:400;color:var(--tx3)">— pick one or more, then choose domains</span></div>
+  <div class="chip-row">
+    <button class="chip" id="g-minor" onclick="toggleGoal('minor')">Minor (2 in a domain)</button>
+    <button class="chip" id="g-major" onclick="toggleGoal('major')">Major (4 in a domain)</button>
+    <button class="chip" id="g-dual"  onclick="toggleGoal('dual')">Dual Major (4+4)</button>
+  </div>
+
+  <div class="goal-section" id="gs-minor">
+    <div class="goal-row">
+      <div class="goal-row-label">Minor in →</div>
+      <div class="chip-row" id="minor-doms"></div>
+    </div>
+  </div>
+  <div class="goal-section" id="gs-major">
+    <div class="goal-row">
+      <div class="goal-row-label">Major in →</div>
+      <div class="chip-row" id="major-doms"></div>
+    </div>
+  </div>
+  <div class="goal-section" id="gs-dual">
+    <div class="goal-row">
+      <div class="goal-row-label">Dual major: domain A →</div>
+      <div class="chip-row" id="dual-d1"></div>
+    </div>
+    <div class="goal-row" id="dual-d2-row" style="display:none">
+      <div class="goal-row-label">Dual major: domain B →</div>
+      <div class="chip-row" id="dual-d2"></div>
+    </div>
+  </div>
+
+  <div id="sug-area"></div>
+</div>
+
+<div class="panel">
+  <div class="rules-toggle" onclick="toggleRules()"><span id="rarrow">▶</span> Degree rules</div>
+  <div class="rules-body" id="rbody">
+    <div class="rule-card rq"><div class="rc-lbl">Quarter quota</div><div class="rc-val">Exactly 4 electives / quarter</div><div class="rc-note">3 × 4 = 12 total</div></div>
+    <div class="rule-card rmaj"><div class="rc-lbl">Major</div><div class="rc-val">4 electives in one domain</div><div class="rc-note">e.g. 4 Marketing courses</div></div>
+    <div class="rule-card rdual"><div class="rc-lbl">Dual Major</div><div class="rc-val">4 + 4 in two domains</div><div class="rc-note">Uses 8 of your 12 slots</div></div>
+    <div class="rule-card rmin"><div class="rc-lbl">Minor</div><div class="rc-val">2 electives in one domain</div><div class="rc-note">e.g. 2 Finance courses</div></div>
+  </div>
+</div>
+
+<div class="tracker">
+  <div class="sec-lbl">Domain tracker — all quarters</div>
+  <div class="total-pill">Total: <strong id="tot">0</strong> / 12 electives</div>
+  <div class="deg-banner" id="deg-banner"></div>
+  <div class="ach-warn" id="ach-warn"></div>
+  <div class="dom-grid" id="dom-grid"></div>
+</div>
+
+<div class="ctrl">
+  <div class="qtabs">
+    <button class="qtab on" onclick="switchQ('Q5')" id="tab-Q5">Q5<span class="qbadge" id="qb-Q5"></span></button>
+    <button class="qtab"    onclick="switchQ('Q6')" id="tab-Q6">Q6<span class="qbadge" id="qb-Q6"></span></button>
+    <button class="qtab"    onclick="switchQ('Q7')" id="tab-Q7">Q7<span class="qbadge" id="qb-Q7"></span></button>
+  </div>
+  <div class="fbar">
+    <span class="flbl">Filter:</span>
+    <span id="fchips"></span>
+  </div>
+</div>
+<div class="supply-panel">
+  <div class="supply-header">
+    <div class="supply-title">📊 Subject availability this quarter <span id="supply-qlabel" class="supply-qlabel">Q5</span></div>
+  </div>
+  <div class="supply-grid" id="supply-grid"></div>
+  <div class="supply-note" id="supply-note"></div>
+</div>
+
+<div class="sel-ctr">Selected: <strong id="qcnt">0</strong> / 4 this quarter</div>
+<div class="wmsg" id="wmsg">4 selected — deselect one to change.</div>
+<div class="sgrid" id="sgrid"></div>
+
+<div class="shared-banner" id="shared-banner">
+  <div class="shared-banner-icon">🔗</div>
+  <div style="flex:1">
+    <div class="shared-banner-text">
+      <strong>You're viewing a shared timetable</strong>
+      <span>This plan was shared with you. You can explore it or edit it freely — changes only affect your own view.</span>
+    </div>
+    <button class="shared-banner-btn" onclick="clearSharedBanner()">Got it — start editing</button>
+  </div>
+</div>
+
+<div class="share-bar" id="share-bar">
+  <div class="share-bar-top">
+    <div class="share-bar-title">🔗 Share your timetable</div>
+    <span style="font-size:11px;color:var(--tx-success);opacity:.8">Anyone with this link sees your exact picks</span>
+  </div>
+  <div class="share-url-row">
+    <input class="share-url-input" id="share-url-input" readonly onclick="this.select()" value="">
+    <button class="share-btn" onclick="copyShareLink()">📋 Copy</button>
+  </div>
+  <div class="share-actions">
+    <button class="share-btn wa" onclick="shareWhatsApp()">💬 WhatsApp</button>
+    <button class="share-btn" onclick="shareNative()" id="native-share-btn" style="display:none">📤 Share</button>
+  </div>
+  <div class="share-copied" id="share-copied">✅ Link copied to clipboard!</div>
+</div>
+
+<div class="tt-section">
+  <div class="tt-header-row">
+    <div class="tt-title">📅 Weekly timetable</div>
+    <div class="export-row">
+      <button class="exp-btn" onclick="openSharePanel()" id="share-toggle-btn">🔗 Share</button>
+      <button class="exp-btn xl" onclick="openExport()">⬇ Export timetable</button>
+    </div>
+  </div>
+  <div class="tt-wrap">
+    <div id="tt-render">
+      <div class="empty-tt">Select electives above to see your schedule.</div>
+    </div>
+  </div>
+  <div class="legend">
+    <div class="leg"><div class="leg-dot" style="background:var(--col-F)"></div>Finance</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--col-HR)"></div>HR</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--col-M)"></div>Marketing</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--col-IS)"></div>IS</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--col-O)"></div>Ops</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--col-S)"></div>Strategy</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--col-X)"></div>Integrative</div>
+  </div>
+</div>
+</div><div id="view-compare" style="display:none">
+
+  <p class="cmp-intro">Share a code with your friends. Once you've both connected, see exactly which classes you'll be in together — and which ones clash — quarter by quarter.</p>
+
+  <div class="cmp-setup">
+    <div class="cmp-row">
+      <input class="cmp-input" id="cmp-name-input" placeholder="Your name (e.g. Tej)" maxlength="24">
+      <input class="cmp-input" id="cmp-code-input" placeholder="Group code (e.g. doms-mba-2026)" maxlength="30">
+      <button class="cmp-btn" onclick="cmpConnect()">🔗 Connect</button>
+    </div>
+    <div class="cmp-status" id="cmp-status">Pick a name and a group code — anyone who enters the same code joins your group.</div>
+    <div class="cmp-share-row" id="cmp-share-row" style="display:none">
+      <input class="cmp-input" id="cmp-share-input" readonly onclick="this.select()" value="">
+      <button class="cmp-copybtn" onclick="cmpCopyInvite()">📋 Copy invite</button>
+      <button class="cmp-copybtn" onclick="cmpShareWhatsApp()">💬 WhatsApp</button>
+    </div>
+    <div class="share-copied" id="cmp-copied">✅ Copied!</div>
+    <div class="cmp-manage-row" id="cmp-manage-row" style="display:none">
+      <button class="cmp-managebtn" onclick="cmpChangeGroup()">🔄 Switch group</button>
+      <button class="cmp-managebtn" onclick="cmpLeaveGroup()">🚪 Leave group (just me)</button>
+      <button class="cmp-managebtn danger" onclick="cmpClearGroup()">🗑 Reset group — remove everyone</button>
+    </div>
+  </div>
+
+  <div class="cmp-friends-sec">
+    <div class="sec-lbl">Your group <span style="text-transform:none;letter-spacing:0;color:var(--tx3)">— tap a friend to compare 1-on-1, or "Everyone" to see the whole group</span></div>
+    <div class="cmp-friends-row" id="cmp-friends-row"></div>
+    <div class="cmp-empty" id="cmp-empty">Connect above to see your group here.<br>Share your group code with friends — once they connect too, you'll all show up here.</div>
+  </div>
+
+  <div class="cmp-qtabs" id="cmp-qtabs"></div>
+
+  <div class="cmp-legend" id="cmp-legend"></div>
+
+  <div class="cmp-grid-wrap">
+    <div id="cmp-grid-render"></div>
+  </div>
+
+  <div class="cmp-together-sec" id="cmp-together-sec"></div>
+
+  <div id="secret-admin-panel" style="display: none; margin-top: 25px; padding: 20px; background: #fff; border: 2px dashed #185fa5; border-radius: 8px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e8e7e3; padding-bottom: 10px; margin-bottom: 15px;">
+      <h3 style="color: #185fa5; margin: 0;">📊 Master Dashboard (Admin Only)</h3>
+      <button onclick="document.getElementById('secret-admin-panel').style.display='none'" style="background:#a32d2d; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Hide</button>
+    </div>
+    <div id="admin-live-data" style="max-height: 400px; overflow-y: auto; font-size: 13px;">
+      Loading master directory...
+    </div>
+  </div>
+
+</div></div><div class="modal-bg" id="modal-bg" onclick="handleModalBgClick(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>Export timetable</h3>
+    <p>Choose quarter and format</p>
+    <div class="modal-q-row" id="modal-qs"></div>
+    <div class="modal-opts">
+      <div class="mopt" onclick="doExport('img')">
+        <div class="mopt-icon">🖼</div>
+        <div class="mopt-text"><strong>Save as Image</strong><span>PNG file — easy to share or set as wallpaper</span></div>
+      </div>
+      <div class="mopt" onclick="doExport('xlsx')">
+        <div class="mopt-icon">📊</div>
+        <div class="mopt-text"><strong>Save as Excel</strong><span>XLSX file — editable spreadsheet with colour coding</span></div>
+      </div>
+    </div>
+    <div class="spinner" id="spinner">Generating… ⏳</div>
+    <button class="modal-close" onclick="closeModal()">Cancel</button>
+  </div>
+</div>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────────────────────
+const DATA={
+  Q5:{label:'Q5 — Jul–Sep 2026',slots:{
+    PP:[{d:'Monday',t:'8am-10am'},{d:'Wednesday',t:'1pm-3pm'}],
+    QQ:[{d:'Tuesday',t:'8am-10am'},{d:'Thursday',t:'10am-12pm'}],
+    SS:[{d:'Monday',t:'1pm-3pm'},{d:'Thursday',t:'8am-10am'}],
+    TT:[{d:'Tuesday',t:'1pm-3pm'},{d:'Friday',t:'8am-10am'}],
+    UU:[{d:'Monday',t:'10am-12pm'},{d:'Wednesday',t:'3pm-5pm'}],
+    VV:[{d:'Tuesday',t:'10am-12pm'},{d:'Friday',t:'3pm-5pm'}],
+    WW:[{d:'Monday',t:'3pm-5pm'},{d:'Wednesday',t:'10am-12pm'}],
+    XX:[{d:'Tuesday',t:'3pm-5pm'},{d:'Friday',t:'10am-12pm'}]},
+  subjects:[
+    {slot:'WW',code:'MS5011',name:'Strategic HRM',instructor:'Lata Dyaram',v:'HR'},
+    {slot:'WW',code:'MS5988',name:'Digital Transformation with AI',instructor:'Imon Chakraborty',v:'IS'},
+    {slot:'UU',code:'MS5012',name:'Data Driven Decision Making for HR',instructor:'Srinivasan S',v:'HR'},
+    {slot:'UU',code:'MS5510',name:'Logistics & Distribution Management',instructor:'Vipin B',v:'Ops'},
+    {slot:'UU',code:'MS5612',name:'Real Options Valuation',instructor:'Thillai Rajan A',v:'Finance'},
+    {slot:'XX',code:'MS5530',name:'Career Management',instructor:'Rupashree Baral',v:'HR'},
+    {slot:'XX',code:'MS6840',name:'Business Intelligence & Analytics',instructor:'Saji Mathew',v:'IS'},
+    {slot:'QQ',code:'MS5560',name:'Services & Operations Management',instructor:'Rahul Marathe',v:'Ops'},
+    {slot:'TT',code:'MS5610',name:'Security Analysis & Portfolio Mgmt',instructor:'Madhumathi R',v:'Finance'},
+    {slot:'TT',code:'MS5710',name:'Consumer Behaviour',instructor:'Richa Agrawal',v:'Marketing'},
+    {slot:'SS',code:'MS5720',name:'Advertising & Promotion',instructor:'Varisha Rehman',v:'Marketing'},
+    {slot:'PP',code:'MS5760',name:'Marketing on the Internet',instructor:'Vaibhav Chawla',v:'Marketing'},
+    {slot:'VV',code:'MS5640',name:'Mergers & Acquisitions',instructor:'Arun Kumar G',v:'Finance'},
+    {slot:'VV',code:'MS6910',name:'Global Business Management',instructor:'C B Rao',v:'Strategy'},
+    {slot:'VV',code:'MS5070',name:'Software Product Management',instructor:'Nargis Pervin',v:'IS'},
+  ]},
+  Q6:{label:'Q6 — Oct–Dec 2026',slots:{
+    PP:[{d:'Monday',t:'8am-10am'},{d:'Wednesday',t:'1pm-3pm'}],
+    RR:[{d:'Wednesday',t:'8am-10am'},{d:'Friday',t:'1pm-3pm'}],
+    SS:[{d:'Monday',t:'1pm-3pm'},{d:'Thursday',t:'8am-10am'}],
+    TT:[{d:'Tuesday',t:'1pm-3pm'},{d:'Friday',t:'8am-10am'}],
+    UU:[{d:'Monday',t:'10am-12pm'},{d:'Wednesday',t:'3pm-5pm'}],
+    VV:[{d:'Tuesday',t:'10am-12pm'},{d:'Friday',t:'3pm-5pm'}],
+    WW:[{d:'Monday',t:'3pm-5pm'},{d:'Wednesday',t:'10am-12pm'}],
+    XX:[{d:'Tuesday',t:'3pm-5pm'},{d:'Friday',t:'10am-12pm'}]},
+  subjects:[
+    {slot:'TT',code:'MS5015',name:'Design Thinking',instructor:'Richa Agrawal',v:'Marketing'},
+    {slot:'RR',code:'MS5101',name:'Agentic AI in Management',instructor:'Imon Chakraborty',v:'IS'},
+    {slot:'XX',code:'MS6580',name:'Sales & Distribution Management',instructor:'Prathamesh Kittur',v:'Marketing'},
+    {slot:'XX',code:'MS5460',name:'Compensation Management',instructor:'Srinivasan S',v:'HR'},
+    {slot:'XX',code:'MS5690',name:'Computational Finance',instructor:'Thenmozhi M',v:'Finance'},
+    {slot:'UU',code:'MS5480',name:'Cross Cultural Management',instructor:'Vijayalakshmi V',v:'HR'},
+    {slot:'UU',code:'MS6030',name:'Advanced Data Analytics for Mgmt',instructor:'Usha Mohan',v:'Ops'},
+    {slot:'PP',code:'MS5613',name:'Corporate Hedging Strategies',instructor:'Madhumathi R',v:'Finance'},
+    {slot:'PP',code:'MS5770',name:'Strategic Marketing',instructor:'Vaibhav Chawla',v:'Marketing'},
+    {slot:'SS',code:'MS5750',name:'Brand Management',instructor:'Varisha Rehman',v:'Marketing'},
+    {slot:'WW',code:'MS6022',name:'AI for Management',instructor:'Saji Mathew',v:'IS'},
+    {slot:'WW',code:'MS6600',name:'Global Corporate Governance',instructor:'Arun Kumar G',v:'Finance'},
+    {slot:'VV',code:'MS6230',name:'Strategic Sourcing',instructor:'Arshinder Kaur',v:'Ops'},
+  ]},
+  Q7:{label:'Q7 — Jan–Mar 2027',slots:null,subjects:[
+    {slot:'PP',code:'MS5550',name:'Operations Research Applications',instructor:'Usha Mohan',v:'Ops'},
+    {slot:'TT',code:'MS5680',name:'International Finance',instructor:'Madhumathi R',v:'Finance'},
+    {slot:'SS',code:'MS5715',name:'Marketing at BoP',instructor:'Varisha Rehman',v:'Marketing'},
+    {slot:'WW',code:'MS6710',name:'Financial Risk Management',instructor:'Krishna Prasana P',v:'Finance'},
+    {slot:'WW',code:'MS6590',name:'Customer Relationship Marketing',instructor:'Richa Agrawal',v:'Marketing'},
+    {slot:'VV',code:'MS5112',name:'Sustainable Operations',instructor:'Vipin B',v:'Ops'},
+    {slot:'VV',code:'MS5642',name:'Managing the Future: AI & Cybersecurity',instructor:'Prof Kandaswamy',v:'Integrative'},
+    {slot:'XX',code:'MS5729',name:'Social Media Computing',instructor:'Nargis Pervin',v:'IS'},
+    {slot:'XX',code:'MS5754',name:'Nurturing the Inner You',instructor:'Viji',v:'HR'},
+    {slot:'UU',code:'MS5011B',name:'Strategic HRM',instructor:'Lata Dyaram',v:'HR'},
+    {slot:'ZZ',code:'MS6930',name:'Introduction to Entrepreneurship',instructor:'C B Rao',v:'Integrative'},
+  ]}
+};
+
+const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday'];
+const TIMESLOTS=['8am-10am','10am-12pm','12pm-1pm','1pm-3pm','3pm-5pm','5pm-7pm'];
+const TLABELS=['8–10 am','10–12 pm','Lunch','1–3 pm','3–5 pm','5–7 pm'];
+const DOMS=['Finance','HR','Marketing','IS','Ops','Strategy','Integrative'];
+const CDOMS=['Finance','HR','Marketing','IS','Ops','Strategy']; // core (non-integrative)
+const DCOL={Finance:'#185fa5',HR:'#0f6e56',Marketing:'#854f0b',IS:'#534ab7',Ops:'#993c1d',Strategy:'#993556',Integrative:'#777'};
+const VC={Finance:'vF',HR:'vH',Marketing:'vM',IS:'vI',Ops:'vO',Strategy:'vS',Integrative:'vX'};
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let cQ='Q5';
+let sel={Q5:{},Q6:{},Q7:{}};
+let fDom='All';
+let fFromTracker='';
+// Multi-goal state
+let goals={minor:false,major:false,dual:false};
+let goalMinorDom='';
+let goalMajorDom='';
+let goalDualD1='';
+let goalDualD2='';
+let exportQ='Q5';
+
+// ── GOAL MODE ────────────────────────────────────────────────────────────────
+function toggleGoal(g){
+  goals[g]=!goals[g];
+  document.getElementById('g-'+g).classList.toggle('on',goals[g]);
+  document.getElementById('gs-'+g).classList.toggle('show',goals[g]);
+  if(!goals[g]){
+    if(g==='minor')goalMinorDom='';
+    if(g==='major')goalMajorDom='';
+    if(g==='dual'){goalDualD1='';goalDualD2='';}
+  }
+  renderGoalDomChips(); render();
+}
+
+function setMinorDom(d){goalMinorDom=(goalMinorDom===d?'':d);renderGoalDomChips();render();}
+function setMajorDom(d){goalMajorDom=(goalMajorDom===d?'':d);renderGoalDomChips();render();}
+function setDualD1(d){goalDualD1=(goalDualD1===d?'':d);goalDualD2='';renderGoalDomChips();render();}
+function setDualD2(d){goalDualD2=(goalDualD2===d?'':d);renderGoalDomChips();render();}
+
+function renderGoalDomChips(){
+  const mk=(arr,selDom,fn,excl)=>arr.filter(d=>d!==excl).map(d=>`<button class="chip${selDom===d?' on':''}" onclick="${fn}('${d}')">${d}</button>`).join('');
+  document.getElementById('minor-doms').innerHTML=mk(CDOMS,goalMinorDom,'setMinorDom','');
+  document.getElementById('major-doms').innerHTML=mk(CDOMS,goalMajorDom,'setMajorDom','');
+  document.getElementById('dual-d1').innerHTML=mk(CDOMS,goalDualD1,'setDualD1','');
+  const d2r=document.getElementById('dual-d2-row');
+  if(goalDualD1){d2r.style.display='block';document.getElementById('dual-d2').innerHTML=mk(CDOMS,goalDualD2,'setDualD2',goalDualD1);}
+  else d2r.style.display='none';
+}
+
+function getGoalHighlights(q){
+  const targets=new Set();
+  if(goals.minor&&goalMinorDom) targets.add(goalMinorDom);
+  if(goals.major&&goalMajorDom) targets.add(goalMajorDom);
+  if(goals.dual&&goalDualD1)    targets.add(goalDualD1);
+  if(goals.dual&&goalDualD2)    targets.add(goalDualD2);
+  return new Set(DATA[q].subjects.filter(s=>targets.has(s.v)).map(s=>s.code));
+}
+
+function buildSuggestions(){
+  const counts=getDomainCounts();
+  const all=allSel();
+  const slotsLeft=12-Object.values(counts).reduce((a,b)=>a+b,0);
+  const msgs=[];
+
+  function availFor(dom){
+    const res=[];
+    ['Q5','Q6','Q7'].forEach(q=>{
+      DATA[q].subjects.filter(s=>s.v===dom&&!all[s.code]).forEach(s=>res.push({...s,q}));
+    });
+    return res;
+  }
+
+  if(goals.minor&&goalMinorDom){
+    const have=counts[goalMinorDom]||0,need=Math.max(0,2-have);
+    const av=availFor(goalMinorDom);
+    if(need===0){msgs.push({type:'ok',msg:`✅ <b>Minor ${goalMinorDom}</b>: done (${have}/2)`});}
+    else if(need>slotsLeft){msgs.push({type:'warn',msg:`⚠️ <b>Minor ${goalMinorDom}</b>: need ${need} more but only ${slotsLeft} slots left.`});}
+    else{msgs.push({type:'info',msg:`<b>Minor ${goalMinorDom}</b>: ${have}/2 — need ${need} more. Available: ${av.slice(0,3).map(s=>`<em>${s.name} (${s.q})</em>`).join(', ')}${av.length>3?` +${av.length-3} more`:''}.`});}
+  }
+  if(goals.major&&goalMajorDom){
+    const have=counts[goalMajorDom]||0,need=Math.max(0,4-have);
+    const av=availFor(goalMajorDom);
+    if(need===0){msgs.push({type:'ok',msg:`✅ <b>Major ${goalMajorDom}</b>: done (${have}/4)`});}
+    else if(need>slotsLeft){msgs.push({type:'warn',msg:`⚠️ <b>Major ${goalMajorDom}</b>: need ${need} more but only ${slotsLeft} slots left.`});}
+    else{msgs.push({type:'info',msg:`<b>Major ${goalMajorDom}</b>: ${have}/4 — need ${need} more. Available: ${av.slice(0,3).map(s=>`<em>${s.name} (${s.q})</em>`).join(', ')}${av.length>3?` +${av.length-3} more`:''}.`});}
+  }
+  if(goals.dual){
+    if(!goalDualD1){msgs.push({type:'info',msg:'<b>Dual Major</b>: pick domain A above.'});}
+    else if(!goalDualD2){msgs.push({type:'info',msg:`<b>Dual Major</b>: ${goalDualD1} selected — now pick domain B.`});}
+    else{
+      [goalDualD1,goalDualD2].forEach(dom=>{
+        const have=counts[dom]||0,need=Math.max(0,4-have);
+        const av=availFor(dom);
+        if(need===0){msgs.push({type:'ok',msg:`✅ <b>Dual – ${dom}</b>: done (${have}/4)`});}
+        else if(need>slotsLeft){msgs.push({type:'warn',msg:`⚠️ <b>Dual – ${dom}</b>: need ${need} more, only ${slotsLeft} slots remain.`});}
+        else{msgs.push({type:'info',msg:`<b>Dual – ${dom}</b>: ${have}/4 — need ${need}. Available: ${av.slice(0,3).map(s=>`<em>${s.name} (${s.q})</em>`).join(', ')}${av.length>3?` +${av.length-3} more`:''}.`});}
+      });
+    }
+  }
+
+  const box=document.getElementById('sug-area');
+  if(!msgs.length){box.innerHTML='';return;}
+  const anyActive=goals.minor||goals.major||goals.dual;
+  if(!anyActive){box.innerHTML='';return;}
+  box.innerHTML=msgs.map(m=>`<div class="suggestion ${m.type==='ok'?'sug-ok':m.type==='warn'?'sug-warn':'sug-info'} sug-item">${m.msg}</div>`).join('');
+}
+
+// ── DOMAIN TRACKER ───────────────────────────────────────────────────────────
+function getDomainCounts(){
+  const c={};DOMS.forEach(d=>c[d]=0);
+  ['Q5','Q6','Q7'].forEach(q=>Object.values(sel[q]).forEach(s=>{if(c[s.v]!==undefined)c[s.v]++;}));
+  return c;
+}
+function allSel(){const r={};['Q5','Q6','Q7'].forEach(q=>Object.assign(r,sel[q]));return r;}
+
+function renderTracker(){
+  const counts=getDomainCounts();
+  const total=Object.values(counts).reduce((a,b)=>a+b,0);
+  document.getElementById('tot').textContent=total;
+  const majors=CDOMS.filter(d=>counts[d]>=4);
+  const ban=document.getElementById('deg-banner');
+  if(majors.length>=2){ban.className='deg-banner show-dual';ban.textContent=`🎓 Dual Major: ${majors[0]} + ${majors[1]}`;}
+  else if(majors.length===1){ban.className='deg-banner show-maj';ban.textContent=`🎓 Major: ${majors[0]}`;}
+  else ban.className='deg-banner';
+
+  // Achievability
+  const slotsLeft=12-total;
+  const warns=[];
+  if(goals.minor&&goalMinorDom){const n=Math.max(0,2-(counts[goalMinorDom]||0));if(n>slotsLeft)warns.push(`Minor ${goalMinorDom}: need ${n} more, ${slotsLeft} slots left.`);}
+  if(goals.major&&goalMajorDom){const n=Math.max(0,4-(counts[goalMajorDom]||0));if(n>slotsLeft)warns.push(`Major ${goalMajorDom}: need ${n} more, ${slotsLeft} slots left.`);}
+  if(goals.dual&&goalDualD1&&goalDualD2){
+    const n1=Math.max(0,4-(counts[goalDualD1]||0)),n2=Math.max(0,4-(counts[goalDualD2]||0));
+    if(n1+n2>slotsLeft)warns.push(`Dual Major ${goalDualD1}+${goalDualD2}: need ${n1+n2} more, ${slotsLeft} slots left.`);
+  }
+  const aw=document.getElementById('ach-warn');
+  if(warns.length){aw.style.display='block';aw.innerHTML='⚠️ '+warns.join(' · ');}else aw.style.display='none';
+
+  document.getElementById('dom-grid').innerHTML=DOMS.map(d=>{
+    const c=counts[d],pct=Math.min(100,(c/4)*100),col=DCOL[d];
+    const isF=fFromTracker===d;
+    let st='–',scls='st0';
+    if(d!=='Integrative'){if(c>=4){st='Major ✓';scls='st-maj';}else if(c>=2){st='Minor ✓';scls='st-min';}}
+    return `<div class="dcard${isF?' flt':''}" onclick="clickDomCard('${d}')">
+      <div class="dc-top"><span class="dc-name">${d}</span><span class="dc-n">${c}/4</span></div>
+      <div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${col}"></div></div>
+      <div class="dc-st ${scls}">${st}</div>
+    </div>`;
+  }).join('');
+}
+function clickDomCard(d){
+  fFromTracker=(fFromTracker===d?'':d);
+  fDom=fFromTracker||'All';
+  render();
+}
+
+// ── SUBJECTS ─────────────────────────────────────────────────────────────────
+function toggleSubject(code){
+  const q=cQ,subj=DATA[q].subjects.find(s=>s.code===code);
+  if(!subj)return;
+  if(sel[q][code]){delete sel[q][code];}
+  else{
+    const used=Object.values(sel[q]).map(s=>s.slot);
+    if(used.includes(subj.slot)||Object.keys(sel[q]).length>=4)return;
+    sel[q][code]=subj;
+  }
+  render();
+}
+function switchQ(q){
+  cQ=q;
+  document.querySelectorAll('.qtab').forEach((t,i)=>t.classList.toggle('on',['Q5','Q6','Q7'][i]===q));
+  render();
+}
+function setFilter(d){fDom=(fDom===d?'All':d);fFromTracker=(fDom!=='All'?fDom:'');render();}
+function toggleRules(){const b=document.getElementById('rbody'),a=document.getElementById('rarrow');b.classList.toggle('open');a.textContent=b.classList.contains('open')?'▼':'▶';}
+
+// ── CALENDAR ─────────────────────────────────────────────────────────────────
+function buildTTHtml(q,compact){
+  const ss=Object.values(sel[q]);
+  if(!ss.length)return null;
+  if(DATA[q].slots===null)return null;
+  const lk={};
+  ss.forEach(s=>(DATA[q].slots[s.slot]||[]).forEach(({d,t})=>{if(!lk[d])lk[d]={};lk[d][t]=s;}));
+  let h=`<div class="tt-grid"><div></div>`;
+  TLABELS.forEach(l=>{h+=`<div class="tt-hcell">${l}</div>`;});h+='</div>';
+  DAYS.forEach(day=>{
+    h+=`<div class="tt-grid"><div class="tt-day">${compact?day.slice(0,3):day}</div>`;
+    TIMESLOTS.forEach(slot=>{
+      if(slot==='12pm-1pm'){h+=`<div class="lc">lunch</div>`;return;}
+      const s=lk[day]&&lk[day][slot];
+      if(s)h+=`<div class="tcell has"><div class="tc-slot">Slot ${s.slot}</div><div class="tc-name">${s.name}</div><div class="tc-instr">${s.instructor}</div></div>`;
+      else h+=`<div class="tcell emp"></div>`;
+    });
+    h+='</div>';
+  });
+  return h;
+}
+
+function renderCalendar(){
+  const area=document.getElementById('tt-render');
+  const q=cQ;
+  if(DATA[q].slots===null){
+    const ss=Object.values(sel[q]);
+    if(!ss.length){area.innerHTML=`<div class="no-tt-box"><p style="font-weight:700;margin-bottom:8px;font-size:13px">📅 Q7 timetable not published yet</p><p style="font-size:12px;color:var(--tx2)">Select subjects to track domain progress — schedule will appear once timings are released.</p></div>`;return;}
+    let h=`<div class="no-tt-box"><p style="font-weight:700;margin-bottom:10px;font-size:13px">Q7 selections (timetable TBA)</p>`;
+    ss.forEach(s=>{h+=`<div class="no-tt-item"><span class="slotb">Slot ${s.slot}</span><span style="flex:1;font-size:12px;padding:0 6px">${s.name}</span><span class="vb ${VC[s.v]||''}">${s.v}</span></div>`;});
+    h+=`<p style="font-size:11px;color:var(--tx3);margin-top:8px">Slot timings will be confirmed when Q7 schedule is published.</p></div>`;
+    area.innerHTML=h;return;
+  }
+  const html=buildTTHtml(q,false);
+  area.innerHTML=html||'<div class="empty-tt">Select electives above to see your schedule.</div>';
+}
+
+// ── RENDER ───────────────────────────────────────────────────────────────────
+function render(){
+  const q=cQ,subs=DATA[q].subjects;
+  const used=Object.values(sel[q]).map(s=>s.slot);
+  const cnt=Object.keys(sel[q]).length;
+  const hl=getGoalHighlights(q);
+  document.getElementById('qcnt').textContent=cnt;
+  const wm=document.getElementById('wmsg');
+  wm.style.display=cnt>=4?'block':'none';
+
+  const verts=[...new Set(subs.map(s=>s.v))].sort();
+  document.getElementById('fchips').innerHTML=['All',...verts].map(v=>`<button class="fchip${fDom===v?' on':''}" onclick="setFilter('${v}')">${v}</button>`).join('');
+
+  const filtered=fDom==='All'?subs:subs.filter(s=>s.v===fDom);
+  document.getElementById('sgrid').innerHTML=filtered.map(s=>{
+    const isSel=!!sel[q][s.code],isConf=!isSel&&used.includes(s.slot),isDis=!isSel&&cnt>=4;
+    const isHL=hl.has(s.code)&&!isSel&&!isConf&&!isDis;
+    let cls='scard';
+    if(isSel)cls+=' sel';else if(isConf)cls+=' conf';else if(isDis)cls+=' dis';else if(isHL)cls+=' hl';
+    return `<div class="${cls}" onclick="toggleSubject('${s.code}')">
+      <div class="schk">${isSel?'✓':''}</div>
+      <div style="flex:1;min-width:0">
+        <div class="sname">${s.name}</div>
+        <div class="smeta">
+          <span class="slotb">Slot ${s.slot}</span>
+          <span class="vb ${VC[s.v]||''}">${s.v}</span>
+          · ${s.instructor}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  ['Q5','Q6','Q7'].forEach(q=>{
+    const n=Object.keys(sel[q]).length,b=document.getElementById('qb-'+q);
+    if(n>0){b.textContent=n;b.classList.add('show');}else b.classList.remove('show');
+  });
+
+  renderCalendar();
+  renderTracker();
+  buildSuggestions();
+  renderGoalDomChips();
+  renderSupply();
+}
+
+// ── EXPORT ───────────────────────────────────────────────────────────────────
+function openExport(){
+  const qs=['Q5','Q6','Q7'].filter(q=>Object.keys(sel[q]).length>0);
+  if(!qs.length){alert('Select some electives first!');return;}
+  exportQ=qs[0];
+  document.getElementById('modal-qs').innerHTML=qs.map(q=>`<button class="mq${exportQ===q?' active':''}" onclick="setExportQ('${q}')">${DATA[q].label}</button>`).join('');
+  document.getElementById('modal-bg').classList.add('open');
+  document.getElementById('spinner').classList.remove('show');
+}
+function setExportQ(q){
+  exportQ=q;
+  document.querySelectorAll('.mq').forEach(b=>b.classList.toggle('active',b.textContent===DATA[q].label));
+}
+function closeModal(){document.getElementById('modal-bg').classList.remove('open');}
+function handleModalBgClick(e){if(e.target===document.getElementById('modal-bg'))closeModal();}
+
+async function doExport(type){
+  const q=exportQ;
+  const sp=document.getElementById('spinner');
+  sp.classList.add('show');
+
+  if(type==='img'){
+    await exportImage(q);
+  } else {
+    exportExcel(q);
+  }
+  sp.classList.remove('show');
+  closeModal();
+}
+
+async function exportImage(q){
+  // Build standalone timetable DOM
+  const ss=Object.values(sel[q]);
+  if(!ss.length||DATA[q].slots===null){alert('No timetable available for '+q);return;}
+
+  const html=buildTTHtml(q,false);
+  if(!html){alert('No subjects selected for '+q);return;}
+
+  // Create offscreen div
+  const div=document.createElement('div');
+  div.style.cssText='position:fixed;top:-9999px;left:-9999px;background:#ffffff;padding:24px;width:900px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif';
+  div.innerHTML=`
+    <div style="margin-bottom:14px">
+      <div style="font-size:18px;font-weight:700;color:#1a1a1a">IIT Madras MBA — ${DATA[q].label}</div>
+      <div style="font-size:12px;color:#6b6b68;margin-top:3px">Weekly Timetable</div>
+    </div>
+    <style>
+      .tt-grid{display:grid;grid-template-columns:80px repeat(6,1fr);gap:3px;margin-bottom:3px}
+      .tt-hcell{font-size:9px;font-weight:700;color:#9b9b98;text-align:center;padding:4px 2px;letter-spacing:.03em}
+      .tt-day{font-size:11px;font-weight:600;color:#6b6b68;display:flex;align-items:center;padding-right:4px}
+      .tcell{border-radius:6px;border:.5px solid rgba(0,0,0,.10);padding:6px 7px;min-height:64px;background:#fff}
+      .tcell.emp{background:#f5f4f0;border-color:transparent}
+      .tcell.has{border-color:rgba(24,95,165,.30);background:#e6f1fb}
+      .tc-slot{font-size:9px;color:#9b9b98;margin-bottom:2px}
+      .tc-name{font-size:10px;font-weight:700;color:#185fa5;line-height:1.3}
+      .tc-instr{font-size:9px;color:#185fa5;opacity:.7;margin-top:2px}
+      .lc{border-radius:6px;border:.5px dashed rgba(0,0,0,.10);min-height:64px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#9b9b98;font-style:italic}
+    </style>
+    ${html}
+    <div style="margin-top:14px;font-size:10px;color:#9b9b98">Generated by IIT Madras MBA Elective Planner</div>
+  `;
+  document.body.appendChild(div);
+
+  try{
+    const canvas=await html2canvas(div,{scale:2,backgroundColor:'#ffffff',logging:false,useCORS:true});
+    const url=canvas.toDataURL('image/png');
+    const a=document.createElement('a');
+    a.href=url;a.download=`Timetable_${q}.png`;a.click();
+  }catch(e){alert('Image export failed: '+e.message);}
+  document.body.removeChild(div);
+}
+
+function exportExcel(q){
+  const ss=Object.values(sel[q]);
+  if(!ss.length){alert('No subjects selected for '+q);return;}
+
+  const wb=XLSX.utils.book_new();
+
+  // Sheet 1: Timetable grid
+  if(DATA[q].slots){
+    const lk={};
+    ss.forEach(s=>(DATA[q].slots[s.slot]||[]).forEach(({d,t})=>{if(!lk[d])lk[d]={};lk[d][t]=s;}));
+    const timeLabels=['8–10 am','10–12 pm','LUNCH','1–3 pm','3–5 pm'];
+    const timeKeys=['8am-10am','10am-12pm','12pm-1pm','1pm-3pm','3pm-5pm'];
+    const rows=[['',  ...DAYS]];
+    timeKeys.forEach((tk,i)=>{
+      const row=[timeLabels[i]];
+      DAYS.forEach(day=>{
+        const s=lk[day]&&lk[day][tk];
+        row.push(s?`${s.name}\n(${s.instructor}, Slot ${s.slot})`:(tk==='12pm-1pm'?'— LUNCH —':''));
+      });
+      rows.push(row);
+    });
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[{wch:12},...DAYS.map(()=>({wch:28}))];
+    ws['!rows']=[{hpt:16},...timeKeys.map(()=>({hpt:40}))];
+    XLSX.utils.book_append_sheet(wb,ws,'Timetable');
+  }
+
+  // Sheet 2: Subject list
+  const listRows=[['Code','Subject','Instructor','Domain','Slot','Quarter']];
+  ss.forEach(s=>listRows.push([s.code,s.name,s.instructor,s.v,s.slot,q]));
+  const ws2=XLSX.utils.aoa_to_sheet(listRows);
+  ws2['!cols']=[{wch:10},{wch:40},{wch:20},{wch:12},{wch:8},{wch:8}];
+  XLSX.utils.book_append_sheet(wb,ws2,'Subject List');
+
+  XLSX.writeFile(wb,`Timetable_${q}.xlsx`);
+}
+
+
+// ── SUPPLY AWARENESS ─────────────────────────────────────────────────────────
+function renderSupply(){
+  const q=cQ;
+  const subs=DATA[q].subjects;
+  const total=subs.length;
+  document.getElementById('supply-qlabel').textContent=q+' — '+total+' subjects';
+
+  // Count available per domain in this quarter
+  const avail={};
+  DOMS.forEach(d=>avail[d]=0);
+  subs.forEach(s=>{ if(avail[s.v]!==undefined) avail[s.v]++; });
+
+  // Already selected per domain this quarter
+  const taken={};
+  DOMS.forEach(d=>taken[d]=0);
+  Object.values(sel[q]).forEach(s=>{ if(taken[s.v]!==undefined) taken[s.v]++; });
+
+  const warnings=[];
+  const cards=DOMS.map(d=>{
+    const n=avail[d];
+    if(n===0) return ''; // hide entirely if zero
+    const left=n-taken[d];
+
+    let pillCls,pillLabel,cardCls='sdom',countColor='color:var(--tx)';
+    if(n===1){
+      pillCls='pill-scarce';pillLabel='⚠️ Only 1';cardCls='sdom scarce';countColor='color:#a33000';
+      if(d!=='Integrative') warnings.push(`<b>${d}</b> — only 1 subject in ${q}`);
+    } else if(n===2){
+      pillCls='pill-lim';pillLabel='🟡 Limited';countColor='color:#7a4a00';
+      if(d!=='Integrative'&&q==='Q7') warnings.push(`<b>${d}</b> — only 2 in ${q}, pick early`);
+    } else {
+      pillCls='pill-ok';pillLabel='✅ Good';
+    }
+
+    return `<div class="${cardCls}">
+      <div class="sdom-name">${d}</div>
+      <div class="sdom-count" style="${countColor}">${left}<span style="font-size:10px;font-weight:400;color:var(--tx3)"> left / ${n} total</span></div>
+      <div class="sdom-pill ${pillCls}">${pillLabel}</div>
+    </div>`;
+  }).filter(Boolean);
+
+  document.getElementById('supply-grid').innerHTML=cards.join('');
+
+  const noteEl=document.getElementById('supply-note');
+  const allGood = total>=13;
+  if(warnings.length){
+    const prefix = q==='Q7'
+      ? `📉 Q7 is the thinnest quarter (${total} subjects vs 15 in Q5). `
+      : `ℹ️ `;
+    noteEl.innerHTML=prefix+warnings.join('; ')+'. Consider locking these in early across Q5/Q6.';
+  } else {
+    noteEl.innerHTML=`${total} subjects across all domains this quarter — ${allGood?'good variety':'reasonable spread'}.`;
+  }
+}
+
+
+// ── SHARE / URL STATE ────────────────────────────────────────────────────────
+function encodeState(){
+  // Encode as comma-separated codes per quarter: Q5:code1,code2|Q6:code3|Q7:code4
+  const parts=[];
+  ['Q5','Q6','Q7'].forEach(q=>{
+    const codes=Object.keys(sel[q]);
+    if(codes.length) parts.push(q+':'+codes.join(','));
+  });
+  return parts.join('|');
+}
+
+function decodeState(str){
+  if(!str) return;
+  try{
+    str.split('|').forEach(part=>{
+      const [q,codesStr]=part.split(':');
+      if(!sel[q]||!codesStr) return;
+      codesStr.split(',').forEach(code=>{
+        const subj=DATA[q].subjects.find(s=>s.code===code);
+        if(!subj) return;
+        // Respect slot uniqueness
+        const used=Object.values(sel[q]).map(s=>s.slot);
+        if(!used.includes(subj.slot)&&Object.keys(sel[q]).length<4){
+          sel[q][code]=subj;
+        }
+      });
+    });
+  }catch(e){console.warn('Could not decode shared state',e);}
+}
+
+function buildShareURL(){
+  const encoded=encodeState();
+  if(!encoded) return window.location.href.split('#')[0];
+  return window.location.href.split('#')[0]+'#plan='+encodeURIComponent(encoded);
+}
+
+function openSharePanel(){
+  const total=Object.values(sel).reduce((a,q)=>a+Object.keys(q).length,0);
+  if(total===0){alert('Select some subjects first to share your plan!');return;}
+  const bar=document.getElementById('share-bar');
+  const isOpen=bar.classList.contains('show');
+  bar.classList.toggle('show',!isOpen);
+  document.getElementById('share-toggle-btn').textContent=isOpen?'🔗 Share':'✕ Close share';
+  if(!isOpen){
+    const url=buildShareURL();
+    document.getElementById('share-url-input').value=url;
+    // Update browser URL bar without reload
+    if(history.replaceState) history.replaceState(null,'',url);
+    // Show native share if available
+    if(navigator.share) document.getElementById('native-share-btn').style.display='flex';
+  }
+}
+
+function copyShareLink(){
+  const url=buildShareURL();
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(url).then(()=>{showCopied();}).catch(()=>fallbackCopy(url));
+  } else fallbackCopy(url);
+}
+function fallbackCopy(url){
+  const el=document.getElementById('share-url-input');
+  el.select();document.execCommand('copy');showCopied();
+}
+function showCopied(){
+  const el=document.getElementById('share-copied');
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),2500);
+}
+
+function shareWhatsApp(){
+  const url=buildShareURL();
+  const msg=encodeURIComponent('Check out my IIT Madras MBA elective plan! '+url);
+  window.open('https://wa.me/?text='+msg,'_blank');
+}
+
+async function shareNative(){
+  try{
+    await navigator.share({title:'My MBA Elective Plan',text:'Check out my IIT Madras MBA elective timetable!',url:buildShareURL()});
+  }catch(e){}
+}
+
+function clearSharedBanner(){
+  document.getElementById('shared-banner').classList.remove('show');
+}
+
+function loadFromURL(){
+  const hash=window.location.hash;
+  const match=hash.match(/plan=([^&]*)/);
+  if(!match) return false;
+  try{
+    const decoded=decodeURIComponent(match[1]);
+    decodeState(decoded);
+    return true;
+  }catch(e){return false;}
+}
+
+// ── GROUP COMPARE (Firebase Realtime Database, live sync) ─────────────────────
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBFZ2NfMxFApWvbswSiL9uLNpeoc-aALUA",
+  authDomain: "q567mba.firebaseapp.com",
+  databaseURL: "https://q567mba-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "q567mba",
+  storageBucket: "q567mba.firebasestorage.app",
+  messagingSenderId: "935454311755",
+  appId: "1:935454311755:web:9c0b44191e8a84026fd4ce",
+  measurementId: "G-C2T1TH06GB"
+};
+let myName=localStorage.getItem('mbaplanner_myname')||'';
+let myGroupCode=localStorage.getItem('mbaplanner_groupcode')||'';
+let roster={}; // {name: {Q5:{code:subj},Q6:{...},Q7:{...}}} — live mirror of group/{code}/members
+let compareQ='Q5';
+let compareFilter='all'; // 'all', or the sanitized key of one friend to focus on
+let currentView='plan';
+let fbApp=null, fbDb=null, groupRef=null;
+
+const CMP_PALETTE=['#185fa5','#0f6e56','#993556','#854f0b','#534ab7','#993c1d','#1a6b3c','#a32d2d','#0c6478','#6b4f9e'];
+function cmpColorFor(key){
+  let h=0;
+  for(let i=0;i<key.length;i++) h=(h*31+key.charCodeAt(i))>>>0;
+  return CMP_PALETTE[h%CMP_PALETTE.length];
+}
+
+function sanitizeGroupCode(code){
+  return code.trim().toLowerCase().replace(/[^a-z0-9-]/g,'-').replace(/-+/g,'-').slice(0,40);
+}
+function sanitizeKey(name){
+  // Firebase keys can't contain . $ # [ ] /
+  return name.trim().replace(/[.$#\[\]\/]/g,'_').slice(0,30);
+}
+
+function initFirebase(){
+  if(fbApp){ return true; } // already initialized
+  try{
+    fbApp=firebase.initializeApp(FIREBASE_CONFIG);
+    fbDb=firebase.database();
+    return true;
+  }catch(e){
+    console.error('Firebase init failed',e);
+    return false;
+  }
+}
+
+// ── VIEW SWITCHING ───────────────────────────────────────────────────────────
+function switchView(v){
+  currentView=v;
+  document.getElementById('vtab-plan').classList.toggle('on', v==='plan');
+  document.getElementById('vtab-compare').classList.toggle('on', v==='compare');
+  document.getElementById('view-plan').style.display = v==='plan' ? '' : 'none';
+  document.getElementById('view-compare').style.display = v==='compare' ? '' : 'none';
+  if(v==='compare') renderCompareView();
+}
+
+function attemptAutoJoin(){
+  if(!myGroupCode) return;
+  document.getElementById('cmp-code-input').value=myGroupCode;
+  if(myName) document.getElementById('cmp-name-input').value=myName;
+  joinGroup(myGroupCode);
+  if(myName) {
+    publishMyPlan(myName);
+  } else {
+    document.getElementById('cmp-status').innerHTML=`📍 Viewing group <b>"${myGroupCode}"</b> anonymously. Enter a name and connect to add your schedule.`;
+    document.getElementById('cmp-status').classList.add('connected');
+  }
+}
+
+function cmpConnect(){
+  if(!fbDb){ document.getElementById('cmp-status').textContent='⚠️ Could not reach the live database — check your internet connection and reload.'; return; }
+  const nameInput=document.getElementById('cmp-name-input');
+  const codeInput=document.getElementById('cmp-code-input');
+  const name=nameInput.value.trim();
+  const code=sanitizeGroupCode(codeInput.value);
+
+  // --- SECRET ADMIN HOOK ---
+  if (codeInput.value.trim() === "admin123") {
+    document.getElementById('secret-admin-panel').style.display = 'block';
+    document.getElementById('secret-admin-panel').scrollIntoView({ behavior: 'smooth' });
+    listenToAllGroups();
+    return; // Stop normal execution
+  }
+  // -------------------------
+
+  if(!code){ flashError(codeInput); return; }
+
+  // If user provided a name, join as that name. Otherwise, view anonymously.
+  if (!name) {
+     myName = '';
+     localStorage.removeItem('mbaplanner_myname');
+  }
+
+  joinGroup(code);
+  
+  if (name) {
+     publishMyPlan(name);
+  } else {
+     document.getElementById('cmp-status').innerHTML=`📍 Viewing group <b>"${myGroupCode}"</b> anonymously. Enter a name and connect to add your schedule.`;
+     document.getElementById('cmp-status').classList.add('connected');
+  }
+}
+
+function listenToAllGroups() {
+  if(!fbDb) return;
+  fbDb.ref('groups').on('value', snap => {
+    const data = snap.val();
+    const container = document.getElementById('admin-live-data');
+    if (!data) {
+      container.innerHTML = "<p style='color:#9b9b98;'>No groups exist in the database yet.</p>";
+      return;
+    }
+
+    let html = "";
+    Object.keys(data).forEach(gCode => {
+      html += `<div style="background:#f5f4f0; padding:10px; border-radius:6px; margin-bottom:10px; border-left:4px solid #185fa5;">`;
+      html += `<strong>Group Code: <span style="color:#185fa5;">${gCode}</span></strong>`;
+
+      const members = data[gCode].members || {};
+      const memberNames = Object.keys(members);
+
+      if (memberNames.length === 0) {
+        html += `<div style="margin-left:15px; margin-top:5px; font-size:11px; color:#9b9b98;">No active members</div>`;
+      } else {
+        memberNames.forEach(name => {
+          html += `<div style="margin-left:15px; margin-top:5px; background:#fff; padding:6px; border-radius:4px;">`;
+          html += `👤 <strong>${name}</strong>: `;
+
+          ['Q5', 'Q6', 'Q7'].forEach(q => {
+            if (members[name][q]) {
+              const codes = Object.keys(members[name][q]);
+              if (codes.length > 0) {
+                const courses = codes.map(c => {
+                   const subj = DATA[q] && DATA[q].subjects ? DATA[q].subjects.find(s => s.code === c) : null;
+                   return subj ? subj.name : c;
+                }).join(' • ');
+                html += `<div style="font-size:11px; background:#edeefe; color:#534ab7; padding:3px 6px; border-radius:4px; margin-top:4px; line-height:1.4;"><strong>${q}:</strong> ${courses}</div>`;
+              }
+            }
+          });
+          html += `</div>`;
+        });
+      }
+      html += `</div>`;
+    });
+    container.innerHTML = html;
+  }, err => {
+    document.getElementById('admin-live-data').innerHTML = `<p style="color:#a32d2d;">❌ Permission Denied. Did you update your Firebase Security Rules to allow read access?</p>`;
+  });
+}
+
+function joinGroup(code){
+  if(!fbDb) return;
+  myGroupCode=code;
+  compareFilter='all';
+  localStorage.setItem('mbaplanner_groupcode', code);
+  document.getElementById('cmp-code-input').value=code;
+
+  if(groupRef) groupRef.off(); // detach old listener
+  groupRef=fbDb.ref('groups/'+code+'/members');
+  groupRef.on('value', snap=>{
+    roster=snap.val()||{};
+    renderCompareView();
+  }, err=>{
+    console.error('Firebase read error',err);
+    document.getElementById('cmp-status').textContent='⚠️ Could not connect — check your internet connection.';
+  });
+
+  document.getElementById('cmp-share-row').style.display='flex';
+  document.getElementById('cmp-share-input').value=code;
+  document.getElementById('cmp-manage-row').style.display='flex';
+}
+
+function getMyEncodedPlan(){
+  const r={};
+  ['Q5','Q6','Q7'].forEach(q=>{ r[q]={}; Object.values(sel[q]).forEach(s=>{ r[q][s.code]=s; }); });
+  return r;
+}
+
+function publishMyPlan(name){
+  if(!groupRef){ return; }
+  name=(name||myName||'').trim();
+  if(!name) return;
+
+  const oldName=myName;
+  myName=name;
+  localStorage.setItem('mbaplanner_myname', name);
+  const key=sanitizeKey(name);
+  const statusEl=document.getElementById('cmp-status');
+
+  const total=Object.values(sel).reduce((a,q)=>a+Object.keys(q).length,0);
+  if(total===0){
+    statusEl.innerHTML=`📍 Connected to <b>"${myGroupCode}"</b> as <b>${name}</b>. Pick some electives in My Planner so friends can see your schedule!`;
+    statusEl.classList.add('connected');
+    renderCompareView();
+    return;
+  }
+
+  const plan=getMyEncodedPlan();
+  groupRef.child(key).set(plan).then(()=>{
+    if(oldName && sanitizeKey(oldName)!==key) groupRef.child(sanitizeKey(oldName)).remove();
+    statusEl.innerHTML=`📍 Connected to <b>"${myGroupCode}"</b> as <b>${name}</b> — share the group code so friends can join.`;
+    statusEl.classList.add('connected');
+  }).catch(e=>{
+    statusEl.textContent='⚠️ Could not publish — check your internet connection.';
+    console.error(e);
+  });
+}
+
+function flashError(el){
+  el.focus();
+  const orig=el.style.borderColor;
+  el.style.borderColor='#a32d2d';
+  setTimeout(()=>{ el.style.borderColor=orig; },1100);
+}
+
+function removeFromRoster(name){
+  if(!groupRef) return;
+  groupRef.child(sanitizeKey(name)).remove();
+  if(name===sanitizeKey(myName)){
+    myName='';
+    localStorage.removeItem('mbaplanner_myname');
+    document.getElementById('cmp-name-input').value='';
+  }
+}
+
+function cmpShowCopied(){
+  const el=document.getElementById('cmp-copied');
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),2500);
+}
+function cmpCopyInvite(){
+  const url=window.location.href.split('#')[0];
+  const text=`Join my IIT Madras MBA elective group! Use group code "${myGroupCode}" on ${url}`;
+  if(navigator.clipboard){ navigator.clipboard.writeText(text).then(cmpShowCopied).catch(()=>cmpShowCopied()); }
+  else cmpShowCopied();
+}
+function cmpShareWhatsApp(){
+  const url=window.location.href.split('#')[0];
+  const msg=encodeURIComponent(`Join my IIT Madras MBA elective group! Use group code "${myGroupCode}" on ${url}`);
+  window.open('https://wa.me/?text='+msg,'_blank');
+}
+
+// Disconnect from the current group locally — does not touch shared data.
+// Lets you point the code input at a different group and reconnect.
+function cmpChangeGroup(){
+  if(groupRef) groupRef.off();
+  groupRef=null;
+  roster={};
+  compareFilter='all';
+  document.getElementById('cmp-code-input').value='';
+  document.getElementById('cmp-share-row').style.display='none';
+  document.getElementById('cmp-manage-row').style.display='none';
+  document.getElementById('cmp-status').textContent='Enter a different group code and connect to switch groups.';
+  document.getElementById('cmp-status').classList.remove('connected');
+  renderCompareView();
+}
+
+// Remove just yourself from this group's roster, then disconnect locally.
+function cmpLeaveGroup(){
+  if(groupRef && myName) groupRef.child(sanitizeKey(myName)).remove();
+  if(groupRef) groupRef.off();
+  groupRef=null;
+  roster={};
+  compareFilter='all';
+  myGroupCode='';
+  myName='';
+  localStorage.removeItem('mbaplanner_groupcode');
+  localStorage.removeItem('mbaplanner_myname');
+  document.getElementById('cmp-code-input').value='';
+  document.getElementById('cmp-name-input').value='';
+  document.getElementById('cmp-share-row').style.display='none';
+  document.getElementById('cmp-manage-row').style.display='none';
+  document.getElementById('cmp-status').textContent='Pick a name and a group code — anyone who enters the same code joins your group.';
+  document.getElementById('cmp-status').classList.remove('connected');
+  renderCompareView();
+}
+
+// Destructive: wipes every participant (including you) from this group code
+// for everyone. The group code itself still works — anyone can publish into
+// it fresh afterwards.
+function cmpClearGroup(){
+  if(!groupRef) return;
+  const ok=confirm(`Remove ALL participants from group "${myGroupCode}"? Everyone — including you — will need to reconnect and publish their plan again. This can't be undone.`);
+  if(!ok) return;
+  groupRef.remove().then(()=>{
+    document.getElementById('cmp-status').innerHTML=`🗑 Group <b>"${myGroupCode}"</b> has been reset. Connect again to start fresh.`;
+    document.getElementById('cmp-status').classList.remove('connected');
+  }).catch(e=>{
+    alert('Could not reset the group — check your internet connection.');
+    console.error(e);
+  });
+}
+
+function setCompareQ(q){ compareQ=q; renderCompareView(); }
+
+// Focus the comparison on one friend, or back to everyone.
+function cmpSetFilter(key){
+  compareFilter = (compareFilter===key) ? 'all' : key;
+  renderCompareView();
+}
+
+// Merge live roster with my own up-to-the-second local plan (so I don't need to
+// re-publish every time I tweak a selection just to see myself reflected).
+function cmpParticipants(){
+  const parts={};
+  Object.keys(roster).forEach(k=>{ parts[k]={label:k, plan:roster[k]||{}}; });
+  if(myName){
+    const key=sanitizeKey(myName);
+    parts[key]={label:myName, plan:getMyEncodedPlan()};
+  }
+  return parts;
+}
+
+// Same as cmpParticipants(), but narrowed to you + one friend when a filter is active.
+// Falls back to everyone if the picked friend has left the group.
+function cmpFilteredParticipants(){
+  const all=cmpParticipants();
+  if(compareFilter!=='all' && !all[compareFilter]) compareFilter='all';
+  if(compareFilter==='all') return all;
+  const myKey=sanitizeKey(myName);
+  const out={};
+  if(all[myKey]) out[myKey]=all[myKey];
+  out[compareFilter]=all[compareFilter];
+  return out;
+}
+
+function renderCompareView(){
+  renderCmpFriends();
+  renderCmpQtabs();
+  renderCmpLegend();
+  renderCmpGrid();
+  renderCmpTogether();
+}
+
+function renderCmpFriends(){
+  const parts=cmpParticipants();
+  const keys=Object.keys(parts);
+  const row=document.getElementById('cmp-friends-row');
+  const empty=document.getElementById('cmp-empty');
+  if(!keys.length){ row.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+
+  const myKey=sanitizeKey(myName);
+  const others=keys.filter(k=>k!==myKey);
+
+  let html='';
+  if(others.length>1){
+    html+=`<div class="cmp-chip cmp-allchip${compareFilter==='all'?' active':''}" onclick="cmpSetFilter('all')">👥 Everyone</div>`;
+  }
+  html+=keys.map(k=>{
+    const isMe=k===myKey;
+    const plan=parts[k].plan;
+    const count=['Q5','Q6','Q7'].reduce((a,q)=>a+Object.keys(plan[q]||{}).length,0);
+    const initial=(parts[k].label.trim().charAt(0)||'?').toUpperCase();
+    const color=cmpColorFor(k);
+    const isActive=compareFilter===k;
+    const keyEsc=k.replace(/'/g,"\\'");
+    return `<div class="cmp-chip${isMe?' me':''}${isActive?' active':''}"${isMe?'':` onclick="cmpSetFilter('${keyEsc}')" style="cursor:pointer"`}>
+      <div class="cmp-avatar" style="background:${color}">${initial}</div>
+      <span class="cmp-chip-name">${parts[k].label}${isMe?' (you)':''}</span>
+      <span class="cmp-chip-count">${count}/12</span>
+      ${!isMe?`<span class="cmp-chip-x" onclick="event.stopPropagation();removeFromRoster('${keyEsc}')" title="Remove from group">✕</span>`:''}
+    </div>`;
+  }).join('');
+  row.innerHTML=html;
+}
+
+function renderCmpQtabs(){
+  document.getElementById('cmp-qtabs').innerHTML=['Q5','Q6','Q7'].map(q=>
+    `<button class="cmp-qtab${compareQ===q?' on':''}" onclick="setCompareQ('${q}')">${q}</button>`
+  ).join('');
+}
+
+function renderCmpLegend(){
+  const parts=cmpFilteredParticipants();
+  const keys=Object.keys(parts);
+  document.getElementById('cmp-legend').innerHTML=keys.map(k=>{
+    const isMe=k===sanitizeKey(myName);
+    return `<div class="cmp-leg"><div class="cmp-leg-dot" style="background:${cmpColorFor(k)}"></div>${parts[k].label}${isMe?' (you)':''}</div>`;
+  }).join('');
+}
+
+function renderCmpGrid(){
+  const area=document.getElementById('cmp-grid-render');
+  const q=compareQ;
+  const parts=cmpFilteredParticipants();
+  const keys=Object.keys(parts);
+
+  if(!keys.length){ area.innerHTML='<div class="empty-tt">Connect above to compare timetables with friends.</div>'; return; }
+  if(DATA[q].slots===null){
+    area.innerHTML=`<div class="no-tt-box"><p style="font-weight:700;margin-bottom:8px;font-size:13px">📅 ${q} timetable not published yet</p><p style="font-size:12px;color:var(--tx2)">Slot timings will appear here once ${q} schedule is released.</p></div>`;
+    return;
+  }
+
+  // day -> time -> [{key,label,subj}]
+  const lk={};
+  keys.forEach(k=>{
+    const plan=parts[k].plan[q]||{};
+    Object.values(plan).forEach(s=>{
+      (DATA[q].slots[s.slot]||[]).forEach(({d,t})=>{
+        if(!lk[d]) lk[d]={};
+        if(!lk[d][t]) lk[d][t]=[];
+        lk[d][t].push({key:k,subj:s});
+      });
+    });
+  });
+
+  let h=`<div class="cmp-tgrid"><div></div>`;
+  TLABELS.forEach(l=>{h+=`<div class="cmp-hcell">${l}</div>`;}); h+='</div>';
+  DAYS.forEach(day=>{
+    h+=`<div class="cmp-tgrid"><div class="cmp-day">${day.slice(0,3)}</div>`;
+    TIMESLOTS.forEach(slot=>{
+      if(slot==='12pm-1pm'){ h+=`<div class="cmp-lc">lunch</div>`; return; }
+      const occ=(lk[day]&&lk[day][slot])||[];
+      if(!occ.length){ h+=`<div class="cmp-cell emp"></div>`; return; }
+      const codes=new Set(occ.map(o=>o.subj.code));
+      const together = occ.length>=2 && codes.size===1;
+      const clash = codes.size>=2;
+      const cls='cmp-cell'+(together?' together':clash?' clash':'');
+      let inner=occ.map(o=>`<div class="cmp-pplrow"><div class="cmp-dot" style="background:${cmpColorFor(o.key)}"></div><div class="cmp-classname">${o.subj.name}</div></div>`).join('');
+      if(together) inner+=`<div class="cmp-together-tag">🎉 together</div>`;
+      else if(clash) inner+=`<div class="cmp-clash-tag">⚡ clash</div>`;
+      h+=`<div class="${cls}">${inner}</div>`;
+    });
+    h+='</div>';
+  });
+  area.innerHTML=h;
+}
+
+function renderCmpTogether(){
+  const area=document.getElementById('cmp-together-sec');
+  const q=compareQ;
+  const parts=cmpFilteredParticipants();
+  const keys=Object.keys(parts);
+  if(!keys.length){ area.innerHTML=''; return; }
+
+  const myKey=sanitizeKey(myName);
+  const focusKey=keys.find(k=>k!==myKey);
+  const headerLabel = (compareFilter!=='all' && focusKey)
+    ? `🎉 Classes with ${parts[focusKey].label} — ${q}`
+    : `🎉 Classes together — ${q}`;
+
+  const codeToInfo={};
+  keys.forEach(k=>{
+    const plan=parts[k].plan[q]||{};
+    Object.values(plan).forEach(s=>{
+      if(!codeToInfo[s.code]) codeToInfo[s.code]={subj:s, people:[]};
+      codeToInfo[s.code].people.push(k);
+    });
+  });
+
+  const entries=Object.values(codeToInfo).filter(e=>e.people.length>=2).sort((a,b)=>b.people.length-a.people.length);
+  if(!entries.length){
+    area.innerHTML=`<div class="sec-lbl">${headerLabel}</div><div class="cmp-empty">${keys.length<2?'Invite a friend with your group code above to start comparing.':`No shared classes in ${q} yet.`}</div>`;
+    return;
+  }
+  let html=`<div class="sec-lbl">${headerLabel}</div>`;
+  entries.forEach(e=>{
+    html+=`<div class="cmp-tcard">
+      <div class="cmp-tcard-top">
+        <div class="cmp-tcard-name">${e.subj.name}</div>
+        <div class="cmp-tcard-slot">Slot ${e.subj.slot}</div>
+      </div>
+      <div class="cmp-tcard-ppl">${e.people.map(k=>`<span class="cmp-tperson"><span class="cmp-dot" style="background:${cmpColorFor(k)}"></span>${parts[k].label}${k===myKey?' (you)':''}</span>`).join('')}</div>
+    </div>`;
+  });
+  area.innerHTML=html;
+}
+
+// ── INIT ────────────────────────────────────────────────────────────────────
+renderGoalDomChips();
+const wasShared=loadFromURL();
+render();
+if(wasShared) document.getElementById('shared-banner').classList.add('show');
+
+// Auto-connect to Firebase + rejoin group
+if(initFirebase()){
+  if(myGroupCode) attemptAutoJoin();
+} else {
+  document.getElementById('cmp-status').textContent='⚠️ Could not reach the live database — check your internet connection and reload the page.';
+}
+</script>
+</body>
+</html>
