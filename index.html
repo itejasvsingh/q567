@@ -1599,25 +1599,22 @@ const wasShared=loadFromURL();
 render();
 if(wasShared) document.getElementById('shared-banner').classList.add('show');
 
-// Firebase init only — no auto-join. The compare-with-friends section always
-// starts fully reset on load; your group code/name/roster remain saved in
-// localStorage and Firebase in the background, and are prefilled into the
-// fields below as a convenience, but you must press Connect to rejoin and
-// pull the live roster.
+// Firebase init only — no auto-join, no prefill. The compare-with-friends
+// section always looks completely untouched on load (blank inputs, default
+// status text). Your group code/name/roster stay saved in localStorage and
+// Firebase purely in the background — press Connect to pull them back.
 roster={};
 compareFilter='all';
 document.getElementById('cmp-share-row').style.display='none';
 document.getElementById('cmp-manage-row').style.display='none';
 document.getElementById('cmp-status').classList.remove('connected');
-if(initFirebase()){
-  if(myGroupCode) document.getElementById('cmp-code-input').value=myGroupCode;
-  if(myName) document.getElementById('cmp-name-input').value=myName;
-  if(myGroupCode){
-    document.getElementById('cmp-status').textContent=`You were previously connected to "${myGroupCode}". Press Connect to rejoin and see the latest.`;
-  }
-} else {
+document.getElementById('cmp-code-input').value='';
+document.getElementById('cmp-name-input').value='';
+document.getElementById('cmp-status').textContent='Pick a name and a group code — anyone who enters the same code joins your group.';
+if(!initFirebase()){
   document.getElementById('cmp-status').textContent='⚠️ Could not reach the live database — check your internet connection and reload the page.';
 }
+
 </script>
 </body>
 </html>
