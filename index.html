@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -249,81 +250,12 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 }
 .supply-note{font-size:11px;color:var(--tx3);margin-top:8px;line-height:1.5}
 .supply-note span{font-weight:600;color:var(--tx-danger)}
-
-/* ── VIEW TABS ── */
-.view-tabs{display:flex;gap:6px;margin-bottom:1.25rem;border-bottom:.5px solid var(--bd);padding-bottom:0}
-.view-tab{padding:10px 16px;border:none;background:transparent;color:var(--tx2);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent;border-bottom:2px solid transparent;margin-bottom:-1px;display:flex;align-items:center;gap:6px}
-.view-tab.on{color:var(--tx-info);border-bottom-color:#185fa5}
-
-/* ── COMPARE VIEW ── */
-.cmp-intro{font-size:12px;color:var(--tx2);margin-bottom:1rem;line-height:1.6}
-.cmp-setup{background:var(--bg2);border:.5px solid var(--bd);border-radius:var(--rl);padding:1rem 1.1rem;margin-bottom:1.25rem}
-.cmp-row{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px}
-.cmp-row:last-child{margin-bottom:0}
-.cmp-input{flex:1;min-width:140px;padding:10px 12px;border-radius:var(--r);border:.5px solid var(--bd2);background:var(--bg);color:var(--tx);font-size:13px;font-family:var(--font);outline:none}
-.cmp-input:focus{border-color:var(--bd-info)}
-.cmp-btn{padding:10px 16px;border-radius:var(--r);border:.5px solid var(--bd-info);background:var(--bg-info);color:var(--tx-info);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap;-webkit-tap-highlight-color:transparent}
-.cmp-btn:active{opacity:.7}
-.cmp-status{font-size:11px;color:var(--tx3);line-height:1.5}
-.cmp-status.connected{color:var(--tx-success)}
-.cmp-share-row{display:flex;gap:7px;align-items:stretch;margin-top:8px}
-.cmp-share-row .cmp-input{font-size:11px}
-.cmp-copybtn{padding:8px 13px;border-radius:var(--r);border:.5px solid var(--bd-success);background:var(--bg-success);color:var(--tx-success);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap;-webkit-tap-highlight-color:transparent}
-.cmp-manage-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:.5px solid var(--bd)}
-.cmp-managebtn{padding:7px 12px;border-radius:var(--r);border:.5px solid var(--bd2);background:var(--bg);color:var(--tx2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);white-space:nowrap;-webkit-tap-highlight-color:transparent}
-.cmp-managebtn:hover{background:var(--bg3)}
-.cmp-managebtn.danger{border-color:var(--bd-danger);background:var(--bg-danger);color:var(--tx-danger)}
-
-.cmp-friends-sec{margin-bottom:1.25rem}
-.cmp-friends-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
-.cmp-chip{display:flex;align-items:center;gap:7px;padding:6px 10px 6px 8px;border-radius:20px;border:.5px solid var(--bd);background:var(--bg)}
-.cmp-avatar{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
-.cmp-chip-name{font-size:12px;font-weight:600;color:var(--tx)}
-.cmp-chip-count{font-size:10px;color:var(--tx3)}
-.cmp-chip.me{border-color:var(--bd-info);background:var(--bg-info)}
-.cmp-chip.active{border-color:var(--bd-success);background:var(--bg-success);box-shadow:0 0 0 1px var(--bd-success) inset}
-.cmp-allchip{font-size:12px;font-weight:700;color:var(--tx2)}
-.cmp-allchip.active{border-color:var(--bd-info);background:var(--bg-info);color:var(--tx-info);box-shadow:0 0 0 1px var(--bd-info) inset}
-.cmp-chip-x{cursor:pointer;color:var(--tx3);font-weight:700;font-size:13px;padding:0 2px;-webkit-tap-highlight-color:transparent}
-.cmp-chip-x:hover{color:var(--tx-danger)}
-.cmp-empty{text-align:center;padding:1.75rem 1rem;color:var(--tx3);font-size:12px;border:.5px dashed var(--bd);border-radius:var(--rl);line-height:1.6}
-
-.cmp-qtabs{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap}
-.cmp-qtab{padding:8px 16px;border-radius:var(--r);border:.5px solid var(--bd2);background:transparent;color:var(--tx2);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent;min-height:40px;display:flex;align-items:center}
-.cmp-qtab.on{background:var(--bg-info);color:var(--tx-info);border-color:var(--bd-info)}
-
-.cmp-legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:1rem}
-.cmp-leg{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx2);font-weight:600}
-.cmp-leg-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
-
-.cmp-grid-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:1.25rem}
-#cmp-grid-render{min-width:640px}
-.cmp-tgrid{display:grid;grid-template-columns:76px repeat(6,1fr);gap:3px;margin-bottom:3px}
-.cmp-hcell{font-size:9px;font-weight:700;color:var(--tx3);text-align:center;padding:4px 2px;letter-spacing:.03em}
-.cmp-day{font-size:11px;font-weight:600;color:var(--tx2);display:flex;align-items:center;padding-right:4px}
-.cmp-cell{border-radius:6px;border:.5px solid var(--bd);padding:5px 6px;min-height:64px;background:var(--bg);display:flex;flex-direction:column;gap:3px}
-.cmp-cell.emp{background:var(--bg2);border-color:transparent}
-.cmp-cell.together{border-color:var(--bd-success);background:var(--bg-success)}
-.cmp-cell.clash{border-color:var(--bd-warn);background:var(--bg-warn)}
-.cmp-lc{border-radius:6px;border:.5px dashed var(--bd);min-height:64px;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--tx3);font-style:italic}
-.cmp-pplrow{display:flex;align-items:center;gap:4px}
-.cmp-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.cmp-classname{font-size:9px;font-weight:700;color:var(--tx);line-height:1.25;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.cmp-together-tag{font-size:8px;font-weight:700;color:var(--tx-success);margin-top:1px}
-.cmp-clash-tag{font-size:8px;font-weight:700;color:var(--tx-warn);margin-top:1px}
-
-.cmp-together-sec{margin-bottom:1.25rem}
-.cmp-tcard{border-radius:var(--r);border:.5px solid var(--bd-success);background:var(--bg-success);padding:10px 13px;margin-bottom:7px}
-.cmp-tcard-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px}
-.cmp-tcard-name{font-size:13px;font-weight:700;color:var(--tx-success)}
-.cmp-tcard-slot{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--bg);color:var(--tx2);flex-shrink:0}
-.cmp-tcard-ppl{display:flex;flex-wrap:wrap;gap:5px}
-.cmp-tperson{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px 3px 5px;border-radius:14px;background:var(--bg)}
 </style>
 </head>
 <body>
 <div class="page">
 
+<!-- HEADER -->
 <div class="hdr">
   <div>
     <h1>IIT Madras MBA — Elective Planner</h1>
@@ -331,13 +263,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
   </div>
 </div>
 
-<div class="view-tabs">
-  <button class="view-tab on" id="vtab-plan" onclick="switchView('plan')">📋 My Planner</button>
-  <button class="view-tab" id="vtab-compare" onclick="switchView('compare')">👥 Compare with Friends</button>
-</div>
-
-<div id="view-plan">
-
+<!-- GOAL MODE (multi-select) -->
 <div class="panel">
   <div class="panel-title">🎯 Goals <span style="font-size:11px;font-weight:400;color:var(--tx3)">— pick one or more, then choose domains</span></div>
   <div class="chip-row">
@@ -372,6 +298,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
   <div id="sug-area"></div>
 </div>
 
+<!-- DEGREE RULES -->
 <div class="panel">
   <div class="rules-toggle" onclick="toggleRules()"><span id="rarrow">▶</span> Degree rules</div>
   <div class="rules-body" id="rbody">
@@ -382,6 +309,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
   </div>
 </div>
 
+<!-- DOMAIN TRACKER -->
 <div class="tracker">
   <div class="sec-lbl">Domain tracker — all quarters</div>
   <div class="total-pill">Total: <strong id="tot">0</strong> / 12 electives</div>
@@ -390,6 +318,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
   <div class="dom-grid" id="dom-grid"></div>
 </div>
 
+<!-- QUARTER TABS + FILTER -->
 <div class="ctrl">
   <div class="qtabs">
     <button class="qtab on" onclick="switchQ('Q5')" id="tab-Q5">Q5<span class="qbadge" id="qb-Q5"></span></button>
@@ -401,6 +330,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
     <span id="fchips"></span>
   </div>
 </div>
+<!-- SUPPLY AWARENESS -->
 <div class="supply-panel">
   <div class="supply-header">
     <div class="supply-title">📊 Subject availability this quarter <span id="supply-qlabel" class="supply-qlabel">Q5</span></div>
@@ -413,6 +343,9 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 <div class="wmsg" id="wmsg">4 selected — deselect one to change.</div>
 <div class="sgrid" id="sgrid"></div>
 
+<!-- TIMETABLE -->
+
+<!-- SHARED PLAN BANNER (shown when opening a shared link) -->
 <div class="shared-banner" id="shared-banner">
   <div class="shared-banner-icon">🔗</div>
   <div style="flex:1">
@@ -424,6 +357,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
   </div>
 </div>
 
+<!-- SHARE BAR -->
 <div class="share-bar" id="share-bar">
   <div class="share-bar-top">
     <div class="share-bar-title">🔗 Share your timetable</div>
@@ -438,6 +372,33 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
     <button class="share-btn" onclick="shareNative()" id="native-share-btn" style="display:none">📤 Share</button>
   </div>
   <div class="share-copied" id="share-copied">✅ Link copied to clipboard!</div>
+</div>
+
+<!-- GROUP COMPARE -->
+<div class="group-panel">
+  <div class="panel-title">👥 Compare with your group <span style="font-size:11px;font-weight:400;color:var(--tx3)">— see which classes you'll share, live</span></div>
+
+  <div id="group-main-ui" style="display:none">
+    <div class="group-name-row">
+      <input class="group-name-input" id="group-code-input" placeholder="Group code (e.g. doms-mba-2026)" maxlength="30">
+      <button class="group-save-btn" onclick="joinGroup()">🔗 Join / Create group</button>
+    </div>
+    <div class="group-note" id="active-group-note" style="display:none"></div>
+
+    <div class="group-name-row" id="name-row" style="display:none">
+      <input class="group-name-input" id="my-roster-name" placeholder="Your name (e.g. Tej)" maxlength="24">
+      <button class="group-save-btn" onclick="publishMyPlan()">📤 Publish my plan to group</button>
+    </div>
+
+    <div class="roster" id="roster"></div>
+    <div class="roster-empty" id="roster-empty">Join a group and publish your plan to see your group here.</div>
+
+    <div class="overlap-section" id="overlap-section">
+      <hr class="divider">
+      <div class="overlap-q-tabs" id="overlap-qtabs"></div>
+      <div id="overlap-area"></div>
+    </div>
+  </div>
 </div>
 
 <div class="tt-section">
@@ -463,57 +424,10 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
     <div class="leg"><div class="leg-dot" style="background:var(--col-X)"></div>Integrative</div>
   </div>
 </div>
-</div><div id="view-compare" style="display:none">
+</div><!-- /page -->
 
-  <p class="cmp-intro">Share a code with your friends. Once you've both connected, see exactly which classes you'll be in together — and which ones clash — quarter by quarter.</p>
-
-  <div class="cmp-setup">
-    <div class="cmp-row">
-      <input class="cmp-input" id="cmp-name-input" placeholder="Your name (e.g. Tej)" maxlength="24">
-      <input class="cmp-input" id="cmp-code-input" placeholder="Group code (e.g. doms-mba-2026)" maxlength="30">
-      <button class="cmp-btn" onclick="cmpConnect()">🔗 Connect</button>
-    </div>
-    <div class="cmp-status" id="cmp-status">Pick a name and a group code — anyone who enters the same code joins your group.</div>
-    <div class="cmp-share-row" id="cmp-share-row" style="display:none">
-      <input class="cmp-input" id="cmp-share-input" readonly onclick="this.select()" value="">
-      <button class="cmp-copybtn" onclick="cmpCopyInvite()">📋 Copy invite</button>
-      <button class="cmp-copybtn" onclick="cmpShareWhatsApp()">💬 WhatsApp</button>
-    </div>
-    <div class="share-copied" id="cmp-copied">✅ Copied!</div>
-    <div class="cmp-manage-row" id="cmp-manage-row" style="display:none">
-      <button class="cmp-managebtn" onclick="cmpChangeGroup()">🔄 Switch group</button>
-      <button class="cmp-managebtn" onclick="cmpLeaveGroup()">🚪 Leave group (just me)</button>
-      <button class="cmp-managebtn danger" onclick="cmpClearGroup()">🗑 Reset group — remove everyone</button>
-    </div>
-  </div>
-
-  <div class="cmp-friends-sec">
-    <div class="sec-lbl">Your group <span style="text-transform:none;letter-spacing:0;color:var(--tx3)">— tap a friend to compare 1-on-1, or "Everyone" to see the whole group</span></div>
-    <div class="cmp-friends-row" id="cmp-friends-row"></div>
-    <div class="cmp-empty" id="cmp-empty">Connect above to see your group here.<br>Share your group code with friends — once they connect too, you'll all show up here.</div>
-  </div>
-
-  <div class="cmp-qtabs" id="cmp-qtabs"></div>
-
-  <div class="cmp-legend" id="cmp-legend"></div>
-
-  <div class="cmp-grid-wrap">
-    <div id="cmp-grid-render"></div>
-  </div>
-
-  <div class="cmp-together-sec" id="cmp-together-sec"></div>
-
-  <div id="secret-admin-panel" style="display: none; margin-top: 25px; padding: 20px; background: #fff; border: 2px dashed #185fa5; border-radius: 8px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e8e7e3; padding-bottom: 10px; margin-bottom: 15px;">
-      <h3 style="color: #185fa5; margin: 0;">📊 Master Dashboard (Admin Only)</h3>
-      <button onclick="document.getElementById('secret-admin-panel').style.display='none'" style="background:#a32d2d; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Hide</button>
-    </div>
-    <div id="admin-live-data" style="max-height: 400px; overflow-y: auto; font-size: 13px;">
-      Loading master directory...
-    </div>
-  </div>
-
-</div></div><div class="modal-bg" id="modal-bg" onclick="handleModalBgClick(event)">
+<!-- EXPORT MODAL -->
+<div class="modal-bg" id="modal-bg" onclick="handleModalBgClick(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <h3>Export timetable</h3>
     <p>Choose quarter and format</p>
@@ -546,19 +460,19 @@ const DATA={
     WW:[{d:'Monday',t:'3pm-5pm'},{d:'Wednesday',t:'10am-12pm'}],
     XX:[{d:'Tuesday',t:'3pm-5pm'},{d:'Friday',t:'10am-12pm'}]},
   subjects:[
-    {slot:'WW',code:'MS5011',name:'Strategic HRM',instructor:'Lata Dyaram',v:'HR'},
+    {slot:'WW',code:'MS5011',name:'Strategic Human Resource Management',instructor:'Lata Dyaram',v:'HR'},
     {slot:'WW',code:'MS5988',name:'Digital Transformation with AI',instructor:'Imon Chakraborty',v:'IS'},
     {slot:'UU',code:'MS5012',name:'Data Driven Decision Making for HR',instructor:'Srinivasan S',v:'HR'},
-    {slot:'UU',code:'MS5510',name:'Logistics & Distribution Management',instructor:'Vipin B',v:'Ops'},
+    {slot:'UU',code:'MS5510',name:'Logistics and Distribution Management',instructor:'Vipin B',v:'Ops'},
     {slot:'UU',code:'MS5612',name:'Real Options Valuation',instructor:'Thillai Rajan A',v:'Finance'},
-    {slot:'XX',code:'MS5530',name:'Career Management',instructor:'Rupashree Baral',v:'HR'},
+    {slot:'XX',code:'MS5530',name:'Managing Career',instructor:'Rupashree Baral',v:'HR'},
     {slot:'XX',code:'MS6840',name:'Business Intelligence & Analytics',instructor:'Saji Mathew',v:'IS'},
     {slot:'QQ',code:'MS5560',name:'Services & Operations Management',instructor:'Rahul Marathe',v:'Ops'},
-    {slot:'TT',code:'MS5610',name:'Security Analysis & Portfolio Mgmt',instructor:'Madhumathi R',v:'Finance'},
+    {slot:'TT',code:'MS5610',name:'Security Analysis and Portfolio Management',instructor:'Madhumathi R',v:'Finance'},
     {slot:'TT',code:'MS5710',name:'Consumer Behaviour',instructor:'Richa Agrawal',v:'Marketing'},
-    {slot:'SS',code:'MS5720',name:'Advertising & Promotion',instructor:'Varisha Rehman',v:'Marketing'},
+    {slot:'SS',code:'MS5720',name:'Advertising and Publicity',instructor:'Varisha Rehman',v:'Marketing'},
     {slot:'PP',code:'MS5760',name:'Marketing on the Internet',instructor:'Vaibhav Chawla',v:'Marketing'},
-    {slot:'VV',code:'MS5640',name:'Mergers & Acquisitions',instructor:'Arun Kumar G',v:'Finance'},
+    {slot:'VV',code:'MS5640',name:'Mergers and Acquisitions',instructor:'Arun Kumar G',v:'Finance'},
     {slot:'VV',code:'MS6910',name:'Global Business Management',instructor:'C B Rao',v:'Strategy'},
     {slot:'VV',code:'MS5070',name:'Software Product Management',instructor:'Nargis Pervin',v:'IS'},
   ]},
@@ -573,12 +487,11 @@ const DATA={
     XX:[{d:'Tuesday',t:'3pm-5pm'},{d:'Friday',t:'10am-12pm'}]},
   subjects:[
     {slot:'TT',code:'MS5015',name:'Design Thinking',instructor:'Richa Agrawal',v:'Marketing'},
-    {slot:'RR',code:'MS5101',name:'Agentic AI in Management',instructor:'Imon Chakraborty',v:'IS'},
-    {slot:'XX',code:'MS6580',name:'Sales & Distribution Management',instructor:'Prathamesh Kittur',v:'Marketing'},
+    {slot:'XX',code:'MS6580',name:'Sales and Distribution Management',instructor:'Prathamesh Kittur',v:'Marketing'},
     {slot:'XX',code:'MS5460',name:'Compensation Management',instructor:'Srinivasan S',v:'HR'},
     {slot:'XX',code:'MS5690',name:'Computational Finance',instructor:'Thenmozhi M',v:'Finance'},
-    {slot:'UU',code:'MS5480',name:'Cross Cultural Management',instructor:'Vijayalakshmi V',v:'HR'},
-    {slot:'UU',code:'MS6030',name:'Advanced Data Analytics for Mgmt',instructor:'Usha Mohan',v:'Ops'},
+    {slot:'UU',code:'MS5480',name:'Cross-Cultural Management',instructor:'Vijayalakshmi V',v:'HR'},
+    {slot:'UU',code:'MS6030',name:'Advanced Data Analytics for Management',instructor:'Usha Mohan',v:'Ops'},
     {slot:'PP',code:'MS5613',name:'Corporate Hedging Strategies',instructor:'Madhumathi R',v:'Finance'},
     {slot:'PP',code:'MS5770',name:'Strategic Marketing',instructor:'Vaibhav Chawla',v:'Marketing'},
     {slot:'SS',code:'MS5750',name:'Brand Management',instructor:'Varisha Rehman',v:'Marketing'},
@@ -596,7 +509,7 @@ const DATA={
     {slot:'VV',code:'MS5642',name:'Managing the Future: AI & Cybersecurity',instructor:'Prof Kandaswamy',v:'Integrative'},
     {slot:'XX',code:'MS5729',name:'Social Media Computing',instructor:'Nargis Pervin',v:'IS'},
     {slot:'XX',code:'MS5754',name:'Nurturing the Inner You',instructor:'Viji',v:'HR'},
-    {slot:'UU',code:'MS5011B',name:'Strategic HRM',instructor:'Lata Dyaram',v:'HR'},
+    {slot:'UU',code:'MS5011B',name:'Strategic Human Resource Management',instructor:'Lata Dyaram',v:'HR'},
     {slot:'ZZ',code:'MS6930',name:'Introduction to Entrepreneurship',instructor:'C B Rao',v:'Integrative'},
   ]}
 };
@@ -1133,17 +1046,8 @@ const FIREBASE_CONFIG = {
 let myName=localStorage.getItem('mbaplanner_myname')||'';
 let myGroupCode=localStorage.getItem('mbaplanner_groupcode')||'';
 let roster={}; // {name: {Q5:{code:subj},Q6:{...},Q7:{...}}} — live mirror of group/{code}/members
-let compareQ='Q5';
-let compareFilter='all'; // 'all', or the sanitized key of one friend to focus on
-let currentView='plan';
+let overlapQ='Q5';
 let fbApp=null, fbDb=null, groupRef=null;
-
-const CMP_PALETTE=['#185fa5','#0f6e56','#993556','#854f0b','#534ab7','#993c1d','#1a6b3c','#a32d2d','#0c6478','#6b4f9e'];
-function cmpColorFor(key){
-  let h=0;
-  for(let i=0;i<key.length;i++) h=(h*31+key.charCodeAt(i))>>>0;
-  return CMP_PALETTE[h%CMP_PALETTE.length];
-}
 
 function sanitizeGroupCode(code){
   return code.trim().toLowerCase().replace(/[^a-z0-9-]/g,'-').replace(/-+/g,'-').slice(0,40);
@@ -1165,131 +1069,36 @@ function initFirebase(){
   }
 }
 
-// ── VIEW SWITCHING ───────────────────────────────────────────────────────────
-function switchView(v){
-  currentView=v;
-  document.getElementById('vtab-plan').classList.toggle('on', v==='plan');
-  document.getElementById('vtab-compare').classList.toggle('on', v==='compare');
-  document.getElementById('view-plan').style.display = v==='plan' ? '' : 'none';
-  document.getElementById('view-compare').style.display = v==='compare' ? '' : 'none';
-  if(v==='compare') renderCompareView();
-}
 
 function attemptAutoJoin(){
-  if(!myGroupCode) return;
-  document.getElementById('cmp-code-input').value=myGroupCode;
-  if(myName) document.getElementById('cmp-name-input').value=myName;
-  joinGroup(myGroupCode);
-  if(myName) {
-    publishMyPlan(myName);
-  } else {
-    document.getElementById('cmp-status').innerHTML=`📍 Viewing group <b>"${myGroupCode}"</b> anonymously. Enter a name and connect to add your schedule.`;
-    document.getElementById('cmp-status').classList.add('connected');
-  }
+  document.getElementById('group-code-input').value=myGroupCode;
+  joinGroup();
 }
 
-function cmpConnect(){
-  if(!fbDb){ document.getElementById('cmp-status').textContent='⚠️ Could not reach the live database — check your internet connection and reload.'; return; }
-  const nameInput=document.getElementById('cmp-name-input');
-  const codeInput=document.getElementById('cmp-code-input');
-  const name=nameInput.value.trim();
+function joinGroup(){
+  if(!fbDb){ alert('Connect the database first (see setup instructions above).'); return; }
+  const codeInput=document.getElementById('group-code-input');
   const code=sanitizeGroupCode(codeInput.value);
-
-  // --- SECRET ADMIN HOOK ---
-  if (codeInput.value.trim() === "admin123") {
-    document.getElementById('secret-admin-panel').style.display = 'block';
-    document.getElementById('secret-admin-panel').scrollIntoView({ behavior: 'smooth' });
-    listenToAllGroups();
-    return; // Stop normal execution
-  }
-  // -------------------------
-
   if(!code){ flashError(codeInput); return; }
 
-  // If user provided a name, join as that name. Otherwise, view anonymously.
-  if (!name) {
-     myName = '';
-     localStorage.removeItem('mbaplanner_myname');
-  }
-
-  joinGroup(code);
-  
-  if (name) {
-     publishMyPlan(name);
-  } else {
-     document.getElementById('cmp-status').innerHTML=`📍 Viewing group <b>"${myGroupCode}"</b> anonymously. Enter a name and connect to add your schedule.`;
-     document.getElementById('cmp-status').classList.add('connected');
-  }
-}
-
-function listenToAllGroups() {
-  if(!fbDb) return;
-  fbDb.ref('groups').on('value', snap => {
-    const data = snap.val();
-    const container = document.getElementById('admin-live-data');
-    if (!data) {
-      container.innerHTML = "<p style='color:#9b9b98;'>No groups exist in the database yet.</p>";
-      return;
-    }
-
-    let html = "";
-    Object.keys(data).forEach(gCode => {
-      html += `<div style="background:#f5f4f0; padding:10px; border-radius:6px; margin-bottom:10px; border-left:4px solid #185fa5;">`;
-      html += `<strong>Group Code: <span style="color:#185fa5;">${gCode}</span></strong>`;
-
-      const members = data[gCode].members || {};
-      const memberNames = Object.keys(members);
-
-      if (memberNames.length === 0) {
-        html += `<div style="margin-left:15px; margin-top:5px; font-size:11px; color:#9b9b98;">No active members</div>`;
-      } else {
-        memberNames.forEach(name => {
-          html += `<div style="margin-left:15px; margin-top:5px; background:#fff; padding:6px; border-radius:4px;">`;
-          html += `👤 <strong>${name}</strong>: `;
-
-          ['Q5', 'Q6', 'Q7'].forEach(q => {
-            if (members[name][q]) {
-              const codes = Object.keys(members[name][q]);
-              if (codes.length > 0) {
-                const courses = codes.map(c => {
-                   const subj = DATA[q] && DATA[q].subjects ? DATA[q].subjects.find(s => s.code === c) : null;
-                   return subj ? subj.name : c;
-                }).join(' • ');
-                html += `<div style="font-size:11px; background:#edeefe; color:#534ab7; padding:3px 6px; border-radius:4px; margin-top:4px; line-height:1.4;"><strong>${q}:</strong> ${courses}</div>`;
-              }
-            }
-          });
-          html += `</div>`;
-        });
-      }
-      html += `</div>`;
-    });
-    container.innerHTML = html;
-  }, err => {
-    document.getElementById('admin-live-data').innerHTML = `<p style="color:#a32d2d;">❌ Permission Denied. Did you update your Firebase Security Rules to allow read access?</p>`;
-  });
-}
-
-function joinGroup(code){
-  if(!fbDb) return;
   myGroupCode=code;
-  compareFilter='all';
   localStorage.setItem('mbaplanner_groupcode', code);
-  document.getElementById('cmp-code-input').value=code;
+  codeInput.value=code;
 
   if(groupRef) groupRef.off(); // detach old listener
   groupRef=fbDb.ref('groups/'+code+'/members');
   groupRef.on('value', snap=>{
     roster=snap.val()||{};
-    renderCompareView();
+    renderRoster();
   }, err=>{
     console.error('Firebase read error',err);
-    document.getElementById('cmp-status').textContent='⚠️ Could not connect — check your internet connection.';
   });
 
-  document.getElementById('cmp-share-row').style.display='flex';
-  document.getElementById('cmp-share-input').value=code;
-  document.getElementById('cmp-manage-row').style.display='flex';
+  const noteEl=document.getElementById('active-group-note');
+  noteEl.style.display='block';
+  noteEl.innerHTML=`📍 Connected to group <b>"${code}"</b> — anyone using this same code sees this roster live. Share the code with your group!`;
+  document.getElementById('name-row').style.display='flex';
+  if(myName) document.getElementById('my-roster-name').value=myName;
 }
 
 function getMyEncodedPlan(){
@@ -1298,32 +1107,27 @@ function getMyEncodedPlan(){
   return r;
 }
 
-function publishMyPlan(name){
-  if(!groupRef){ return; }
-  name=(name||myName||'').trim();
-  if(!name) return;
+function publishMyPlan(){
+  if(!groupRef){ alert('Join a group first.'); return; }
+  const nameInput=document.getElementById('my-roster-name');
+  const name=nameInput.value.trim();
+  if(!name){ flashError(nameInput); return; }
+  const total=Object.values(sel).reduce((a,q)=>a+Object.keys(q).length,0);
+  if(total===0){ alert('Select some subjects first, then publish your plan!'); return; }
 
   const oldName=myName;
   myName=name;
   localStorage.setItem('mbaplanner_myname', name);
   const key=sanitizeKey(name);
-  const statusEl=document.getElementById('cmp-status');
-
-  const total=Object.values(sel).reduce((a,q)=>a+Object.keys(q).length,0);
-  if(total===0){
-    statusEl.innerHTML=`📍 Connected to <b>"${myGroupCode}"</b> as <b>${name}</b>. Pick some electives in My Planner so friends can see your schedule!`;
-    statusEl.classList.add('connected');
-    renderCompareView();
-    return;
-  }
 
   const plan=getMyEncodedPlan();
   groupRef.child(key).set(plan).then(()=>{
-    if(oldName && sanitizeKey(oldName)!==key) groupRef.child(sanitizeKey(oldName)).remove();
-    statusEl.innerHTML=`📍 Connected to <b>"${myGroupCode}"</b> as <b>${name}</b> — share the group code so friends can join.`;
-    statusEl.classList.add('connected');
+    // Clean up old key if renamed
+    if(oldName && sanitizeKey(oldName)!==key){
+      groupRef.child(sanitizeKey(oldName)).remove();
+    }
   }).catch(e=>{
-    statusEl.textContent='⚠️ Could not publish — check your internet connection.';
+    alert('Could not publish — check your internet connection and Firebase rules.');
     console.error(e);
   });
 }
@@ -1338,252 +1142,66 @@ function flashError(el){
 function removeFromRoster(name){
   if(!groupRef) return;
   groupRef.child(sanitizeKey(name)).remove();
-  if(name===sanitizeKey(myName)){
-    myName='';
-    localStorage.removeItem('mbaplanner_myname');
-    document.getElementById('cmp-name-input').value='';
+  if(name===myName){ myName=''; localStorage.removeItem('mbaplanner_myname'); }
+}
+
+function renderRoster(){
+  const names=Object.keys(roster);
+  const rosterEl=document.getElementById('roster');
+  const emptyEl=document.getElementById('roster-empty');
+  if(!names.length){
+    rosterEl.innerHTML='';
+    emptyEl.style.display='block';
+    document.getElementById('overlap-section').classList.remove('show');
+    return;
   }
-}
-
-function cmpShowCopied(){
-  const el=document.getElementById('cmp-copied');
-  el.classList.add('show');
-  setTimeout(()=>el.classList.remove('show'),2500);
-}
-function cmpCopyInvite(){
-  const url=window.location.href.split('#')[0];
-  const text=`Join my IIT Madras MBA elective group! Use group code "${myGroupCode}" on ${url}`;
-  if(navigator.clipboard){ navigator.clipboard.writeText(text).then(cmpShowCopied).catch(()=>cmpShowCopied()); }
-  else cmpShowCopied();
-}
-function cmpShareWhatsApp(){
-  const url=window.location.href.split('#')[0];
-  const msg=encodeURIComponent(`Join my IIT Madras MBA elective group! Use group code "${myGroupCode}" on ${url}`);
-  window.open('https://wa.me/?text='+msg,'_blank');
-}
-
-// Disconnect from the current group locally — does not touch shared data.
-// Lets you point the code input at a different group and reconnect.
-function cmpChangeGroup(){
-  if(groupRef) groupRef.off();
-  groupRef=null;
-  roster={};
-  compareFilter='all';
-  document.getElementById('cmp-code-input').value='';
-  document.getElementById('cmp-share-row').style.display='none';
-  document.getElementById('cmp-manage-row').style.display='none';
-  document.getElementById('cmp-status').textContent='Enter a different group code and connect to switch groups.';
-  document.getElementById('cmp-status').classList.remove('connected');
-  renderCompareView();
-}
-
-// Remove just yourself from this group's roster, then disconnect locally.
-function cmpLeaveGroup(){
-  if(groupRef && myName) groupRef.child(sanitizeKey(myName)).remove();
-  if(groupRef) groupRef.off();
-  groupRef=null;
-  roster={};
-  compareFilter='all';
-  myGroupCode='';
-  myName='';
-  localStorage.removeItem('mbaplanner_groupcode');
-  localStorage.removeItem('mbaplanner_myname');
-  document.getElementById('cmp-code-input').value='';
-  document.getElementById('cmp-name-input').value='';
-  document.getElementById('cmp-share-row').style.display='none';
-  document.getElementById('cmp-manage-row').style.display='none';
-  document.getElementById('cmp-status').textContent='Pick a name and a group code — anyone who enters the same code joins your group.';
-  document.getElementById('cmp-status').classList.remove('connected');
-  renderCompareView();
-}
-
-// Destructive: wipes every participant (including you) from this group code
-// for everyone. The group code itself still works — anyone can publish into
-// it fresh afterwards.
-function cmpClearGroup(){
-  if(!groupRef) return;
-  const ok=confirm(`Remove ALL participants from group "${myGroupCode}"? Everyone — including you — will need to reconnect and publish their plan again. This can't be undone.`);
-  if(!ok) return;
-  groupRef.remove().then(()=>{
-    document.getElementById('cmp-status').innerHTML=`🗑 Group <b>"${myGroupCode}"</b> has been reset. Connect again to start fresh.`;
-    document.getElementById('cmp-status').classList.remove('connected');
-  }).catch(e=>{
-    alert('Could not reset the group — check your internet connection.');
-    console.error(e);
-  });
-}
-
-function setCompareQ(q){ compareQ=q; renderCompareView(); }
-
-// Focus the comparison on one friend, or back to everyone.
-function cmpSetFilter(key){
-  compareFilter = (compareFilter===key) ? 'all' : key;
-  renderCompareView();
-}
-
-// Merge live roster with my own up-to-the-second local plan (so I don't need to
-// re-publish every time I tweak a selection just to see myself reflected).
-function cmpParticipants(){
-  const parts={};
-  Object.keys(roster).forEach(k=>{ parts[k]={label:k, plan:roster[k]||{}}; });
-  if(myName){
-    const key=sanitizeKey(myName);
-    parts[key]={label:myName, plan:getMyEncodedPlan()};
-  }
-  return parts;
-}
-
-// Same as cmpParticipants(), but narrowed to you + one friend when a filter is active.
-// Falls back to everyone if the picked friend has left the group.
-function cmpFilteredParticipants(){
-  const all=cmpParticipants();
-  if(compareFilter!=='all' && !all[compareFilter]) compareFilter='all';
-  if(compareFilter==='all') return all;
-  const myKey=sanitizeKey(myName);
-  const out={};
-  if(all[myKey]) out[myKey]=all[myKey];
-  out[compareFilter]=all[compareFilter];
-  return out;
-}
-
-function renderCompareView(){
-  renderCmpFriends();
-  renderCmpQtabs();
-  renderCmpLegend();
-  renderCmpGrid();
-  renderCmpTogether();
-}
-
-function renderCmpFriends(){
-  const parts=cmpParticipants();
-  const keys=Object.keys(parts);
-  const row=document.getElementById('cmp-friends-row');
-  const empty=document.getElementById('cmp-empty');
-  if(!keys.length){ row.innerHTML=''; empty.style.display='block'; return; }
-  empty.style.display='none';
-
-  const myKey=sanitizeKey(myName);
-  const others=keys.filter(k=>k!==myKey);
-
-  let html='';
-  if(others.length>1){
-    html+=`<div class="cmp-chip cmp-allchip${compareFilter==='all'?' active':''}" onclick="cmpSetFilter('all')">👥 Everyone</div>`;
-  }
-  html+=keys.map(k=>{
-    const isMe=k===myKey;
-    const plan=parts[k].plan;
+  emptyEl.style.display='none';
+  rosterEl.innerHTML=names.map(n=>{
+    const isMe=n===sanitizeKey(myName);
+    const plan=roster[n]||{};
     const count=['Q5','Q6','Q7'].reduce((a,q)=>a+Object.keys(plan[q]||{}).length,0);
-    const initial=(parts[k].label.trim().charAt(0)||'?').toUpperCase();
-    const color=cmpColorFor(k);
-    const isActive=compareFilter===k;
-    const keyEsc=k.replace(/'/g,"\\'");
-    return `<div class="cmp-chip${isMe?' me':''}${isActive?' active':''}"${isMe?'':` onclick="cmpSetFilter('${keyEsc}')" style="cursor:pointer"`}>
-      <div class="cmp-avatar" style="background:${color}">${initial}</div>
-      <span class="cmp-chip-name">${parts[k].label}${isMe?' (you)':''}</span>
-      <span class="cmp-chip-count">${count}/12</span>
-      ${!isMe?`<span class="cmp-chip-x" onclick="event.stopPropagation();removeFromRoster('${keyEsc}')" title="Remove from group">✕</span>`:''}
-    </div>`;
+    return `<div class="roster-chip${isMe?' me':''}"><span class="roster-dot"></span>${n}${isMe?' (you)':''} · ${count}/12 <span class="roster-x" onclick="removeFromRoster('${n.replace(/'/g,"\\'")}')">✕</span></div>`;
   }).join('');
-  row.innerHTML=html;
+  document.getElementById('overlap-section').classList.toggle('show', names.length>0);
+  renderOverlapTabs();
+  renderOverlap();
 }
 
-function renderCmpQtabs(){
-  document.getElementById('cmp-qtabs').innerHTML=['Q5','Q6','Q7'].map(q=>
-    `<button class="cmp-qtab${compareQ===q?' on':''}" onclick="setCompareQ('${q}')">${q}</button>`
+function renderOverlapTabs(){
+  document.getElementById('overlap-qtabs').innerHTML=['Q5','Q6','Q7'].map(q=>
+    `<button class="ov-qtab${overlapQ===q?' on':''}" onclick="setOverlapQ('${q}')">${q}</button>`
   ).join('');
 }
+function setOverlapQ(q){ overlapQ=q; renderOverlapTabs(); renderOverlap(); }
 
-function renderCmpLegend(){
-  const parts=cmpFilteredParticipants();
-  const keys=Object.keys(parts);
-  document.getElementById('cmp-legend').innerHTML=keys.map(k=>{
-    const isMe=k===sanitizeKey(myName);
-    return `<div class="cmp-leg"><div class="cmp-leg-dot" style="background:${cmpColorFor(k)}"></div>${parts[k].label}${isMe?' (you)':''}</div>`;
-  }).join('');
-}
+function renderOverlap(){
+  const area=document.getElementById('overlap-area');
+  const names=Object.keys(roster);
+  if(!names.length){ area.innerHTML=''; return; }
 
-function renderCmpGrid(){
-  const area=document.getElementById('cmp-grid-render');
-  const q=compareQ;
-  const parts=cmpFilteredParticipants();
-  const keys=Object.keys(parts);
-
-  if(!keys.length){ area.innerHTML='<div class="empty-tt">Connect above to compare timetables with friends.</div>'; return; }
-  if(DATA[q].slots===null){
-    area.innerHTML=`<div class="no-tt-box"><p style="font-weight:700;margin-bottom:8px;font-size:13px">📅 ${q} timetable not published yet</p><p style="font-size:12px;color:var(--tx2)">Slot timings will appear here once ${q} schedule is released.</p></div>`;
-    return;
-  }
-
-  // day -> time -> [{key,label,subj}]
-  const lk={};
-  keys.forEach(k=>{
-    const plan=parts[k].plan[q]||{};
-    Object.values(plan).forEach(s=>{
-      (DATA[q].slots[s.slot]||[]).forEach(({d,t})=>{
-        if(!lk[d]) lk[d]={};
-        if(!lk[d][t]) lk[d][t]=[];
-        lk[d][t].push({key:k,subj:s});
-      });
+  const q=overlapQ;
+  const codeToNames={};
+  names.forEach(n=>{
+    const plan=roster[n]||{};
+    Object.values(plan[q]||{}).forEach(s=>{
+      if(!codeToNames[s.code]) codeToNames[s.code]={subj:s, people:[]};
+      codeToNames[s.code].people.push(n);
     });
   });
 
-  let h=`<div class="cmp-tgrid"><div></div>`;
-  TLABELS.forEach(l=>{h+=`<div class="cmp-hcell">${l}</div>`;}); h+='</div>';
-  DAYS.forEach(day=>{
-    h+=`<div class="cmp-tgrid"><div class="cmp-day">${day.slice(0,3)}</div>`;
-    TIMESLOTS.forEach(slot=>{
-      if(slot==='12pm-1pm'){ h+=`<div class="cmp-lc">lunch</div>`; return; }
-      const occ=(lk[day]&&lk[day][slot])||[];
-      if(!occ.length){ h+=`<div class="cmp-cell emp"></div>`; return; }
-      const codes=new Set(occ.map(o=>o.subj.code));
-      const together = occ.length>=2 && codes.size===1;
-      const clash = codes.size>=2;
-      const cls='cmp-cell'+(together?' together':clash?' clash':'');
-      let inner=occ.map(o=>`<div class="cmp-pplrow"><div class="cmp-dot" style="background:${cmpColorFor(o.key)}"></div><div class="cmp-classname">${o.subj.name}</div></div>`).join('');
-      if(together) inner+=`<div class="cmp-together-tag">🎉 together</div>`;
-      else if(clash) inner+=`<div class="cmp-clash-tag">⚡ clash</div>`;
-      h+=`<div class="${cls}">${inner}</div>`;
-    });
-    h+='</div>';
-  });
-  area.innerHTML=h;
-}
+  const entries=Object.values(codeToNames).sort((a,b)=>b.people.length-a.people.length);
+  if(!entries.length){ area.innerHTML=`<div class="overlap-empty">No one has picked subjects for ${q} yet.</div>`; return; }
 
-function renderCmpTogether(){
-  const area=document.getElementById('cmp-together-sec');
-  const q=compareQ;
-  const parts=cmpFilteredParticipants();
-  const keys=Object.keys(parts);
-  if(!keys.length){ area.innerHTML=''; return; }
-
-  const myKey=sanitizeKey(myName);
-  const focusKey=keys.find(k=>k!==myKey);
-  const headerLabel = (compareFilter!=='all' && focusKey)
-    ? `🎉 Classes with ${parts[focusKey].label} — ${q}`
-    : `🎉 Classes together — ${q}`;
-
-  const codeToInfo={};
-  keys.forEach(k=>{
-    const plan=parts[k].plan[q]||{};
-    Object.values(plan).forEach(s=>{
-      if(!codeToInfo[s.code]) codeToInfo[s.code]={subj:s, people:[]};
-      codeToInfo[s.code].people.push(k);
-    });
-  });
-
-  const entries=Object.values(codeToInfo).filter(e=>e.people.length>=2).sort((a,b)=>b.people.length-a.people.length);
-  if(!entries.length){
-    area.innerHTML=`<div class="sec-lbl">${headerLabel}</div><div class="cmp-empty">${keys.length<2?'Invite a friend with your group code above to start comparing.':`No shared classes in ${q} yet.`}</div>`;
-    return;
-  }
-  let html=`<div class="sec-lbl">${headerLabel}</div>`;
+  let html='';
   entries.forEach(e=>{
-    html+=`<div class="cmp-tcard">
-      <div class="cmp-tcard-top">
-        <div class="cmp-tcard-name">${e.subj.name}</div>
-        <div class="cmp-tcard-slot">Slot ${e.subj.slot}</div>
+    const together=e.people.length>=2;
+    html+=`<div class="overlap-card${together?' together':''}">
+      <div class="ov-top">
+        <div class="ov-name">${e.subj.name}</div>
+        <div class="ov-slot">Slot ${e.subj.slot}</div>
       </div>
-      <div class="cmp-tcard-ppl">${e.people.map(k=>`<span class="cmp-tperson"><span class="cmp-dot" style="background:${cmpColorFor(k)}"></span>${parts[k].label}${k===myKey?' (you)':''}</span>`).join('')}</div>
+      <div class="ov-people">${e.people.map(p=>`<span class="ov-person${together?' together':''}">${p}${p===sanitizeKey(myName)?' (you)':''}</span>`).join('')}</div>
+      ${together?`<div class="ov-count">🎉 ${e.people.length} of you in this class together</div>`:''}
     </div>`;
   });
   area.innerHTML=html;
@@ -1597,9 +1215,10 @@ if(wasShared) document.getElementById('shared-banner').classList.add('show');
 
 // Auto-connect to Firebase + rejoin group
 if(initFirebase()){
+  document.getElementById('group-main-ui').style.display='block';
   if(myGroupCode) attemptAutoJoin();
 } else {
-  document.getElementById('cmp-status').textContent='⚠️ Could not reach the live database — check your internet connection and reload the page.';
+  document.getElementById('group-main-ui').style.display='none';
 }
 </script>
 </body>
