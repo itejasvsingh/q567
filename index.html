@@ -466,32 +466,21 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 </div>
 </div><div id="view-compare" style="display:none">
 
-  <p class="cmp-intro">Share a code with your friends. Once you've both connected, see exactly which classes you'll be in together — and which ones clash — quarter by quarter.</p>
+  <p class="cmp-intro">Type your name and a group code (share the same code with friends), tap Compare — see everyone's schedule and where you overlap.</p>
 
   <div class="cmp-setup">
     <div class="cmp-row">
       <input class="cmp-input" id="cmp-name-input" placeholder="Your name (e.g. Tej)" maxlength="24">
       <input class="cmp-input" id="cmp-code-input" placeholder="Group code (e.g. doms-mba-2026)" maxlength="30">
-      <button class="cmp-btn" onclick="cmpConnect()">🔗 Connect</button>
+      <button class="cmp-btn" onclick="cmpConnect()">👥 Compare</button>
     </div>
-    <div class="cmp-status" id="cmp-status">Pick a name and a group code — anyone who enters the same code joins your group.</div>
-    <div class="cmp-share-row" id="cmp-share-row" style="display:none">
-      <input class="cmp-input" id="cmp-share-input" readonly onclick="this.select()" value="">
-      <button class="cmp-copybtn" onclick="cmpCopyInvite()">📋 Copy invite</button>
-      <button class="cmp-copybtn" onclick="cmpShareWhatsApp()">💬 WhatsApp</button>
-    </div>
-    <div class="share-copied" id="cmp-copied">✅ Copied!</div>
-    <div class="cmp-manage-row" id="cmp-manage-row" style="display:none">
-      <button class="cmp-managebtn" onclick="cmpChangeGroup()">🔄 Switch group</button>
-      <button class="cmp-managebtn" onclick="cmpLeaveGroup()">🚪 Leave group (just me)</button>
-      <button class="cmp-managebtn danger" onclick="cmpClearGroup()">🗑 Reset group — remove everyone</button>
-    </div>
+    <div class="cmp-status" id="cmp-status">Enter your name and a group code, then tap Compare.</div>
   </div>
 
   <div class="cmp-friends-sec">
-    <div class="sec-lbl">Your group <span style="text-transform:none;letter-spacing:0;color:var(--tx3)">— tap a friend to compare 1-on-1, or "Everyone" to see the whole group</span></div>
+    <div class="sec-lbl">Your group</div>
     <div class="cmp-friends-row" id="cmp-friends-row"></div>
-    <div class="cmp-empty" id="cmp-empty">Connect above to see your group here.<br>Share your group code with friends — once they connect too, you'll all show up here.</div>
+    <div class="cmp-empty" id="cmp-empty">Enter your name and group code above, then tap Compare — friends using the same code will show up here.</div>
   </div>
 
   <div class="cmp-qtabs" id="cmp-qtabs"></div>
@@ -503,16 +492,6 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
   </div>
 
   <div class="cmp-together-sec" id="cmp-together-sec"></div>
-
-  <div id="secret-admin-panel" style="display: none; margin-top: 25px; padding: 20px; background: #fff; border: 2px dashed #185fa5; border-radius: 8px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e8e7e3; padding-bottom: 10px; margin-bottom: 15px;">
-      <h3 style="color: #185fa5; margin: 0;">📊 Master Dashboard (Admin Only)</h3>
-      <button onclick="document.getElementById('secret-admin-panel').style.display='none'" style="background:#a32d2d; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Hide</button>
-    </div>
-    <div id="admin-live-data" style="max-height: 400px; overflow-y: auto; font-size: 13px;">
-      Loading master directory...
-    </div>
-  </div>
 
 </div></div><div class="modal-bg" id="modal-bg" onclick="handleModalBgClick(event)">
   <div class="modal" onclick="event.stopPropagation()">
@@ -1120,6 +1099,11 @@ function loadFromURL(){
 }
 
 // ── GROUP COMPARE (Firebase Realtime Database, live sync) ─────────────────────
+// Simplified: type your name + a group code, tap Compare. That publishes your
+// current picks under your name and pulls everyone else who used the same
+// code, live. No share links, no leave/switch/reset buttons, no filters —
+// just your group's schedules side by side. Nothing here is remembered on
+// screen after a reload (see INIT below); the data itself stays in Firebase.
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyBFZ2NfMxFApWvbswSiL9uLNpeoc-aALUA",
   authDomain: "q567mba.firebaseapp.com",
@@ -1130,11 +1114,10 @@ const FIREBASE_CONFIG = {
   appId: "1:935454311755:web:9c0b44191e8a84026fd4ce",
   measurementId: "G-C2T1TH06GB"
 };
-let myName=localStorage.getItem('mbaplanner_myname')||'';
-let myGroupCode=localStorage.getItem('mbaplanner_groupcode')||'';
+let myName='';
+let myGroupCode='';
 let roster={}; // {name: {Q5:{code:subj},Q6:{...},Q7:{...}}} — live mirror of group/{code}/members
 let compareQ='Q5';
-let compareFilter='all'; // 'all', or the sanitized key of one friend to focus on
 let currentView='plan';
 let fbApp=null, fbDb=null, groupRef=null;
 
@@ -1175,105 +1158,25 @@ function switchView(v){
   if(v==='compare') renderCompareView();
 }
 
-function attemptAutoJoin(){
-  if(!myGroupCode) return;
-  document.getElementById('cmp-code-input').value=myGroupCode;
-  if(myName) document.getElementById('cmp-name-input').value=myName;
-  joinGroup(myGroupCode);
-  if(myName) {
-    publishMyPlan(myName);
-  } else {
-    document.getElementById('cmp-status').innerHTML=`📍 Viewing group <b>"${myGroupCode}"</b> anonymously. Enter a name and connect to add your schedule.`;
-    document.getElementById('cmp-status').classList.add('connected');
-  }
-}
-
+// One button does it all: join the group, publish your current plan, show everyone.
 function cmpConnect(){
-  if(!fbDb){ document.getElementById('cmp-status').textContent='⚠️ Could not reach the live database — check your internet connection and reload.'; return; }
+  const statusEl=document.getElementById('cmp-status');
+  if(!fbDb){ statusEl.textContent='⚠️ Could not reach the live database — check your internet connection and reload.'; return; }
   const nameInput=document.getElementById('cmp-name-input');
   const codeInput=document.getElementById('cmp-code-input');
   const name=nameInput.value.trim();
   const code=sanitizeGroupCode(codeInput.value);
 
-  // --- SECRET ADMIN HOOK ---
-  if (codeInput.value.trim() === "admin123") {
-    document.getElementById('secret-admin-panel').style.display = 'block';
-    document.getElementById('secret-admin-panel').scrollIntoView({ behavior: 'smooth' });
-    listenToAllGroups();
-    return; // Stop normal execution
-  }
-  // -------------------------
-
+  if(!name){ flashError(nameInput); return; }
   if(!code){ flashError(codeInput); return; }
 
-  // If user provided a name, join as that name. Otherwise, view anonymously.
-  if (!name) {
-     myName = '';
-     localStorage.removeItem('mbaplanner_myname');
-  }
-
   joinGroup(code);
-  
-  if (name) {
-     publishMyPlan(name);
-  } else {
-     document.getElementById('cmp-status').innerHTML=`📍 Viewing group <b>"${myGroupCode}"</b> anonymously. Enter a name and connect to add your schedule.`;
-     document.getElementById('cmp-status').classList.add('connected');
-  }
-}
-
-function listenToAllGroups() {
-  if(!fbDb) return;
-  fbDb.ref('groups').on('value', snap => {
-    const data = snap.val();
-    const container = document.getElementById('admin-live-data');
-    if (!data) {
-      container.innerHTML = "<p style='color:#9b9b98;'>No groups exist in the database yet.</p>";
-      return;
-    }
-
-    let html = "";
-    Object.keys(data).forEach(gCode => {
-      html += `<div style="background:#f5f4f0; padding:10px; border-radius:6px; margin-bottom:10px; border-left:4px solid #185fa5;">`;
-      html += `<strong>Group Code: <span style="color:#185fa5;">${gCode}</span></strong>`;
-
-      const members = data[gCode].members || {};
-      const memberNames = Object.keys(members);
-
-      if (memberNames.length === 0) {
-        html += `<div style="margin-left:15px; margin-top:5px; font-size:11px; color:#9b9b98;">No active members</div>`;
-      } else {
-        memberNames.forEach(name => {
-          html += `<div style="margin-left:15px; margin-top:5px; background:#fff; padding:6px; border-radius:4px;">`;
-          html += `👤 <strong>${name}</strong>: `;
-
-          ['Q5', 'Q6', 'Q7'].forEach(q => {
-            if (members[name][q]) {
-              const codes = Object.keys(members[name][q]);
-              if (codes.length > 0) {
-                const courses = codes.map(c => {
-                   const subj = DATA[q] && DATA[q].subjects ? DATA[q].subjects.find(s => s.code === c) : null;
-                   return subj ? subj.name : c;
-                }).join(' • ');
-                html += `<div style="font-size:11px; background:#edeefe; color:#534ab7; padding:3px 6px; border-radius:4px; margin-top:4px; line-height:1.4;"><strong>${q}:</strong> ${courses}</div>`;
-              }
-            }
-          });
-          html += `</div>`;
-        });
-      }
-      html += `</div>`;
-    });
-    container.innerHTML = html;
-  }, err => {
-    document.getElementById('admin-live-data').innerHTML = `<p style="color:#a32d2d;">❌ Permission Denied. Did you update your Firebase Security Rules to allow read access?</p>`;
-  });
+  publishMyPlan(name);
 }
 
 function joinGroup(code){
   if(!fbDb) return;
   myGroupCode=code;
-  compareFilter='all';
   localStorage.setItem('mbaplanner_groupcode', code);
   document.getElementById('cmp-code-input').value=code;
 
@@ -1286,10 +1189,6 @@ function joinGroup(code){
     console.error('Firebase read error',err);
     document.getElementById('cmp-status').textContent='⚠️ Could not connect — check your internet connection.';
   });
-
-  document.getElementById('cmp-share-row').style.display='flex';
-  document.getElementById('cmp-share-input').value=code;
-  document.getElementById('cmp-manage-row').style.display='flex';
 }
 
 function getMyEncodedPlan(){
@@ -1311,8 +1210,7 @@ function publishMyPlan(name){
 
   const total=Object.values(sel).reduce((a,q)=>a+Object.keys(q).length,0);
   if(total===0){
-    // No local selections right now (e.g. fresh reload) — reset any stale plan
-    // previously published under this name so it doesn't linger for friends.
+    // No local selections — reset any stale plan previously published under this name.
     groupRef.child(key).remove();
     if(oldName && sanitizeKey(oldName)!==key) groupRef.child(sanitizeKey(oldName)).remove();
     statusEl.innerHTML=`📍 Connected to <b>"${myGroupCode}"</b> as <b>${name}</b>. Pick some electives in My Planner so friends can see your schedule!`;
@@ -1339,91 +1237,7 @@ function flashError(el){
   setTimeout(()=>{ el.style.borderColor=orig; },1100);
 }
 
-function removeFromRoster(name){
-  if(!groupRef) return;
-  groupRef.child(sanitizeKey(name)).remove();
-  if(name===sanitizeKey(myName)){
-    myName='';
-    localStorage.removeItem('mbaplanner_myname');
-    document.getElementById('cmp-name-input').value='';
-  }
-}
-
-function cmpShowCopied(){
-  const el=document.getElementById('cmp-copied');
-  el.classList.add('show');
-  setTimeout(()=>el.classList.remove('show'),2500);
-}
-function cmpCopyInvite(){
-  const url=window.location.href.split('#')[0];
-  const text=`Join my IIT Madras MBA elective group! Use group code "${myGroupCode}" on ${url}`;
-  if(navigator.clipboard){ navigator.clipboard.writeText(text).then(cmpShowCopied).catch(()=>cmpShowCopied()); }
-  else cmpShowCopied();
-}
-function cmpShareWhatsApp(){
-  const url=window.location.href.split('#')[0];
-  const msg=encodeURIComponent(`Join my IIT Madras MBA elective group! Use group code "${myGroupCode}" on ${url}`);
-  window.open('https://wa.me/?text='+msg,'_blank');
-}
-
-// Disconnect from the current group locally — does not touch shared data.
-// Lets you point the code input at a different group and reconnect.
-function cmpChangeGroup(){
-  if(groupRef) groupRef.off();
-  groupRef=null;
-  roster={};
-  compareFilter='all';
-  document.getElementById('cmp-code-input').value='';
-  document.getElementById('cmp-share-row').style.display='none';
-  document.getElementById('cmp-manage-row').style.display='none';
-  document.getElementById('cmp-status').textContent='Enter a different group code and connect to switch groups.';
-  document.getElementById('cmp-status').classList.remove('connected');
-  renderCompareView();
-}
-
-// Remove just yourself from this group's roster, then disconnect locally.
-function cmpLeaveGroup(){
-  if(groupRef && myName) groupRef.child(sanitizeKey(myName)).remove();
-  if(groupRef) groupRef.off();
-  groupRef=null;
-  roster={};
-  compareFilter='all';
-  myGroupCode='';
-  myName='';
-  localStorage.removeItem('mbaplanner_groupcode');
-  localStorage.removeItem('mbaplanner_myname');
-  document.getElementById('cmp-code-input').value='';
-  document.getElementById('cmp-name-input').value='';
-  document.getElementById('cmp-share-row').style.display='none';
-  document.getElementById('cmp-manage-row').style.display='none';
-  document.getElementById('cmp-status').textContent='Pick a name and a group code — anyone who enters the same code joins your group.';
-  document.getElementById('cmp-status').classList.remove('connected');
-  renderCompareView();
-}
-
-// Destructive: wipes every participant (including you) from this group code
-// for everyone. The group code itself still works — anyone can publish into
-// it fresh afterwards.
-function cmpClearGroup(){
-  if(!groupRef) return;
-  const ok=confirm(`Remove ALL participants from group "${myGroupCode}"? Everyone — including you — will need to reconnect and publish their plan again. This can't be undone.`);
-  if(!ok) return;
-  groupRef.remove().then(()=>{
-    document.getElementById('cmp-status').innerHTML=`🗑 Group <b>"${myGroupCode}"</b> has been reset. Connect again to start fresh.`;
-    document.getElementById('cmp-status').classList.remove('connected');
-  }).catch(e=>{
-    alert('Could not reset the group — check your internet connection.');
-    console.error(e);
-  });
-}
-
 function setCompareQ(q){ compareQ=q; renderCompareView(); }
-
-// Focus the comparison on one friend, or back to everyone.
-function cmpSetFilter(key){
-  compareFilter = (compareFilter===key) ? 'all' : key;
-  renderCompareView();
-}
 
 // Merge live roster with my own up-to-the-second local plan (so I don't need to
 // re-publish every time I tweak a selection just to see myself reflected).
@@ -1435,19 +1249,6 @@ function cmpParticipants(){
     parts[key]={label:myName, plan:getMyEncodedPlan()};
   }
   return parts;
-}
-
-// Same as cmpParticipants(), but narrowed to you + one friend when a filter is active.
-// Falls back to everyone if the picked friend has left the group.
-function cmpFilteredParticipants(){
-  const all=cmpParticipants();
-  if(compareFilter!=='all' && !all[compareFilter]) compareFilter='all';
-  if(compareFilter==='all') return all;
-  const myKey=sanitizeKey(myName);
-  const out={};
-  if(all[myKey]) out[myKey]=all[myKey];
-  out[compareFilter]=all[compareFilter];
-  return out;
 }
 
 function renderCompareView(){
@@ -1467,28 +1268,18 @@ function renderCmpFriends(){
   empty.style.display='none';
 
   const myKey=sanitizeKey(myName);
-  const others=keys.filter(k=>k!==myKey);
-
-  let html='';
-  if(others.length>1){
-    html+=`<div class="cmp-chip cmp-allchip${compareFilter==='all'?' active':''}" onclick="cmpSetFilter('all')">👥 Everyone</div>`;
-  }
-  html+=keys.map(k=>{
+  row.innerHTML=keys.map(k=>{
     const isMe=k===myKey;
     const plan=parts[k].plan;
     const count=['Q5','Q6','Q7'].reduce((a,q)=>a+Object.keys(plan[q]||{}).length,0);
     const initial=(parts[k].label.trim().charAt(0)||'?').toUpperCase();
     const color=cmpColorFor(k);
-    const isActive=compareFilter===k;
-    const keyEsc=k.replace(/'/g,"\\'");
-    return `<div class="cmp-chip${isMe?' me':''}${isActive?' active':''}"${isMe?'':` onclick="cmpSetFilter('${keyEsc}')" style="cursor:pointer"`}>
+    return `<div class="cmp-chip${isMe?' me':''}">
       <div class="cmp-avatar" style="background:${color}">${initial}</div>
       <span class="cmp-chip-name">${parts[k].label}${isMe?' (you)':''}</span>
       <span class="cmp-chip-count">${count}/12</span>
-      ${!isMe?`<span class="cmp-chip-x" onclick="event.stopPropagation();removeFromRoster('${keyEsc}')" title="Remove from group">✕</span>`:''}
     </div>`;
   }).join('');
-  row.innerHTML=html;
 }
 
 function renderCmpQtabs(){
@@ -1498,7 +1289,7 @@ function renderCmpQtabs(){
 }
 
 function renderCmpLegend(){
-  const parts=cmpFilteredParticipants();
+  const parts=cmpParticipants();
   const keys=Object.keys(parts);
   document.getElementById('cmp-legend').innerHTML=keys.map(k=>{
     const isMe=k===sanitizeKey(myName);
@@ -1509,10 +1300,10 @@ function renderCmpLegend(){
 function renderCmpGrid(){
   const area=document.getElementById('cmp-grid-render');
   const q=compareQ;
-  const parts=cmpFilteredParticipants();
+  const parts=cmpParticipants();
   const keys=Object.keys(parts);
 
-  if(!keys.length){ area.innerHTML='<div class="empty-tt">Connect above to compare timetables with friends.</div>'; return; }
+  if(!keys.length){ area.innerHTML='<div class="empty-tt">Enter your name and group code above, then tap Compare.</div>'; return; }
   if(DATA[q].slots===null){
     area.innerHTML=`<div class="no-tt-box"><p style="font-weight:700;margin-bottom:8px;font-size:13px">📅 ${q} timetable not published yet</p><p style="font-size:12px;color:var(--tx2)">Slot timings will appear here once ${q} schedule is released.</p></div>`;
     return;
@@ -1556,15 +1347,12 @@ function renderCmpGrid(){
 function renderCmpTogether(){
   const area=document.getElementById('cmp-together-sec');
   const q=compareQ;
-  const parts=cmpFilteredParticipants();
+  const parts=cmpParticipants();
   const keys=Object.keys(parts);
   if(!keys.length){ area.innerHTML=''; return; }
 
   const myKey=sanitizeKey(myName);
-  const focusKey=keys.find(k=>k!==myKey);
-  const headerLabel = (compareFilter!=='all' && focusKey)
-    ? `🎉 Classes with ${parts[focusKey].label} — ${q}`
-    : `🎉 Classes together — ${q}`;
+  const headerLabel = `🎉 Classes together — ${q}`;
 
   const codeToInfo={};
   keys.forEach(k=>{
@@ -1577,7 +1365,7 @@ function renderCmpTogether(){
 
   const entries=Object.values(codeToInfo).filter(e=>e.people.length>=2).sort((a,b)=>b.people.length-a.people.length);
   if(!entries.length){
-    area.innerHTML=`<div class="sec-lbl">${headerLabel}</div><div class="cmp-empty">${keys.length<2?'Invite a friend with your group code above to start comparing.':`No shared classes in ${q} yet.`}</div>`;
+    area.innerHTML=`<div class="sec-lbl">${headerLabel}</div><div class="cmp-empty">${keys.length<2?'Ask your friend to enter the same group code and tap Compare.':`No shared classes in ${q} yet.`}</div>`;
     return;
   }
   let html=`<div class="sec-lbl">${headerLabel}</div>`;
@@ -1601,16 +1389,14 @@ if(wasShared) document.getElementById('shared-banner').classList.add('show');
 
 // Firebase init only — no auto-join, no prefill. The compare-with-friends
 // section always looks completely untouched on load (blank inputs, default
-// status text). Your group code/name/roster stay saved in localStorage and
-// Firebase purely in the background — press Connect to pull them back.
+// status text, empty results). Your group code/name/roster stay saved in
+// localStorage and Firebase purely in the background — enter them again and
+// tap Compare to pull everything back.
 roster={};
-compareFilter='all';
-document.getElementById('cmp-share-row').style.display='none';
-document.getElementById('cmp-manage-row').style.display='none';
 document.getElementById('cmp-status').classList.remove('connected');
 document.getElementById('cmp-code-input').value='';
 document.getElementById('cmp-name-input').value='';
-document.getElementById('cmp-status').textContent='Pick a name and a group code — anyone who enters the same code joins your group.';
+document.getElementById('cmp-status').textContent='Enter your name and a group code, then tap Compare.';
 if(!initFirebase()){
   document.getElementById('cmp-status').textContent='⚠️ Could not reach the live database — check your internet connection and reload the page.';
 }
