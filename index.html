@@ -1599,17 +1599,22 @@ const wasShared=loadFromURL();
 render();
 if(wasShared) document.getElementById('shared-banner').classList.add('show');
 
-// Auto-connect to Firebase + rejoin group
-// Always start the compare-with-friends section from a clean slate on load —
-// any restoration below is driven solely by the saved group code, not by
-// leftover UI/roster state from a previous session.
+// Firebase init only — no auto-join. The compare-with-friends section always
+// starts fully reset on load; your group code/name/roster remain saved in
+// localStorage and Firebase in the background, and are prefilled into the
+// fields below as a convenience, but you must press Connect to rejoin and
+// pull the live roster.
 roster={};
 compareFilter='all';
 document.getElementById('cmp-share-row').style.display='none';
 document.getElementById('cmp-manage-row').style.display='none';
 document.getElementById('cmp-status').classList.remove('connected');
 if(initFirebase()){
-  if(myGroupCode) attemptAutoJoin();
+  if(myGroupCode) document.getElementById('cmp-code-input').value=myGroupCode;
+  if(myName) document.getElementById('cmp-name-input').value=myName;
+  if(myGroupCode){
+    document.getElementById('cmp-status').textContent=`You were previously connected to "${myGroupCode}". Press Connect to rejoin and see the latest.`;
+  }
 } else {
   document.getElementById('cmp-status').textContent='⚠️ Could not reach the live database — check your internet connection and reload the page.';
 }
