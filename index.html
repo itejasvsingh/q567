@@ -1230,6 +1230,7 @@ function listenToAllGroups(){
     if(!data){ container.innerHTML="<p style='color:#9b9b98;'>No groups exist in the database yet.</p>"; return; }
     let html='';
     Object.keys(data).forEach(gCode=>{
+      const gCodeEsc=gCode.replace(/'/g,"\\'");
       html+=`<div style="background:#f5f4f0;padding:10px;border-radius:6px;margin-bottom:10px;border-left:4px solid #185fa5;">`;
       html+=`<strong>Group Code: <span style="color:#185fa5;">${gCode}</span></strong>`;
       const members=data[gCode].members||{};
@@ -1238,8 +1239,12 @@ function listenToAllGroups(){
         html+=`<div style="margin-left:15px;margin-top:5px;font-size:11px;color:#9b9b98;">No active members</div>`;
       } else {
         memberNames.forEach(name=>{
+          const nameEsc=name.replace(/'/g,"\\'");
           html+=`<div style="margin-left:15px;margin-top:5px;background:#fff;padding:6px;border-radius:4px;">`;
-          html+=`👤 <strong>${name}</strong>: `;
+          html+=`<div style="display:flex;justify-content:space-between;align-items:center;">`;
+          html+=`<span>👤 <strong>${name}</strong></span>`;
+          html+=`<button onclick="adminRemoveMember('${gCodeEsc}','${nameEsc}')" style="background:#a32d2d;color:#fff;border:none;padding:3px 9px;border-radius:4px;font-size:11px;cursor:pointer;">Remove</button>`;
+          html+=`</div>`;
           ['Q5','Q6','Q7'].forEach(q=>{
             if(members[name][q]){
               const codes=Object.keys(members[name][q]);
@@ -1260,6 +1265,17 @@ function listenToAllGroups(){
     container.innerHTML=html;
   }, err=>{
     document.getElementById('admin-live-data').innerHTML=`<p style="color:#a32d2d;">❌ Permission denied — check your Firebase security rules allow read access.</p>`;
+  });
+}
+
+// Admin-only: delete one member's saved schedule from a group directly on the server.
+function adminRemoveMember(groupCode,name){
+  if(!fbDb) return;
+  const ok=confirm(`Remove "${name}"'s schedule from group "${groupCode}"? This can't be undone.`);
+  if(!ok) return;
+  fbDb.ref('groups/'+groupCode+'/members/'+name).remove().catch(e=>{
+    alert('Could not remove — check your internet connection.');
+    console.error(e);
   });
 }
 
