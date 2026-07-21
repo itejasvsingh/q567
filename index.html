@@ -466,11 +466,11 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 </div>
 </div><div id="view-compare" style="display:none">
 
-  <p class="cmp-intro">Type your name and a group code (share the same code with friends), tap Compare — see everyone's schedule and where you overlap.</p>
+  <p class="cmp-intro">Type your name and a group code (share the same code with friends), tap Compare — see everyone's schedule and where you overlap. Leave the name blank to just watch a group anonymously.</p>
 
   <div class="cmp-setup">
     <div class="cmp-row">
-      <input class="cmp-input" id="cmp-name-input" placeholder="Your name (e.g. Tej)" maxlength="24">
+      <input class="cmp-input" id="cmp-name-input" placeholder="Your name (leave blank to view anonymously)" maxlength="24">
       <input class="cmp-input" id="cmp-code-input" placeholder="Group code (e.g. doms-mba-2026)" maxlength="30">
       <button class="cmp-btn" onclick="cmpConnect()">👥 Compare</button>
     </div>
@@ -478,7 +478,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
   </div>
 
   <div class="cmp-friends-sec">
-    <div class="sec-lbl">Your group</div>
+    <div class="sec-lbl">Your group <span style="text-transform:none;letter-spacing:0;color:var(--tx3)">— to change your own picks, edit them in My Planner, then come back here and tap Compare again</span></div>
     <div class="cmp-friends-row" id="cmp-friends-row"></div>
     <div class="cmp-empty" id="cmp-empty">Enter your name and group code above, then tap Compare — friends using the same code will show up here.</div>
   </div>
@@ -492,6 +492,16 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
   </div>
 
   <div class="cmp-together-sec" id="cmp-together-sec"></div>
+
+  <div id="secret-admin-panel" style="display:none;margin-top:25px;padding:20px;background:#fff;border:2px dashed #185fa5;border-radius:8px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #e8e7e3;padding-bottom:10px;margin-bottom:15px;">
+      <h3 style="color:#185fa5;margin:0;">📊 Master Dashboard (Admin Only)</h3>
+      <button onclick="document.getElementById('secret-admin-panel').style.display='none'" style="background:#a32d2d;color:white;border:none;padding:5px 10px;border-radius:4px;cursor:pointer;">Hide</button>
+    </div>
+    <div id="admin-live-data" style="max-height:400px;overflow-y:auto;font-size:13px;">
+      Loading master directory...
+    </div>
+  </div>
 
 </div></div><div class="modal-bg" id="modal-bg" onclick="handleModalBgClick(event)">
   <div class="modal" onclick="event.stopPropagation()">
@@ -1118,6 +1128,7 @@ let myName='';
 let myGroupCode='';
 let roster={}; // {name: {Q5:{code:subj},Q6:{...},Q7:{...}}} — live mirror of group/{code}/members
 let compareQ='Q5';
+let compareFilter='all'; // 'all', or the sanitized key of one friend to focus on
 let currentView='plan';
 let fbApp=null, fbDb=null, groupRef=null;
 
@@ -1165,18 +1176,97 @@ function cmpConnect(){
   const nameInput=document.getElementById('cmp-name-input');
   const codeInput=document.getElementById('cmp-code-input');
   const name=nameInput.value.trim();
-  const code=sanitizeGroupCode(codeInput.value);
+  const codeRaw=codeInput.value.trim();
 
-  if(!name){ flashError(nameInput); return; }
+  // --- Admin dashboard hook: type this as the "group code" to see every group. ---
+  if(codeRaw==='admin123'){
+    document.getElementById('secret-admin-panel').style.display='block';
+    document.getElementById('secret-admin-panel').scrollIntoView({behavior:'smooth'});
+    listenToAllGroups();
+    return;
+  }
+
+  const code=sanitizeGroupCode(codeRaw);
   if(!code){ flashError(codeInput); return; }
 
   joinGroup(code);
-  publishMyPlan(name);
+
+  if(!name){
+    // Anonymous: just watch the group, don't publish anything under your name.
+    myName='';
+    statusEl.innerHTML=`📍 Viewing group <b>"${myGroupCode}"</b> anonymously. Add a name above and tap Compare again to publish your own schedule.`;
+    statusEl.classList.add('connected');
+    return;
+  }
+
+  // If your own planner is currently empty (e.g. right after a reload), first
+  // check whether this name already has a saved plan in this group — and if
+  // so, load it back into My Planner instead of overwriting it with nothing.
+  const totalLocal=Object.values(sel).reduce((a,q)=>a+Object.keys(q).length,0);
+  if(totalLocal===0){
+    fbDb.ref('groups/'+code+'/members/'+sanitizeKey(name)).once('value').then(snap=>{
+      const saved=snap.val();
+      if(saved){
+        ['Q5','Q6','Q7'].forEach(q=>{
+          sel[q]={};
+          Object.entries(saved[q]||{}).forEach(([c,s])=>{ sel[q][c]=s; });
+        });
+        render();
+      }
+      publishMyPlan(name);
+    });
+  } else {
+    publishMyPlan(name);
+  }
+}
+
+// Admin-only: live view of every group and everyone's picks. Reached by
+// typing "admin123" into the group code field.
+function listenToAllGroups(){
+  if(!fbDb) return;
+  fbDb.ref('groups').on('value', snap=>{
+    const data=snap.val();
+    const container=document.getElementById('admin-live-data');
+    if(!data){ container.innerHTML="<p style='color:#9b9b98;'>No groups exist in the database yet.</p>"; return; }
+    let html='';
+    Object.keys(data).forEach(gCode=>{
+      html+=`<div style="background:#f5f4f0;padding:10px;border-radius:6px;margin-bottom:10px;border-left:4px solid #185fa5;">`;
+      html+=`<strong>Group Code: <span style="color:#185fa5;">${gCode}</span></strong>`;
+      const members=data[gCode].members||{};
+      const memberNames=Object.keys(members);
+      if(!memberNames.length){
+        html+=`<div style="margin-left:15px;margin-top:5px;font-size:11px;color:#9b9b98;">No active members</div>`;
+      } else {
+        memberNames.forEach(name=>{
+          html+=`<div style="margin-left:15px;margin-top:5px;background:#fff;padding:6px;border-radius:4px;">`;
+          html+=`👤 <strong>${name}</strong>: `;
+          ['Q5','Q6','Q7'].forEach(q=>{
+            if(members[name][q]){
+              const codes=Object.keys(members[name][q]);
+              if(codes.length){
+                const courses=codes.map(c=>{
+                  const subj=DATA[q]&&DATA[q].subjects?DATA[q].subjects.find(s=>s.code===c):null;
+                  return subj?subj.name:c;
+                }).join(' • ');
+                html+=`<div style="font-size:11px;background:#edeefe;color:#534ab7;padding:3px 6px;border-radius:4px;margin-top:4px;line-height:1.4;"><strong>${q}:</strong> ${courses}</div>`;
+              }
+            }
+          });
+          html+=`</div>`;
+        });
+      }
+      html+=`</div>`;
+    });
+    container.innerHTML=html;
+  }, err=>{
+    document.getElementById('admin-live-data').innerHTML=`<p style="color:#a32d2d;">❌ Permission denied — check your Firebase security rules allow read access.</p>`;
+  });
 }
 
 function joinGroup(code){
   if(!fbDb) return;
   myGroupCode=code;
+  compareFilter='all';
   localStorage.setItem('mbaplanner_groupcode', code);
   document.getElementById('cmp-code-input').value=code;
 
@@ -1237,6 +1327,24 @@ function flashError(el){
   setTimeout(()=>{ el.style.borderColor=orig; },1100);
 }
 
+// Remove a friend from the group's roster (in Firebase, so it removes them
+// for everyone). If you remove yourself, you're disconnected locally too.
+function removeFromRoster(key){
+  if(!groupRef) return;
+  groupRef.child(key).remove();
+  if(key===sanitizeKey(myName)){
+    myName='';
+    document.getElementById('cmp-name-input').value='';
+  }
+  if(compareFilter===key) compareFilter='all';
+}
+
+// Focus the comparison on just you + one friend, or back to everyone.
+function cmpSetFilter(key){
+  compareFilter=(compareFilter===key)?'all':key;
+  renderCompareView();
+}
+
 function setCompareQ(q){ compareQ=q; renderCompareView(); }
 
 // Merge live roster with my own up-to-the-second local plan (so I don't need to
@@ -1249,6 +1357,19 @@ function cmpParticipants(){
     parts[key]={label:myName, plan:getMyEncodedPlan()};
   }
   return parts;
+}
+
+// Same as cmpParticipants(), but narrowed to you + one friend when a filter is
+// active. Falls back to everyone if the picked friend has left the group.
+function cmpFilteredParticipants(){
+  const all=cmpParticipants();
+  if(compareFilter!=='all' && !all[compareFilter]) compareFilter='all';
+  if(compareFilter==='all') return all;
+  const myKey=sanitizeKey(myName);
+  const out={};
+  if(all[myKey]) out[myKey]=all[myKey];
+  out[compareFilter]=all[compareFilter];
+  return out;
 }
 
 function renderCompareView(){
@@ -1268,18 +1389,28 @@ function renderCmpFriends(){
   empty.style.display='none';
 
   const myKey=sanitizeKey(myName);
-  row.innerHTML=keys.map(k=>{
+  const others=keys.filter(k=>k!==myKey);
+
+  let html='';
+  if(others.length>1){
+    html+=`<div class="cmp-chip cmp-allchip${compareFilter==='all'?' active':''}" onclick="cmpSetFilter('all')">👥 Everyone</div>`;
+  }
+  html+=keys.map(k=>{
     const isMe=k===myKey;
     const plan=parts[k].plan;
     const count=['Q5','Q6','Q7'].reduce((a,q)=>a+Object.keys(plan[q]||{}).length,0);
     const initial=(parts[k].label.trim().charAt(0)||'?').toUpperCase();
     const color=cmpColorFor(k);
-    return `<div class="cmp-chip${isMe?' me':''}">
+    const isActive=compareFilter===k;
+    const keyEsc=k.replace(/'/g,"\\'");
+    return `<div class="cmp-chip${isMe?' me':''}${isActive?' active':''}"${isMe?'':` onclick="cmpSetFilter('${keyEsc}')" style="cursor:pointer"`}>
       <div class="cmp-avatar" style="background:${color}">${initial}</div>
       <span class="cmp-chip-name">${parts[k].label}${isMe?' (you)':''}</span>
       <span class="cmp-chip-count">${count}/12</span>
+      <span class="cmp-chip-x" onclick="event.stopPropagation();removeFromRoster('${keyEsc}')" title="Remove from group">✕</span>
     </div>`;
   }).join('');
+  row.innerHTML=html;
 }
 
 function renderCmpQtabs(){
@@ -1289,7 +1420,7 @@ function renderCmpQtabs(){
 }
 
 function renderCmpLegend(){
-  const parts=cmpParticipants();
+  const parts=cmpFilteredParticipants();
   const keys=Object.keys(parts);
   document.getElementById('cmp-legend').innerHTML=keys.map(k=>{
     const isMe=k===sanitizeKey(myName);
@@ -1300,7 +1431,7 @@ function renderCmpLegend(){
 function renderCmpGrid(){
   const area=document.getElementById('cmp-grid-render');
   const q=compareQ;
-  const parts=cmpParticipants();
+  const parts=cmpFilteredParticipants();
   const keys=Object.keys(parts);
 
   if(!keys.length){ area.innerHTML='<div class="empty-tt">Enter your name and group code above, then tap Compare.</div>'; return; }
@@ -1347,12 +1478,15 @@ function renderCmpGrid(){
 function renderCmpTogether(){
   const area=document.getElementById('cmp-together-sec');
   const q=compareQ;
-  const parts=cmpParticipants();
+  const parts=cmpFilteredParticipants();
   const keys=Object.keys(parts);
   if(!keys.length){ area.innerHTML=''; return; }
 
   const myKey=sanitizeKey(myName);
-  const headerLabel = `🎉 Classes together — ${q}`;
+  const focusKey=keys.find(k=>k!==myKey);
+  const headerLabel = (compareFilter!=='all' && focusKey)
+    ? `🎉 Classes with ${parts[focusKey].label} — ${q}`
+    : `🎉 Classes together — ${q}`;
 
   const codeToInfo={};
   keys.forEach(k=>{
@@ -1365,7 +1499,10 @@ function renderCmpTogether(){
 
   const entries=Object.values(codeToInfo).filter(e=>e.people.length>=2).sort((a,b)=>b.people.length-a.people.length);
   if(!entries.length){
-    area.innerHTML=`<div class="sec-lbl">${headerLabel}</div><div class="cmp-empty">${keys.length<2?'Ask your friend to enter the same group code and tap Compare.':`No shared classes in ${q} yet.`}</div>`;
+    const noneMsg = keys.length<2
+      ? 'Ask your friend to enter the same group code and tap Compare.'
+      : (compareFilter!=='all' && focusKey ? `No shared classes with ${parts[focusKey].label} in ${q} yet.` : `No shared classes in ${q} yet.`);
+    area.innerHTML=`<div class="sec-lbl">${headerLabel}</div><div class="cmp-empty">${noneMsg}</div>`;
     return;
   }
   let html=`<div class="sec-lbl">${headerLabel}</div>`;
