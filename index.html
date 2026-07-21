@@ -537,7 +537,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 <script>
 // ── DATA ─────────────────────────────────────────────────────────────────────
 const DATA={
-  Q5:{label:'Q5 — Jul–Sep 2026',slots:{
+  Q5:{label:'Q5 — 27 Jul–15 Sep 2026',slots:{
     PP:[{d:'Monday',t:'8am-10am'},{d:'Wednesday',t:'1pm-3pm'}],
     QQ:[{d:'Tuesday',t:'8am-10am'},{d:'Thursday',t:'10am-12pm'}],
     SS:[{d:'Monday',t:'1pm-3pm'},{d:'Thursday',t:'8am-10am'}],
@@ -563,7 +563,7 @@ const DATA={
     {slot:'VV',code:'MS6910',name:'Global Business Management',instructor:'C B Rao',v:'Strategy'},
     {slot:'VV',code:'MS5070',name:'Software Product Management',instructor:'Nargis Pervin',v:'IS'},
   ]},
-  Q6:{label:'Q6 — Oct–Dec 2026',slots:{
+  Q6:{label:'Q6 — 24 Sep–13 Nov 2026',slots:{
     PP:[{d:'Monday',t:'8am-10am'},{d:'Wednesday',t:'1pm-3pm'}],
     RR:[{d:'Wednesday',t:'8am-10am'},{d:'Friday',t:'1pm-3pm'}],
     SS:[{d:'Monday',t:'1pm-3pm'},{d:'Thursday',t:'8am-10am'}],
@@ -1311,6 +1311,10 @@ function publishMyPlan(name){
 
   const total=Object.values(sel).reduce((a,q)=>a+Object.keys(q).length,0);
   if(total===0){
+    // No local selections right now (e.g. fresh reload) — reset any stale plan
+    // previously published under this name so it doesn't linger for friends.
+    groupRef.child(key).remove();
+    if(oldName && sanitizeKey(oldName)!==key) groupRef.child(sanitizeKey(oldName)).remove();
     statusEl.innerHTML=`📍 Connected to <b>"${myGroupCode}"</b> as <b>${name}</b>. Pick some electives in My Planner so friends can see your schedule!`;
     statusEl.classList.add('connected');
     renderCompareView();
@@ -1596,6 +1600,14 @@ render();
 if(wasShared) document.getElementById('shared-banner').classList.add('show');
 
 // Auto-connect to Firebase + rejoin group
+// Always start the compare-with-friends section from a clean slate on load —
+// any restoration below is driven solely by the saved group code, not by
+// leftover UI/roster state from a previous session.
+roster={};
+compareFilter='all';
+document.getElementById('cmp-share-row').style.display='none';
+document.getElementById('cmp-manage-row').style.display='none';
+document.getElementById('cmp-status').classList.remove('connected');
 if(initFirebase()){
   if(myGroupCode) attemptAutoJoin();
 } else {
