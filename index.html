@@ -310,6 +310,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 .cmp-pplrow{display:flex;align-items:center;gap:4px}
 .cmp-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .cmp-classname{font-size:9px;font-weight:700;color:var(--tx);line-height:1.25;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.cmp-room{font-weight:500;color:var(--tx3)}
 .cmp-together-tag{font-size:8px;font-weight:700;color:var(--tx-success);margin-top:1px}
 .cmp-clash-tag{font-size:8px;font-weight:700;color:var(--tx-warn);margin-top:1px}
 
@@ -536,21 +537,21 @@ const DATA={
     WW:[{d:'Monday',t:'3pm-5pm'},{d:'Wednesday',t:'10am-12pm'}],
     XX:[{d:'Tuesday',t:'3pm-5pm'},{d:'Friday',t:'10am-12pm'}]},
   subjects:[
-    {slot:'WW',code:'MS5011',name:'Strategic Human Resource Management',instructor:'Lata Dyaram',v:'HR'},
-    {slot:'WW',code:'MS5988',name:'Digital Transformation with AI',instructor:'Imon Chakraborty',v:'IS'},
-    {slot:'UU',code:'MS5012',name:'Data Driven Decision Making for HR',instructor:'Srinivasan S',v:'HR'},
-    {slot:'UU',code:'MS5510',name:'Logistics and Distribution Management',instructor:'Vipin B',v:'Ops'},
-    {slot:'UU',code:'MS5612',name:'Real Options Valuation',instructor:'Thillai Rajan A',v:'Finance'},
-    {slot:'XX',code:'MS5530',name:'Managing Career',instructor:'Rupashree Baral',v:'HR'},
-    {slot:'XX',code:'MS6840',name:'Business Intelligence & Analytics',instructor:'Saji Mathew',v:'IS'},
-    {slot:'QQ',code:'MS5560',name:'Services & Operations Management',instructor:'Rahul Marathe',v:'Ops'},
-    {slot:'TT',code:'MS5610',name:'Security Analysis and Portfolio Management',instructor:'Madhumathi R',v:'Finance'},
-    {slot:'TT',code:'MS5710',name:'Consumer Behaviour',instructor:'Richa Agrawal',v:'Marketing'},
-    {slot:'SS',code:'MS5720',name:'Advertising and Publicity',instructor:'Varisha Rehman',v:'Marketing'},
-    {slot:'PP',code:'MS5760',name:'Marketing on the Internet',instructor:'Vaibhav Chawla',v:'Marketing'},
-    {slot:'VV',code:'MS5640',name:'Mergers and Acquisitions',instructor:'Arun Kumar G',v:'Finance'},
-    {slot:'VV',code:'MS6910',name:'Global Business Management',instructor:'C B Rao',v:'Strategy'},
-    {slot:'VV',code:'MS5070',name:'Software Product Management',instructor:'Nargis Pervin',v:'IS'},
+    {slot:'WW',code:'MS5011',name:'Strategic Human Resource Management',instructor:'Lata Dyaram',v:'HR',room:'MSB 359'},
+    {slot:'WW',code:'MS5988',name:'Digital Transformation with AI',instructor:'Imon Chakraborty',v:'IS',room:'253'},
+    {slot:'UU',code:'MS5012',name:'Data Driven Decision Making for HR',instructor:'Srinivasan S',v:'HR',room:'252'},
+    {slot:'UU',code:'MS5510',name:'Logistics and Distribution Management',instructor:'Vipin B',v:'Ops',room:'251'},
+    {slot:'UU',code:'MS5612',name:'Real Options Valuation',instructor:'Thillai Rajan A',v:'Finance',room:'253'},
+    {slot:'XX',code:'MS5530',name:'Managing Career',instructor:'Rupashree Baral',v:'HR',room:'252'},
+    {slot:'XX',code:'MS6840',name:'Business Intelligence & Analytics',instructor:'Saji Mathew',v:'IS',room:'251'},
+    {slot:'QQ',code:'MS5560',name:'Services & Operations Management',instructor:'Rahul Marathe',v:'Ops',room:'253'},
+    {slot:'TT',code:'MS5610',name:'Security Analysis and Portfolio Management',instructor:'Madhumathi R',v:'Finance',room:'252'},
+    {slot:'TT',code:'MS5710',name:'Consumer Behaviour',instructor:'Richa Agrawal',v:'Marketing',room:'253'},
+    {slot:'SS',code:'MS5720',name:'Advertising and Publicity',instructor:'Varisha Rehman',v:'Marketing',room:'252'},
+    {slot:'PP',code:'MS5760',name:'Marketing on the Internet',instructor:'Vaibhav Chawla',v:'Marketing',room:'253'},
+    {slot:'VV',code:'MS5640',name:'Mergers and Acquisitions',instructor:'Arun Kumar G',v:'Finance',room:'251'},
+    {slot:'VV',code:'MS6910',name:'Global Business Management',instructor:'C B Rao',v:'Strategy',room:'253'},
+    {slot:'VV',code:'MS5070',name:'Software Product Management',instructor:'Nargis Pervin',v:'IS',room:'252'},
   ]},
   Q6:{label:'Q6 — 24 Sep–13 Nov 2026',slots:{
     PP:[{d:'Monday',t:'8am-10am'},{d:'Wednesday',t:'1pm-3pm'}],
@@ -779,7 +780,7 @@ function buildTTHtml(q,compact){
     TIMESLOTS.forEach(slot=>{
       if(slot==='12pm-1pm'){h+=`<div class="lc">lunch</div>`;return;}
       const s=lk[day]&&lk[day][slot];
-      if(s)h+=`<div class="tcell has"><div class="tc-slot">Slot ${s.slot}</div><div class="tc-name">${s.name}</div><div class="tc-instr">${s.instructor}</div></div>`;
+      if(s)h+=`<div class="tcell has"><div class="tc-slot">Slot ${s.slot}${s.room?' · Room '+s.room:''}</div><div class="tc-name">${s.name}</div><div class="tc-instr">${s.instructor}</div></div>`;
       else h+=`<div class="tcell emp"></div>`;
     });
     h+='</div>';
@@ -828,7 +829,7 @@ function render(){
         <div class="smeta">
           <span class="slotb">Slot ${s.slot}</span>
           <span class="vb ${VC[s.v]||''}">${s.v}</span>
-          · ${s.instructor}
+          · ${s.instructor}${s.room?' · Room '+s.room:''}
         </div>
       </div>
     </div>`;
@@ -935,7 +936,7 @@ function exportExcel(q){
       const row=[timeLabels[i]];
       DAYS.forEach(day=>{
         const s=lk[day]&&lk[day][tk];
-        row.push(s?`${s.name}\n(${s.instructor}, Slot ${s.slot})`:(tk==='12pm-1pm'?'— LUNCH —':''));
+        row.push(s?`${s.name}\n(${s.instructor}, Slot ${s.slot}${s.room?', Room '+s.room:''})`:(tk==='12pm-1pm'?'— LUNCH —':''));
       });
       rows.push(row);
     });
@@ -946,10 +947,10 @@ function exportExcel(q){
   }
 
   // Sheet 2: Subject list
-  const listRows=[['Code','Subject','Instructor','Domain','Slot','Quarter']];
-  ss.forEach(s=>listRows.push([s.code,s.name,s.instructor,s.v,s.slot,q]));
+  const listRows=[['Code','Subject','Instructor','Domain','Slot','Room','Quarter']];
+  ss.forEach(s=>listRows.push([s.code,s.name,s.instructor,s.v,s.slot,s.room||'',q]));
   const ws2=XLSX.utils.aoa_to_sheet(listRows);
-  ws2['!cols']=[{wch:10},{wch:40},{wch:20},{wch:12},{wch:8},{wch:8}];
+  ws2['!cols']=[{wch:10},{wch:40},{wch:20},{wch:12},{wch:8},{wch:10},{wch:8}];
   XLSX.utils.book_append_sheet(wb,ws2,'Subject List');
 
   XLSX.writeFile(wb,`Timetable_${q}.xlsx`);
@@ -1251,7 +1252,7 @@ function listenToAllGroups(){
               if(codes.length){
                 const courses=codes.map(c=>{
                   const subj=DATA[q]&&DATA[q].subjects?DATA[q].subjects.find(s=>s.code===c):null;
-                  return subj?subj.name:c;
+                  return subj?(subj.name+(subj.room?' (Room '+subj.room+')':'')):c;
                 }).join(' • ');
                 html+=`<div style="font-size:11px;background:#edeefe;color:#534ab7;padding:3px 6px;border-radius:4px;margin-top:4px;line-height:1.4;"><strong>${q}:</strong> ${courses}</div>`;
               }
@@ -1481,7 +1482,7 @@ function renderCmpGrid(){
       const together = occ.length>=2 && codes.size===1;
       const clash = codes.size>=2;
       const cls='cmp-cell'+(together?' together':clash?' clash':'');
-      let inner=occ.map(o=>`<div class="cmp-pplrow"><div class="cmp-dot" style="background:${cmpColorFor(o.key)}"></div><div class="cmp-classname">${o.subj.name}</div></div>`).join('');
+      let inner=occ.map(o=>`<div class="cmp-pplrow"><div class="cmp-dot" style="background:${cmpColorFor(o.key)}"></div><div class="cmp-classname">${o.subj.name}${o.subj.room?`<span class="cmp-room"> · Rm ${o.subj.room}</span>`:''}</div></div>`).join('');
       if(together) inner+=`<div class="cmp-together-tag">🎉 together</div>`;
       else if(clash) inner+=`<div class="cmp-clash-tag">⚡ clash</div>`;
       h+=`<div class="${cls}">${inner}</div>`;
@@ -1526,7 +1527,7 @@ function renderCmpTogether(){
     html+=`<div class="cmp-tcard">
       <div class="cmp-tcard-top">
         <div class="cmp-tcard-name">${e.subj.name}</div>
-        <div class="cmp-tcard-slot">Slot ${e.subj.slot}</div>
+        <div class="cmp-tcard-slot">Slot ${e.subj.slot}${e.subj.room?' · Rm '+e.subj.room:''}</div>
       </div>
       <div class="cmp-tcard-ppl">${e.people.map(k=>`<span class="cmp-tperson"><span class="cmp-dot" style="background:${cmpColorFor(k)}"></span>${parts[k].label}${k===myKey?' (you)':''}</span>`).join('')}</div>
     </div>`;
