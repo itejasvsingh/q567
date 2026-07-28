@@ -23,9 +23,15 @@
   --tx:#f0efea;--tx2:#a0a09a;--tx3:#6a6a65;--tx-info:#85b7eb;--tx-danger:#f09595;--tx-success:#6dd4a0;--tx-warn:#f0b955;
   --bd:rgba(255,255,255,0.09);--bd2:rgba(255,255,255,0.18);--bd-info:rgba(133,183,235,0.28);--bd-success:rgba(109,212,160,0.28);--bd-warn:rgba(240,185,85,0.28);--bd-danger:rgba(240,149,149,0.28);
 }}
-html{-webkit-text-size-adjust:100%}
-body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px;line-height:1.6;min-height:100vh}
-.page{max-width:960px;margin:0 auto;padding:1.25rem 1rem 6rem}
+html{-webkit-text-size-adjust:100%;overflow-x:hidden}
+body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px;line-height:1.6;min-height:100vh;overflow-x:hidden}
+.page{max-width:960px;margin:0 auto;padding:1.25rem 1rem 6rem;overflow-x:hidden}
+/* iOS Safari zooms the whole page in when a focused input has font-size <16px.
+   Force every text input/select on mobile to 16px regardless of each
+   component's own smaller design size, so tapping a field never triggers it. */
+@media(max-width:640px){
+  input[type="text"],input[type="search"],input:not([type]),select,textarea{font-size:16px!important}
+}
 
 /* ── HEADER ── */
 .hdr{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;padding-bottom:1rem;border-bottom:.5px solid var(--bd);margin-bottom:1.5rem}
@@ -81,12 +87,16 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 
 /* ── QUARTER TABS + FILTER ── */
 .ctrl{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:1rem}
+@media(max-width:480px){.ctrl{flex-direction:column;align-items:stretch}.fbar{width:100%}}
 .qtabs{display:flex;gap:6px;flex-wrap:wrap}
 .qtab{padding:8px 16px;border-radius:var(--r);border:.5px solid var(--bd2);background:transparent;color:var(--tx2);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent;position:relative;min-height:40px;display:flex;align-items:center}
 .qtab.on{background:var(--bg-info);color:var(--tx-info);border-color:var(--bd-info)}
 .qbadge{position:absolute;top:-5px;right:-5px;background:#185fa5;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;display:none}
 .qbadge.show{display:block}
-.fbar{display:flex;align-items:center;flex-wrap:wrap;gap:5px}
+.fbar{display:flex;align-items:center;gap:6px;min-width:0;flex:1 1 auto;max-width:100%}
+.fscroll-track{overflow-x:auto;scroll-behavior:smooth;min-width:0;flex:1;scrollbar-width:none;-ms-overflow-style:none}
+.fscroll-track::-webkit-scrollbar{display:none}
+#fchips{display:flex;gap:5px;flex-wrap:nowrap;width:max-content}
 .flbl{font-size:10px;color:var(--tx3)}
 .fchip{padding:4px 10px;border-radius:20px;border:.5px solid var(--bd);background:var(--bg2);color:var(--tx2);font-size:11px;font-weight:500;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent;min-height:28px;display:flex;align-items:center}
 .fchip.on{border-color:var(--bd-info);background:var(--bg-info);color:var(--tx-info)}
@@ -183,6 +193,12 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 .exp-btn.xl{border-color:var(--bd-success);background:var(--bg-success);color:var(--tx-success)}
 .exp-btn.img{border-color:var(--bd-info);background:var(--bg-info);color:var(--tx-info)}
 .tt-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--r)}
+.swipe-hint{display:none;font-size:10px;color:var(--tx3);text-align:center;margin-bottom:5px}
+@media(max-width:680px){.swipe-hint{display:block}}
+.admin-panel{padding:20px}
+@media(max-width:480px){.admin-panel{padding:12px}}
+.mess-iframe{height:78vh;min-height:520px}
+@media(max-width:680px){.mess-iframe{height:65vh;min-height:420px}}
 #tt-render{min-width:580px;background:var(--bg)}
 .tt-grid{display:grid;grid-template-columns:72px repeat(6,1fr);gap:3px;margin-bottom:3px}
 .tt-hcell{font-size:9px;font-weight:700;color:var(--tx3);text-align:center;padding:4px 2px;letter-spacing:.03em}
@@ -256,14 +272,17 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 .supply-note span{font-weight:600;color:var(--tx-danger)}
 
 /* ── VIEW TABS ── */
-.view-tabs{display:flex;gap:6px;margin-bottom:1.25rem;border-bottom:.5px solid var(--bd);padding-bottom:0}
-.view-tab{padding:10px 16px;border:none;background:transparent;color:var(--tx2);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent;border-bottom:2px solid transparent;margin-bottom:-1px;display:flex;align-items:center;gap:6px}
+.view-tabs{display:flex;gap:6px;margin-bottom:1.25rem;border-bottom:.5px solid var(--bd);padding-bottom:0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;-ms-overflow-style:none}
+.view-tabs::-webkit-scrollbar{display:none}
+.view-tab{padding:10px 16px;border:none;background:transparent;color:var(--tx2);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent;border-bottom:2px solid transparent;margin-bottom:-1px;display:flex;align-items:center;gap:6px;white-space:nowrap;flex-shrink:0}
+@media(max-width:400px){.view-tab{padding:9px 11px;font-size:12px;gap:4px}}
 .view-tab.on{color:var(--tx-info);border-bottom-color:#185fa5}
 
 /* ── COMPARE VIEW ── */
 .cmp-intro{font-size:12px;color:var(--tx2);margin-bottom:1rem;line-height:1.6}
 .cmp-setup{background:var(--bg2);border:.5px solid var(--bd);border-radius:var(--rl);padding:1rem 1.1rem;margin-bottom:1.25rem}
 .cmp-row{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px}
+@media(max-width:480px){.cmp-row{flex-direction:column}.cmp-row .cmp-input,.cmp-row .cmp-btn{width:100%;min-width:0}.cmp-btn{padding:12px 16px}}
 .cmp-row:last-child{margin-bottom:0}
 .cmp-input{flex:1;min-width:140px;padding:10px 12px;border-radius:var(--r);border:.5px solid var(--bd2);background:var(--bg);color:var(--tx);font-size:13px;font-family:var(--font);outline:none}
 .cmp-input:focus{border-color:var(--bd-info)}
@@ -289,7 +308,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 .cmp-chip.active{border-color:var(--bd-success);background:var(--bg-success);box-shadow:0 0 0 1px var(--bd-success) inset}
 .cmp-allchip{font-size:12px;font-weight:700;color:var(--tx2)}
 .cmp-allchip.active{border-color:var(--bd-info);background:var(--bg-info);color:var(--tx-info);box-shadow:0 0 0 1px var(--bd-info) inset}
-.cmp-chip-x{cursor:pointer;color:var(--tx3);font-weight:700;font-size:13px;padding:0 2px;-webkit-tap-highlight-color:transparent}
+.cmp-chip-x{cursor:pointer;color:var(--tx3);font-weight:700;font-size:14px;padding:4px 6px;margin:-4px -4px -4px 0;-webkit-tap-highlight-color:transparent}
 .cmp-chip-x:hover{color:var(--tx-danger)}
 .cmp-empty{text-align:center;padding:1.75rem 1rem;color:var(--tx3);font-size:12px;border:.5px dashed var(--bd);border-radius:var(--rl);line-height:1.6}
 
@@ -315,6 +334,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 .cmp-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .cmp-classname{font-size:9px;font-weight:700;color:var(--tx);line-height:1.25;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .cmp-room{font-weight:700;color:var(--tx-warn)}
+.cmp-roomb{display:inline-block;font-size:8px;font-weight:700;padding:1px 5px;border-radius:3px;background:var(--bg-warn);color:var(--tx-warn);border:.5px solid var(--bd-warn);margin-top:1px;width:fit-content}
 .cmp-together-tag{font-size:8px;font-weight:700;color:var(--tx-success);margin-top:1px}
 .cmp-clash-tag{font-size:8px;font-weight:700;color:var(--tx-warn);margin-top:1px}
 
@@ -405,7 +425,9 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
   </div>
   <div class="fbar">
     <span class="flbl">Filter:</span>
-    <span id="fchips"></span>
+    <div class="fscroll-track" id="fscroll-track">
+      <span id="fchips"></span>
+    </div>
   </div>
 </div>
 <div class="supply-panel">
@@ -455,6 +477,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
       <button class="exp-btn xl" onclick="openExport()">⬇ Export timetable</button>
     </div>
   </div>
+  <div class="swipe-hint">↔ swipe to see the full week</div>
   <div class="tt-wrap">
     <div id="tt-render">
       <div class="empty-tt">Select electives above to see your schedule.</div>
@@ -493,13 +516,14 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 
   <div class="cmp-legend" id="cmp-legend"></div>
 
+  <div class="swipe-hint">↔ swipe to see the full week</div>
   <div class="cmp-grid-wrap">
     <div id="cmp-grid-render"></div>
   </div>
 
   <div class="cmp-together-sec" id="cmp-together-sec"></div>
 
-  <div id="secret-admin-panel" style="display:none;margin-top:25px;padding:20px;background:var(--bg);border:2px dashed var(--tx-info);border-radius:8px;">
+  <div id="secret-admin-panel" class="admin-panel" style="display:none;margin-top:25px;background:var(--bg);border:2px dashed var(--tx-info);border-radius:8px;">
     <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--bg3);padding-bottom:10px;margin-bottom:15px;">
       <h3 style="color:var(--tx-info);margin:0;">📊 Master Dashboard (Admin Only)</h3>
       <button onclick="document.getElementById('secret-admin-panel').style.display='none'" style="background:#a32d2d;color:#fff;border:none;padding:5px 10px;border-radius:4px;cursor:pointer;">Hide</button>
@@ -512,7 +536,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 </div><div id="view-mess" style="display:none">
   <p class="cmp-intro">Live mess menu — this pulls directly from <a href="https://mess-menu-iitm.vercel.app/" target="_blank" rel="noopener">mess-menu-iitm.vercel.app</a> (run by someone else, updated monthly), embedded here for convenience.</p>
   <div class="mess-frame-wrap">
-    <iframe id="mess-iframe" title="IIT Madras Mess Menu" loading="lazy" style="width:100%;height:78vh;min-height:520px;border:.5px solid var(--bd);border-radius:var(--rl);background:var(--bg)"></iframe>
+    <iframe id="mess-iframe" class="mess-iframe" title="IIT Madras Mess Menu" loading="lazy" style="width:100%;border:.5px solid var(--bd);border-radius:var(--rl);background:var(--bg)"></iframe>
   </div>
   <p style="font-size:11px;color:var(--tx3);margin-top:8px;line-height:1.6">Menu not showing up? <a href="https://mess-menu-iitm.vercel.app/" target="_blank" rel="noopener">Open it directly in a new tab →</a></p>
 </div>
@@ -1235,7 +1259,7 @@ function cmpConnect(){
       if(saved){
         ['Q5','Q6','Q7'].forEach(q=>{
           sel[q]={};
-          Object.entries(saved[q]||{}).forEach(([c,s])=>{ sel[q][c]=s; });
+          Object.entries(saved[q]||{}).forEach(([c,s])=>{ sel[q][c]=resolveSubj(q,s); });
         });
         render();
       }
@@ -1324,9 +1348,20 @@ function joinGroup(code){
   });
 }
 
+// Stored plans (yours or a friend's) snapshot the subject object at the time
+// it was selected/published. If the catalog is later updated (e.g. room
+// numbers added/changed), old snapshots go stale forever unless we re-check
+// them against the live DATA on every read. This merges live fields (room,
+// name, instructor, etc.) over the stored ones, falling back to the stored
+// snapshot only if the course no longer exists in the current catalog.
+function resolveSubj(q, storedSubj){
+  const live=((DATA[q]&&DATA[q].subjects)||[]).find(x=>x.code===storedSubj.code);
+  return live ? {...storedSubj, ...live} : storedSubj;
+}
+
 function getMyEncodedPlan(){
   const r={};
-  ['Q5','Q6','Q7'].forEach(q=>{ r[q]={}; Object.values(sel[q]).forEach(s=>{ r[q][s.code]=s; }); });
+  ['Q5','Q6','Q7'].forEach(q=>{ r[q]={}; Object.values(sel[q]).forEach(s=>{ r[q][s.code]=resolveSubj(q,s); }); });
   return r;
 }
 
@@ -1394,7 +1429,15 @@ function setCompareQ(q){ compareQ=q; renderCompareView(); }
 // re-publish every time I tweak a selection just to see myself reflected).
 function cmpParticipants(){
   const parts={};
-  Object.keys(roster).forEach(k=>{ parts[k]={label:k, plan:roster[k]||{}}; });
+  Object.keys(roster).forEach(k=>{
+    const rawPlan=roster[k]||{};
+    const plan={};
+    ['Q5','Q6','Q7'].forEach(q=>{
+      plan[q]={};
+      Object.entries(rawPlan[q]||{}).forEach(([code,s])=>{ plan[q][code]=resolveSubj(q,s); });
+    });
+    parts[k]={label:k, plan};
+  });
   if(myName){
     const key=sanitizeKey(myName);
     parts[key]={label:myName, plan:getMyEncodedPlan()};
@@ -1508,7 +1551,7 @@ function renderCmpGrid(){
       const together = occ.length>=2 && codes.size===1;
       const clash = codes.size>=2;
       const cls='cmp-cell'+(together?' together':clash?' clash':'');
-      let inner=occ.map(o=>`<div class="cmp-pplrow"><div class="cmp-dot" style="background:${cmpColorFor(o.key)}"></div><div class="cmp-classname">${o.subj.name}${o.subj.room?`<span class="cmp-room"> · Rm ${o.subj.room}</span>`:''}</div></div>`).join('');
+      let inner=occ.map(o=>`<div class="cmp-pplrow"><div class="cmp-dot" style="background:${cmpColorFor(o.key)}"></div><div style="flex:1;min-width:0"><div class="cmp-classname">${o.subj.name}</div>${o.subj.room?`<span class="cmp-roomb">📍 ${o.subj.room}</span>`:''}</div></div>`).join('');
       if(together) inner+=`<div class="cmp-together-tag">🎉 together</div>`;
       else if(clash) inner+=`<div class="cmp-clash-tag">⚡ clash</div>`;
       h+=`<div class="${cls}">${inner}</div>`;
@@ -1553,7 +1596,10 @@ function renderCmpTogether(){
     html+=`<div class="cmp-tcard">
       <div class="cmp-tcard-top">
         <div class="cmp-tcard-name">${e.subj.name}</div>
-        <div class="cmp-tcard-slot">Slot ${e.subj.slot}${e.subj.room?' · Rm '+e.subj.room:''}</div>
+        <div style="display:flex;gap:5px;flex-shrink:0">
+          <div class="cmp-tcard-slot">Slot ${e.subj.slot}</div>
+          ${e.subj.room?`<div class="roomb">📍 ${e.subj.room}</div>`:''}
+        </div>
       </div>
       <div class="cmp-tcard-ppl">${e.people.map(k=>`<span class="cmp-tperson"><span class="cmp-dot" style="background:${cmpColorFor(k)}"></span>${parts[k].label}${k===myKey?' (you)':''}</span>`).join('')}</div>
     </div>`;
