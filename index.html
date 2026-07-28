@@ -5,6 +5,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>IIT Madras MBA — Elective Planner</title>
+
+<!-- PWA: lets this be added to the home screen and open like a real app -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#185fa5">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="MBA Planner">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -103,6 +113,14 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 .sel-ctr{font-size:13px;color:var(--tx2);margin-bottom:7px}
 .sel-ctr strong{color:var(--tx)}
 .wmsg{font-size:12px;color:var(--tx-danger);padding:7px 11px;background:var(--bg-danger);border-radius:var(--r);border:.5px solid var(--bd-danger);margin-bottom:9px;display:none}
+
+/* ── SEARCH ── */
+.search-wrap{position:relative;margin-bottom:1rem}
+.search-input{width:100%;padding:11px 38px 11px 14px;border-radius:var(--r);border:.5px solid var(--bd2);background:var(--bg);color:var(--tx);font-size:13px;font-family:var(--font);outline:none}
+.search-input:focus{border-color:var(--bd-info)}
+.search-clear-x{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:26px;height:26px;border:none;background:transparent;color:var(--tx3);font-size:15px;cursor:pointer;display:none;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
+.search-clear-x.show{display:flex}
+.search-noresults{font-size:12px;color:var(--tx3);padding:14px;text-align:center}
 
 /* ── SUBJECT CARDS ── */
 .sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:6px;margin-bottom:1.25rem}
@@ -430,6 +448,11 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
     </div>
   </div>
 </div>
+<div class="search-wrap">
+  <input type="text" id="courseSearch" class="search-input" placeholder="🔍 Search by name, code, or instructor…" oninput="onSearchInput(this.value)">
+  <button class="search-clear-x" id="search-clear-x" onclick="clearSearch()">✕</button>
+</div>
+
 <div class="supply-panel">
   <div class="supply-header">
     <div class="supply-title">📊 Subject availability this quarter <span id="supply-qlabel" class="supply-qlabel">Q5</span></div>
@@ -497,6 +520,17 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 
   <p class="cmp-intro">Type your name and a group code (share the same code with friends), tap Compare — see everyone's schedule and where you overlap. Leave the name blank to just watch a group anonymously.</p>
 
+  <div class="shared-banner" id="compare-onboard-hint">
+    <div class="shared-banner-icon">👥</div>
+    <div style="flex:1">
+      <div class="shared-banner-text">
+        <strong>How Compare works</strong>
+        <span>A "group code" is just a shared word — anyone who types the same one sees each other's picks, like a room name. Try something like <b>doms-mba-2026</b> and share it with your friends so you land in the same group.</span>
+      </div>
+      <button class="shared-banner-btn" onclick="dismissCompareHint()">Got it</button>
+    </div>
+  </div>
+
   <div class="cmp-setup">
     <div class="cmp-row">
       <input class="cmp-input" id="cmp-name-input" placeholder="Your name (leave blank to view anonymously)" maxlength="24">
@@ -546,6 +580,10 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
     <p>Choose quarter and format</p>
     <div class="modal-q-row" id="modal-qs"></div>
     <div class="modal-opts">
+      <div class="mopt" onclick="doExport('ics')">
+        <div class="mopt-icon">📆</div>
+        <div class="mopt-text"><strong>Add to Calendar</strong><span>.ics file — imports into Google/Apple/Outlook Calendar with weekly reminders</span></div>
+      </div>
       <div class="mopt" onclick="doExport('img')">
         <div class="mopt-icon">🖼</div>
         <div class="mopt-text"><strong>Save as Image</strong><span>PNG file — easy to share or set as wallpaper</span></div>
@@ -640,6 +678,7 @@ let cQ='Q5';
 let sel={Q5:{},Q6:{},Q7:{}};
 let fDom='All';
 let fFromTracker='';
+let searchQuery='';
 // Multi-goal state
 let goals={minor:false,major:false,dual:false};
 let goalMinorDom='';
@@ -800,6 +839,13 @@ function switchQ(q){
   render();
 }
 function setFilter(d){fDom=(fDom===d?'All':d);fFromTracker=(fDom!=='All'?fDom:'');render();}
+function onSearchInput(v){searchQuery=v;document.getElementById('search-clear-x').classList.toggle('show',!!v);renderGrid();}
+function clearSearch(){searchQuery='';document.getElementById('courseSearch').value='';document.getElementById('search-clear-x').classList.remove('show');renderGrid();}
+function matchesSearch(s,q){
+  if(!q)return true;
+  q=q.trim().toLowerCase();
+  return s.name.toLowerCase().includes(q)||s.code.toLowerCase().includes(q)||s.instructor.toLowerCase().includes(q);
+}
 function toggleRules(){const b=document.getElementById('rbody'),a=document.getElementById('rarrow');b.classList.toggle('open');a.textContent=b.classList.contains('open')?'▼':'▶';}
 
 // ── CALENDAR ─────────────────────────────────────────────────────────────────
@@ -845,19 +891,19 @@ function renderCalendar(){
 }
 
 // ── RENDER ───────────────────────────────────────────────────────────────────
-function render(){
+function renderGrid(){
   const q=cQ,subs=DATA[q].subjects;
   const used=Object.values(sel[q]).map(s=>s.slot);
   const cnt=Object.keys(sel[q]).length;
   const hl=getGoalHighlights(q);
-  document.getElementById('qcnt').textContent=cnt;
-  const wm=document.getElementById('wmsg');
-  wm.style.display=cnt>=4?'block':'none';
 
-  const verts=[...new Set(subs.map(s=>s.v))].sort();
-  document.getElementById('fchips').innerHTML=['All',...verts].map(v=>`<button class="fchip${fDom===v?' on':''}" onclick="setFilter('${v}')">${v}</button>`).join('');
+  const filtered=subs.filter(s=>(fDom==='All'||s.v===fDom)&&matchesSearch(s,searchQuery));
 
-  const filtered=fDom==='All'?subs:subs.filter(s=>s.v===fDom);
+  if(!filtered.length){
+    document.getElementById('sgrid').innerHTML=`<div class="search-noresults">No courses match "${searchQuery}"${fDom!=='All'?` in ${fDom}`:''}.</div>`;
+    return;
+  }
+
   document.getElementById('sgrid').innerHTML=filtered.map(s=>{
     const isSel=!!sel[q][s.code],isConf=!isSel&&used.includes(s.slot),isDis=!isSel&&cnt>=4;
     const isHL=hl.has(s.code)&&!isSel&&!isConf&&!isDis;
@@ -876,6 +922,21 @@ function render(){
       </div>
     </div>`;
   }).join('');
+}
+
+function render(){
+  const q=cQ,subs=DATA[q].subjects;
+  const used=Object.values(sel[q]).map(s=>s.slot);
+  const cnt=Object.keys(sel[q]).length;
+  const hl=getGoalHighlights(q);
+  document.getElementById('qcnt').textContent=cnt;
+  const wm=document.getElementById('wmsg');
+  wm.style.display=cnt>=4?'block':'none';
+
+  const verts=[...new Set(subs.map(s=>s.v))].sort();
+  document.getElementById('fchips').innerHTML=['All',...verts].map(v=>`<button class="fchip${fDom===v?' on':''}" onclick="setFilter('${v}')">${v}</button>`).join('');
+
+  renderGrid();
 
   ['Q5','Q6','Q7'].forEach(q=>{
     const n=Object.keys(sel[q]).length,b=document.getElementById('qb-'+q);
@@ -912,6 +973,8 @@ async function doExport(type){
 
   if(type==='img'){
     await exportImage(q);
+  } else if(type==='ics'){
+    exportICS(q);
   } else {
     exportExcel(q);
   }
@@ -997,6 +1060,83 @@ function exportExcel(q){
   XLSX.utils.book_append_sheet(wb,ws2,'Subject List');
 
   XLSX.writeFile(wb,`Timetable_${q}.xlsx`);
+}
+
+// ── CALENDAR (.ICS) EXPORT ───────────────────────────────────────────────────
+// Real quarter start/end dates (IST), so classes recur weekly on the correct
+// calendar dates and stop once the quarter ends. Add more quarters here once
+// their dates are confirmed.
+const QDATES={
+  Q5:{start:'2026-07-27',end:'2026-09-15'},
+  Q6:{start:'2026-09-24',end:'2026-11-13'}
+};
+// Matches the time-slot strings already used in DATA[q].slots.
+const ICS_TIME_MAP={
+  '8am-10am':{sh:8,sm:0,eh:10,em:0},
+  '10am-12pm':{sh:10,sm:0,eh:12,em:0},
+  '1pm-3pm':{sh:13,sm:0,eh:15,em:0},
+  '3pm-5pm':{sh:15,sm:0,eh:17,em:0},
+  '5pm-7pm':{sh:17,sm:0,eh:19,em:0}
+};
+const ICS_DAY_IDX={Monday:1,Tuesday:2,Wednesday:3,Thursday:4,Friday:5}; // JS getUTCDay() convention
+
+function icsStamp(d){ return d.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z'; }
+
+// Converts an IST wall-clock time on a given UTC-midnight calendar date into
+// the correct UTC instant (IST is UTC+5:30), avoiding any need for a
+// timezone-database block in the .ics file itself.
+function istToUTC(utcMidnight,hh,mm){
+  return new Date(utcMidnight.getTime() + ((hh*60+mm-330)*60000));
+}
+
+function buildICS(q){
+  const ss=Object.values(sel[q]);
+  if(!ss.length){ alert('No subjects selected for '+q); return null; }
+  if(!DATA[q].slots || !QDATES[q]){ alert(q+"'s dates aren't set up for calendar export yet."); return null; }
+
+  const qd=QDATES[q];
+  const untilStr=icsStamp(new Date(qd.end+'T23:59:59Z'));
+  const stamp=icsStamp(new Date());
+  const startOfQuarter=new Date(qd.start+'T00:00:00Z');
+  const quarterStartDay=startOfQuarter.getUTCDay();
+
+  let ics='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//IITM MBA Elective Planner//EN\r\nCALSCALE:GREGORIAN\r\n';
+
+  ss.forEach(s=>{
+    (DATA[q].slots[s.slot]||[]).forEach(({d,t})=>{
+      const timeInfo=ICS_TIME_MAP[t];
+      const wd=ICS_DAY_IDX[d];
+      if(!timeInfo||!wd) return;
+      const diffDays=(wd-quarterStartDay+7)%7;
+      const baseDate=new Date(startOfQuarter.getTime()+diffDays*86400000);
+      const dtStart=istToUTC(baseDate,timeInfo.sh,timeInfo.sm);
+      const dtEnd=istToUTC(baseDate,timeInfo.eh,timeInfo.em);
+      const uid=`${s.code}-${d}-${q}-${Date.now()}-${Math.random().toString(36).slice(2)}@mbaplanner`;
+      ics+='BEGIN:VEVENT\r\n';
+      ics+=`UID:${uid}\r\n`;
+      ics+=`DTSTAMP:${stamp}\r\n`;
+      ics+=`DTSTART:${icsStamp(dtStart)}\r\n`;
+      ics+=`DTEND:${icsStamp(dtEnd)}\r\n`;
+      ics+=`RRULE:FREQ=WEEKLY;UNTIL=${untilStr}\r\n`;
+      ics+=`SUMMARY:${s.name}\r\n`;
+      if(s.room) ics+=`LOCATION:Room ${s.room}\r\n`;
+      ics+=`DESCRIPTION:Slot ${s.slot} - ${s.instructor}${s.room?' - Room '+s.room:''}\r\n`;
+      ics+='END:VEVENT\r\n';
+    });
+  });
+
+  ics+='END:VCALENDAR\r\n';
+  return ics;
+}
+
+function exportICS(q){
+  const ics=buildICS(q);
+  if(!ics) return;
+  const blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`Timetable_${q}.ics`; a.click();
+  URL.revokeObjectURL(url);
 }
 
 
@@ -1204,6 +1344,11 @@ function initFirebase(){
 }
 
 // ── VIEW SWITCHING ───────────────────────────────────────────────────────────
+function dismissCompareHint(){
+  localStorage.setItem('mbaplanner_seen_compare_hint','1');
+  document.getElementById('compare-onboard-hint').classList.remove('show');
+}
+
 function switchView(v){
   currentView=v;
   document.getElementById('vtab-plan').classList.toggle('on', v==='plan');
@@ -1212,7 +1357,12 @@ function switchView(v){
   document.getElementById('view-plan').style.display = v==='plan' ? '' : 'none';
   document.getElementById('view-compare').style.display = v==='compare' ? '' : 'none';
   document.getElementById('view-mess').style.display = v==='mess' ? '' : 'none';
-  if(v==='compare') renderCompareView();
+  if(v==='compare'){
+    renderCompareView();
+    if(!localStorage.getItem('mbaplanner_seen_compare_hint')){
+      document.getElementById('compare-onboard-hint').classList.add('show');
+    }
+  }
   if(v==='mess'){
     const f=document.getElementById('mess-iframe');
     if(!f.src) f.src='https://mess-menu-iitm.vercel.app/'; // load only once, on first visit
@@ -1625,6 +1775,15 @@ document.getElementById('cmp-name-input').value='';
 document.getElementById('cmp-status').textContent='Enter your name and a group code, then tap Compare.';
 if(!initFirebase()){
   document.getElementById('cmp-status').textContent='⚠️ Could not reach the live database — check your internet connection and reload the page.';
+}
+
+// PWA: register the service worker so the app shell caches for instant
+// loads and basic offline use. Live features (Compare, mess menu) still
+// need a real connection — this only makes the static parts resilient.
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('SW registration failed', err));
+  });
 }
 
 </script>
