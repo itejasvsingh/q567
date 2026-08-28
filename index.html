@@ -1838,12 +1838,18 @@ function updateAtt(code, type, delta) {
 
 function renderAttendance() {
   const area = document.getElementById('att-grid');
+  
+  // 1. Fetch your selected electives
   const subjects = Object.values(sel[attQ] || {});
 
-  if(!subjects.length) {
-    area.innerHTML = `<div class="empty-tt">Select your electives in "My Planner" first to track attendance for ${attQ}.</div>`;
-    return;
-  }
+  // 2. NEW: Forcibly add the Core Class to the top of the tracker
+  // This bypasses the planner limits and ensures it's always trackable
+  subjects.unshift({
+    code: 'CORE-LAW',
+    name: 'Legal Aspects (Core)',
+    slot: '5-7pm (Flexible Wed-Sat)',
+    instructor: 'Core Faculty'
+  });
 
   let html = '';
   subjects.forEach(s => {
@@ -1859,7 +1865,7 @@ function renderAttendance() {
     html += `
     <div class="att-card">
       <div class="att-top">
-        <div class="att-name">${s.name} <div style="font-size:11px;font-weight:400;color:var(--tx2);margin-top:2px">${s.code} · Slot ${s.slot}</div></div>
+        <div class="att-name">${s.name} <div style="font-size:11px;font-weight:400;color:var(--tx2);margin-top:2px">${s.code} · ${s.slot}</div></div>
         <div class="att-pct ${pctCls}">${pct}%</div>
       </div>
       <div class="att-bar-bg"><div class="att-bar-fill" style="width:${pct}%; background:${barColor}"></div></div>
