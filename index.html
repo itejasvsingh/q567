@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -36,9 +35,6 @@
 html{-webkit-text-size-adjust:100%;overflow-x:hidden}
 body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px;line-height:1.6;min-height:100vh;overflow-x:hidden}
 .page{max-width:960px;margin:0 auto;padding:1.25rem 1rem 6rem;overflow-x:hidden}
-/* iOS Safari zooms the whole page in when a focused input has font-size <16px.
-   Force every text input/select on mobile to 16px regardless of each
-   component's own smaller design size, so tapping a field never triggers it. */
 @media(max-width:640px){
   input[type="text"],input[type="search"],input:not([type]),select,textarea{font-size:16px!important}
 }
@@ -144,7 +140,6 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
   .vI{background:#26215c;color:#afa9ec}.vO{background:#4a1b0c;color:#f0997b}.vS{background:#4b1528;color:#ed93b1}.vX{background:#2a2a2a;color:#aaa}
 }
 
-
 /* ── SHARE ── */
 .share-bar{background:var(--bg-success);border:.5px solid var(--bd-success);border-radius:var(--rl);padding:.9rem 1.1rem;margin-bottom:1.25rem;display:none}
 .share-bar.show{display:block}
@@ -158,7 +153,6 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 .share-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
 .share-copied{font-size:11px;color:var(--tx-success);margin-top:6px;display:none}
 .share-copied.show{display:block}
-/* Incoming shared view banner */
 .shared-banner{background:var(--bg-info);border:.5px solid var(--bd-info);border-radius:var(--rl);padding:.9rem 1.1rem;margin-bottom:1.25rem;display:none}
 .shared-banner.show{display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap}
 .shared-banner-icon{font-size:22px;flex-shrink:0}
@@ -315,7 +309,6 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 .cmp-managebtn{padding:7px 12px;border-radius:var(--r);border:.5px solid var(--bd2);background:var(--bg);color:var(--tx2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);white-space:nowrap;-webkit-tap-highlight-color:transparent}
 .cmp-managebtn:hover{background:var(--bg3)}
 .cmp-managebtn.danger{border-color:var(--bd-danger);background:var(--bg-danger);color:var(--tx-danger)}
-
 .cmp-friends-sec{margin-bottom:1.25rem}
 .cmp-friends-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
 .cmp-chip{display:flex;align-items:center;gap:7px;padding:6px 10px 6px 8px;border-radius:20px;border:.5px solid var(--bd);background:var(--bg)}
@@ -329,15 +322,12 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 .cmp-chip-x{cursor:pointer;color:var(--tx3);font-weight:700;font-size:14px;padding:4px 6px;margin:-4px -4px -4px 0;-webkit-tap-highlight-color:transparent}
 .cmp-chip-x:hover{color:var(--tx-danger)}
 .cmp-empty{text-align:center;padding:1.75rem 1rem;color:var(--tx3);font-size:12px;border:.5px dashed var(--bd);border-radius:var(--rl);line-height:1.6}
-
 .cmp-qtabs{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap}
 .cmp-qtab{padding:8px 16px;border-radius:var(--r);border:.5px solid var(--bd2);background:transparent;color:var(--tx2);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent;min-height:40px;display:flex;align-items:center}
 .cmp-qtab.on{background:var(--bg-info);color:var(--tx-info);border-color:var(--bd-info)}
-
 .cmp-legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:1rem}
 .cmp-leg{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx2);font-weight:600}
 .cmp-leg-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
-
 .cmp-grid-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:1.25rem}
 #cmp-grid-render{min-width:640px}
 .cmp-tgrid{display:grid;grid-template-columns:76px repeat(6,1fr);gap:3px;margin-bottom:3px}
@@ -355,7 +345,6 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 .cmp-roomb{display:inline-block;font-size:8px;font-weight:700;padding:1px 5px;border-radius:3px;background:var(--bg-warn);color:var(--tx-warn);border:.5px solid var(--bd-warn);margin-top:1px;width:fit-content}
 .cmp-together-tag{font-size:8px;font-weight:700;color:var(--tx-success);margin-top:1px}
 .cmp-clash-tag{font-size:8px;font-weight:700;color:var(--tx-warn);margin-top:1px}
-
 .cmp-together-sec{margin-bottom:1.25rem}
 .cmp-tcard{border-radius:var(--r);border:.5px solid var(--bd-success);background:var(--bg-success);padding:10px 13px;margin-bottom:7px}
 .cmp-tcard-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px}
@@ -363,6 +352,23 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 .cmp-tcard-slot{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--bg);color:var(--tx2);flex-shrink:0}
 .cmp-tcard-ppl{display:flex;flex-wrap:wrap;gap:5px}
 .cmp-tperson{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px 3px 5px;border-radius:14px;background:var(--bg)}
+
+/* ── ATTENDANCE TRACKER ── */
+.att-card { background: var(--bg2); border: .5px solid var(--bd); border-radius: var(--rl); padding: 1rem 1.1rem; margin-bottom: 12px; }
+.att-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+.att-name { font-size: 13px; font-weight: 700; color: var(--tx); line-height: 1.3; }
+.att-pct { font-size: 16px; font-weight: 800; border-radius: var(--r); padding: 4px 8px; flex-shrink: 0; }
+.att-pct.ok { background: var(--bg-success); color: var(--tx-success); }
+.att-pct.warn { background: var(--bg-warn); color: var(--tx-warn); }
+.att-pct.danger { background: var(--bg-danger); color: var(--tx-danger); }
+.att-bar-bg { height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; margin-bottom: 15px; }
+.att-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+.att-steppers { display: flex; gap: 15px; flex-wrap: wrap; }
+.att-step-group { display: flex; align-items: center; gap: 8px; background: var(--bg); border: .5px solid var(--bd); padding: 4px; border-radius: 20px; flex: 1; justify-content: space-between; min-width: 130px; }
+.att-lbl { font-size: 11px; font-weight: 600; color: var(--tx2); padding-left: 6px; }
+.att-step-btn { width: 28px; height: 28px; border-radius: 50%; border: none; background: var(--bg2); color: var(--tx); font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; }
+.att-step-btn:active { background: var(--bg3); }
+.att-count { font-size: 13px; font-weight: 700; min-width: 20px; text-align: center; }
 </style>
 </head>
 <body>
@@ -379,6 +385,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
   <button class="view-tab on" id="vtab-plan" onclick="switchView('plan')">📋 My Planner</button>
   <button class="view-tab" id="vtab-compare" onclick="switchView('compare')">👥 Compare with Friends</button>
   <button class="view-tab" id="vtab-mess" onclick="switchView('mess')">🍽 Mess Menu</button>
+  <button class="view-tab" id="vtab-att" onclick="switchView('att')">✅ Attendance</button>
 </div>
 
 <div id="view-plan">
@@ -516,7 +523,9 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
     <div class="leg"><div class="leg-dot" style="background:var(--col-X)"></div>Integrative</div>
   </div>
 </div>
-</div><div id="view-compare" style="display:none">
+</div>
+
+<div id="view-compare" style="display:none">
 
   <p class="cmp-intro">Type your name and a group code (share the same code with friends), tap Compare — see everyone's schedule and where you overlap. Leave the name blank to just watch a group anonymously.</p>
 
@@ -567,14 +576,25 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
     </div>
   </div>
 
-</div><div id="view-mess" style="display:none">
+</div>
+
+<div id="view-mess" style="display:none">
   <p class="cmp-intro">Live mess menu — this pulls directly from <a href="https://mess-menu-iitm.vercel.app/" target="_blank" rel="noopener">mess-menu-iitm.vercel.app</a> (run by someone else, updated monthly), embedded here for convenience.</p>
   <div class="mess-frame-wrap">
     <iframe id="mess-iframe" class="mess-iframe" title="IIT Madras Mess Menu" loading="lazy" style="width:100%;border:.5px solid var(--bd);border-radius:var(--rl);background:var(--bg)"></iframe>
   </div>
   <p style="font-size:11px;color:var(--tx3);margin-top:8px;line-height:1.6">Menu not showing up? <a href="https://mess-menu-iitm.vercel.app/" target="_blank" rel="noopener">Open it directly in a new tab →</a></p>
 </div>
-</div><div class="modal-bg" id="modal-bg" onclick="handleModalBgClick(event)">
+
+<div id="view-att" style="display:none">
+  <p class="cmp-intro">Log your classes below. Your attendance is saved automatically to this device. Target is 85%.</p>
+  <div class="cmp-qtabs" id="att-qtabs"></div>
+  <div id="att-grid"></div>
+</div>
+
+</div>
+
+<div class="modal-bg" id="modal-bg" onclick="handleModalBgClick(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <h3>Export timetable</h3>
     <p>Choose quarter and format</p>
@@ -1354,9 +1374,13 @@ function switchView(v){
   document.getElementById('vtab-plan').classList.toggle('on', v==='plan');
   document.getElementById('vtab-compare').classList.toggle('on', v==='compare');
   document.getElementById('vtab-mess').classList.toggle('on', v==='mess');
+  document.getElementById('vtab-att')?.classList.toggle('on', v==='att');
+  
   document.getElementById('view-plan').style.display = v==='plan' ? '' : 'none';
   document.getElementById('view-compare').style.display = v==='compare' ? '' : 'none';
   document.getElementById('view-mess').style.display = v==='mess' ? '' : 'none';
+  if(document.getElementById('view-att')) document.getElementById('view-att').style.display = v==='att' ? '' : 'none';
+  
   if(v==='compare'){
     renderCompareView();
     if(!localStorage.getItem('mbaplanner_seen_compare_hint')){
@@ -1365,7 +1389,10 @@ function switchView(v){
   }
   if(v==='mess'){
     const f=document.getElementById('mess-iframe');
-    if(!f.src) f.src='https://mess-menu-iitm.vercel.app/'; // load only once, on first visit
+    if(!f.src) f.src='https://mess-menu-iitm.vercel.app/';
+  }
+  if(v==='att'){
+    setAttQ(cQ);
   }
 }
 
@@ -1757,17 +1784,92 @@ function renderCmpTogether(){
   area.innerHTML=html;
 }
 
+// ── ATTENDANCE LOGIC ─────────────────────────────────────────────────────────
+let attQ = 'Q5';
+let attData = JSON.parse(localStorage.getItem('mbaplanner_attendance')) || { Q5:{}, Q6:{}, Q7:{} };
+
+function setAttQ(q) { 
+  attQ = q; 
+  renderAttQtabs(); 
+  renderAttendance(); 
+}
+
+function renderAttQtabs() {
+  document.getElementById('att-qtabs').innerHTML = ['Q5','Q6','Q7'].map(q =>
+    `<button class="cmp-qtab${attQ===q?' on':''}" onclick="setAttQ('${q}')">${q}</button>`
+  ).join('');
+}
+
+function updateAtt(code, type, delta) {
+  if(!attData[attQ]) attData[attQ] = {};
+  if(!attData[attQ][code]) attData[attQ][code] = { p: 0, a: 0 };
+  
+  // Prevent negative counts
+  attData[attQ][code][type] = Math.max(0, attData[attQ][code][type] + delta);
+  
+  localStorage.setItem('mbaplanner_attendance', JSON.stringify(attData));
+  renderAttendance();
+}
+
+function renderAttendance() {
+  const area = document.getElementById('att-grid');
+  const subjects = Object.values(sel[attQ] || {});
+
+  if(!subjects.length) {
+    area.innerHTML = `<div class="empty-tt">Select your electives in "My Planner" first to track attendance for ${attQ}.</div>`;
+    return;
+  }
+
+  let html = '';
+  subjects.forEach(s => {
+    const data = attData[attQ][s.code] || { p: 0, a: 0 };
+    const total = data.p + data.a;
+    const pct = total === 0 ? 100 : Math.round((data.p / total) * 100);
+    
+    // Determine colors based on IIT 85% rule
+    let pctCls = 'ok', barColor = '#1a6b3c'; 
+    if(pct < 85 && pct >= 75) { pctCls = 'warn'; barColor = '#854f0b'; }
+    else if(pct < 75 && total > 0) { pctCls = 'danger'; barColor = '#a32d2d'; }
+
+    html += `
+    <div class="att-card">
+      <div class="att-top">
+        <div class="att-name">${s.name} <div style="font-size:11px;font-weight:400;color:var(--tx2);margin-top:2px">${s.code} · Slot ${s.slot}</div></div>
+        <div class="att-pct ${pctCls}">${pct}%</div>
+      </div>
+      <div class="att-bar-bg"><div class="att-bar-fill" style="width:${pct}%; background:${barColor}"></div></div>
+      
+      <div class="att-steppers">
+        <div class="att-step-group">
+          <span class="att-lbl">Present</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <button class="att-step-btn" onclick="updateAtt('${s.code}', 'p', -1)">-</button>
+            <span class="att-count">${data.p}</span>
+            <button class="att-step-btn" style="background:#e6f6ee;color:#1a6b3c" onclick="updateAtt('${s.code}', 'p', 1)">+</button>
+          </div>
+        </div>
+        
+        <div class="att-step-group">
+          <span class="att-lbl">Absent</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <button class="att-step-btn" onclick="updateAtt('${s.code}', 'a', -1)">-</button>
+            <span class="att-count">${data.a}</span>
+            <button class="att-step-btn" style="background:#fcebeb;color:#a32d2d" onclick="updateAtt('${s.code}', 'a', 1)">+</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  });
+  area.innerHTML = html;
+}
+
 // ── INIT ────────────────────────────────────────────────────────────────────
 renderGoalDomChips();
 const wasShared=loadFromURL();
 render();
 if(wasShared) document.getElementById('shared-banner').classList.add('show');
 
-// Firebase init only — no auto-join, no prefill. The compare-with-friends
-// section always looks completely untouched on load (blank inputs, default
-// status text, empty results). Your group code/name/roster stay saved in
-// localStorage and Firebase purely in the background — enter them again and
-// tap Compare to pull everything back.
+// Firebase init only
 roster={};
 document.getElementById('cmp-status').classList.remove('connected');
 document.getElementById('cmp-code-input').value='';
@@ -1777,9 +1879,7 @@ if(!initFirebase()){
   document.getElementById('cmp-status').textContent='⚠️ Could not reach the live database — check your internet connection and reload the page.';
 }
 
-// PWA: register the service worker so the app shell caches for instant
-// loads and basic offline use. Live features (Compare, mess menu) still
-// need a real connection — this only makes the static parts resilient.
+// PWA
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
     navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('SW registration failed', err));
