@@ -383,9 +383,9 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 
 <div class="view-tabs">
   <button class="view-tab on" id="vtab-plan" onclick="switchView('plan')">📋 My Planner</button>
+  <button class="view-tab" id="vtab-att" onclick="switchView('att')">✅ Attendance</button>
   <button class="view-tab" id="vtab-compare" onclick="switchView('compare')">👥 Compare with Friends</button>
   <button class="view-tab" id="vtab-mess" onclick="switchView('mess')">🍽 Mess Menu</button>
-  <button class="view-tab" id="vtab-att" onclick="switchView('att')">✅ Attendance</button>
 </div>
 
 <div id="view-plan">
@@ -1385,14 +1385,14 @@ function dismissCompareHint(){
 function switchView(v){
   currentView=v;
   document.getElementById('vtab-plan').classList.toggle('on', v==='plan');
+  document.getElementById('vtab-att')?.classList.toggle('on', v==='att');
   document.getElementById('vtab-compare').classList.toggle('on', v==='compare');
   document.getElementById('vtab-mess').classList.toggle('on', v==='mess');
-  document.getElementById('vtab-att')?.classList.toggle('on', v==='att');
   
   document.getElementById('view-plan').style.display = v==='plan' ? '' : 'none';
+  if(document.getElementById('view-att')) document.getElementById('view-att').style.display = v==='att' ? '' : 'none';
   document.getElementById('view-compare').style.display = v==='compare' ? '' : 'none';
   document.getElementById('view-mess').style.display = v==='mess' ? '' : 'none';
-  if(document.getElementById('view-att')) document.getElementById('view-att').style.display = v==='att' ? '' : 'none';
   
   if(v==='compare'){
     renderCompareView();
@@ -1407,10 +1407,12 @@ function switchView(v){
   if(v==='att'){
     setAttQ(cQ);
     // Auto-fill the username from local storage if it exists
-    const savedName = localStorage.getItem('mbaplanner_myname');
+    const savedAttName = localStorage.getItem('mbaplanner_att_username');
+    const savedCompareName = localStorage.getItem('mbaplanner_myname');
     const inputEl = document.getElementById('att-sync-username');
-    if(savedName && !inputEl.value) {
-      inputEl.value = savedName;
+    if(!inputEl.value) {
+      if(savedAttName) inputEl.value = savedAttName;
+      else if(savedCompareName) inputEl.value = savedCompareName;
     }
   }
 }
@@ -1927,7 +1929,10 @@ function getAttUsername() {
     statusEl.style.color = 'var(--tx-danger)';
     return null;
   }
-  return sanitizeKey(u);
+  const key = sanitizeKey(u);
+  // Cache the username locally so it persists across reloads
+  localStorage.setItem('mbaplanner_att_username', key);
+  return key;
 }
 
 function saveAttendanceCloud(showStatus = false) {
@@ -2037,6 +2042,12 @@ document.getElementById('cmp-name-input').value='';
 document.getElementById('cmp-status').textContent='Enter your name and a group code, then tap Compare.';
 if(!initFirebase()){
   document.getElementById('cmp-status').textContent='⚠️ Could not reach the live database — check your internet connection and reload the page.';
+}
+
+// Init Attendance Username from cache
+const savedAttNameInit = localStorage.getItem('mbaplanner_att_username') || localStorage.getItem('mbaplanner_myname');
+if(savedAttNameInit) {
+  document.getElementById('att-sync-username').value = savedAttNameInit;
 }
 
 // PWA
