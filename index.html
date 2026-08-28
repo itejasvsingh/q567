@@ -588,6 +588,20 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 
 <div id="view-att" style="display:none">
   <p class="cmp-intro">Log your classes below. Your attendance is saved automatically to this device. Target is 85%.</p>
+  
+  <!-- NEW: Cloud Sync Panel -->
+  <div class="panel" style="margin-top: 10px; margin-bottom: 15px;">
+    <div class="panel-title">☁️ Cloud Backup</div>
+    <p style="font-size:11px; color:var(--tx2); margin-bottom:10px;">Save your attendance tracker under a unique username so you can restore it on any device.</p>
+    <div class="cmp-row">
+      <input type="text" id="att-sync-username" class="cmp-input" placeholder="e.g. tejasv-att" maxlength="30">
+      <button class="cmp-btn" onclick="loadAttendanceCloud()" style="background:var(--bg2); border-color:var(--bd2); color:var(--tx)">⬇️ Load</button>
+      <button class="cmp-btn" onclick="saveAttendanceCloud(true)">☁️ Save to Cloud</button>
+    </div>
+    <div id="att-sync-status" style="font-size:11px; margin-top:8px; font-weight:600;"></div>
+  </div>
+  <!-- END NEW -->
+
   <div class="cmp-qtabs" id="att-qtabs"></div>
   <div id="att-grid"></div>
 </div>
@@ -1393,6 +1407,12 @@ function switchView(v){
   }
   if(v==='att'){
     setAttQ(cQ);
+    // Auto-fill the username from local storage if it exists
+    const savedName = localStorage.getItem('mbaplanner_myname');
+    const inputEl = document.getElementById('att-sync-username');
+    if(savedName && !inputEl.value) {
+      inputEl.value = savedName;
+    }
   }
 }
 
@@ -1809,6 +1829,11 @@ function updateAtt(code, type, delta) {
   
   localStorage.setItem('mbaplanner_attendance', JSON.stringify(attData));
   renderAttendance();
+  
+  // NEW: Quietly auto-sync to cloud if a username is entered
+  if(document.getElementById('att-sync-username').value.trim()) {
+    saveAttendanceCloud(false); 
+  }
 }
 
 function renderAttendance() {
@@ -1861,6 +1886,88 @@ function renderAttendance() {
     </div>`;
   });
   area.innerHTML = html;
+}
+
+// ── ATTENDANCE CLOUD SYNC ────────────────────────────────────────────────────
+
+function getAttUsername() {
+  const u = document.getElementById('att-sync-username').value.trim();
+  const statusEl = document.getElementById('att-sync-status');
+  if (!u) {
+    statusEl.textContent = '⚠️ Please enter a username first.';
+    statusEl.style.color = 'var(--tx-danger)';
+    return null;
+  }
+  return sanitizeKey(u);
+}
+
+function saveAttendanceCloud(showStatus = false) {
+  const key = getAttUsername();
+  if (!key) return;
+  const statusEl = document.getElementById('att-sync-status');
+  
+  if (!fbDb) {
+     if(showStatus) {
+       statusEl.textContent = '⚠️ Database not connected. Check internet connection.';
+       statusEl.style.color = 'var(--tx-warn)';
+     }
+     return;
+  }
+  
+  if(showStatus) {
+    statusEl.textContent = 'Saving... ⏳';
+    statusEl.style.color = 'var(--tx2)';
+  }
+
+  fbDb.ref('attendance_trackers/' + key).set(attData).then(() => {
+    if(showStatus) {
+      statusEl.textContent = '✅ Successfully saved to cloud!';
+      statusEl.style.color = 'var(--tx-success)';
+      setTimeout(() => { statusEl.textContent = ''; }, 3000);
+    }
+  }).catch(e => {
+    if(showStatus) {
+      statusEl.textContent = '❌ Error saving to cloud.';
+      statusEl.style.color = 'var(--tx-danger)';
+    }
+  });
+}
+
+function loadAttendanceCloud() {
+  const key = getAttUsername();
+  if (!key) return;
+  const statusEl = document.getElementById('att-sync-status');
+
+  if (!fbDb) {
+     statusEl.textContent = '⚠️ Database not connected. Check internet connection.';
+     statusEl.style.color = 'var(--tx-warn)';
+     return;
+  }
+
+  statusEl.textContent = 'Loading... ⏳';
+  statusEl.style.color = 'var(--tx2)';
+  
+  fbDb.ref('attendance_trackers/' + key).once('value').then(snap => {
+    const data = snap.val();
+    if (data) {
+      attData = data;
+      // Ensure the structure is intact for all quarters
+      ['Q5','Q6','Q7'].forEach(q => { if(!attData[q]) attData[q] = {}; });
+      
+      localStorage.setItem('mbaplanner_attendance', JSON.stringify(attData));
+      renderAttendance();
+      
+      statusEl.textContent = '✅ Data loaded successfully!';
+      statusEl.style.color = 'var(--tx-success)';
+      setTimeout(() => { statusEl.textContent = ''; }, 3000);
+    } else {
+      statusEl.textContent = 'ℹ️ No saved data found for this username.';
+      statusEl.style.color = 'var(--tx-warn)';
+    }
+  }).catch(e => {
+    statusEl.textContent = '❌ Error loading from cloud.';
+    statusEl.style.color = 'var(--tx-danger)';
+  });
 }
 
 // ── INIT ────────────────────────────────────────────────────────────────────
