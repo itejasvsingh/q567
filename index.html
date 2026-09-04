@@ -1099,9 +1099,10 @@ function exportExcel(q){
 // Real quarter start/end dates (IST), so classes recur weekly on the correct
 // calendar dates and stop once the quarter ends. Add more quarters here once
 // their dates are confirmed.
-const QDATES={
-  Q5:{start:'2026-07-27',end:'2026-09-15'},
-  Q6:{start:'2026-09-24',end:'2026-11-13'}
+const QDATES = {
+  Q5: { start: '2026-08-01', end: '2026-09-30' }, // Valid for August and September
+  Q6: { start: '2026-10-01', end: '2026-11-30' }, // Valid for October and November
+  Q7: { start: '2027-01-01', end: '2027-02-28' }  // Valid for January and February
 };
 // Matches the time-slot strings already used in DATA[q].slots.
 const ICS_TIME_MAP={
@@ -2060,26 +2061,5 @@ if('serviceWorker' in navigator){
 </script>
 </body>
 </html>
-<!-- The Sync Button -->
-<button onclick="sendToAlign()" style="padding: 12px; background: #007AFF; color: white; border-radius: 8px; border: none; font-weight: bold; cursor: pointer;">
-    Sync Schedule to Align App
-</button>
 
-<!-- The Vanilla JS Logic -->
-<script>
-function sendToAlign() {
-    // 1. Grab your schedule data (you can dynamically generate this from your HTML tables/state)
-    // We use tiny keys (t, d, s, e) to keep the URL as short as possible!
-    const schedule = [
-        { t: "Corporate Finance", d: "2026-09-07", s: "10:00 AM", e: "11:30 AM" },
-        { t: "Data Analysis", d: "2026-09-07", s: "02:00 PM", e: "03:30 PM" },
-        { t: "Operations Management", d: "2026-09-08", s: "09:00 AM", e: "10:30 AM" }
-    ];
 
-    // 2. Convert the array to a string and safely encode it for a URL
-    const payload = encodeURIComponent(JSON.stringify(schedule));
-
-    // 3. Redirect the user to Align with the data attached!
-    window.location.href = `https://align-app.vercel.app/?import=q567&data=${payload}`;
-}
-</script>
