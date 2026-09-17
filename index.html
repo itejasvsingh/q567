@@ -444,8 +444,8 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 
 <div class="ctrl">
   <div class="qtabs">
-    <button class="qtab on" onclick="switchQ('Q5')" id="tab-Q5">Q5<span class="qbadge" id="qb-Q5"></span></button>
-    <button class="qtab"    onclick="switchQ('Q6')" id="tab-Q6">Q6<span class="qbadge" id="qb-Q6"></span></button>
+    <button class="qtab on" onclick="switchQ('Q6')" id="tab-Q6">Q6<span class="qbadge" id="qb-Q6"></span></button>
+    <button class="qtab"    onclick="switchQ('Q5')" id="tab-Q5">Q5<span class="qbadge" id="qb-Q5"></span></button>
     <button class="qtab"    onclick="switchQ('Q7')" id="tab-Q7">Q7<span class="qbadge" id="qb-Q7"></span></button>
   </div>
   <div class="fbar">
@@ -462,7 +462,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 
 <div class="supply-panel">
   <div class="supply-header">
-    <div class="supply-title">📊 Subject availability this quarter <span id="supply-qlabel" class="supply-qlabel">Q5</span></div>
+    <div class="supply-title">📊 Subject availability this quarter <span id="supply-qlabel" class="supply-qlabel">Q6</span></div>
   </div>
   <div class="supply-grid" id="supply-grid"></div>
   <div class="supply-note" id="supply-note"></div>
@@ -662,6 +662,7 @@ const DATA={
   ]},
   Q6:{label:'Q6 — 24 Sep–13 Nov 2026',slots:{
     PP:[{d:'Monday',t:'8am-10am'},{d:'Wednesday',t:'1pm-3pm'}],
+    QQ:[{d:'Tuesday',t:'8am-10am'},{d:'Thursday',t:'10am-12pm'}],
     RR:[{d:'Wednesday',t:'8am-10am'},{d:'Friday',t:'1pm-3pm'}],
     SS:[{d:'Monday',t:'1pm-3pm'},{d:'Thursday',t:'8am-10am'}],
     TT:[{d:'Tuesday',t:'1pm-3pm'},{d:'Friday',t:'8am-10am'}],
@@ -670,18 +671,19 @@ const DATA={
     WW:[{d:'Monday',t:'3pm-5pm'},{d:'Wednesday',t:'10am-12pm'}],
     XX:[{d:'Tuesday',t:'3pm-5pm'},{d:'Friday',t:'10am-12pm'}]},
   subjects:[
-    {slot:'TT',code:'MS5015',name:'Design Thinking',instructor:'Richa Agrawal',v:'Marketing'},
-    {slot:'XX',code:'MS6580',name:'Sales and Distribution Management',instructor:'Prathamesh Kittur',v:'Marketing'},
-    {slot:'XX',code:'MS5460',name:'Compensation Management',instructor:'Srinivasan S',v:'HR'},
-    {slot:'XX',code:'MS5690',name:'Computational Finance',instructor:'Thenmozhi M',v:'Finance'},
-    {slot:'UU',code:'MS5480',name:'Cross-Cultural Management',instructor:'Vijayalakshmi V',v:'HR'},
-    {slot:'UU',code:'MS6030',name:'Advanced Data Analytics for Management',instructor:'Usha Mohan',v:'Ops'},
-    {slot:'PP',code:'MS5613',name:'Corporate Hedging Strategies',instructor:'Madhumathi R',v:'Finance'},
-    {slot:'PP',code:'MS5770',name:'Strategic Marketing',instructor:'Vaibhav Chawla',v:'Marketing'},
-    {slot:'SS',code:'MS5750',name:'Brand Management',instructor:'Varisha Rehman',v:'Marketing'},
-    {slot:'WW',code:'MS6022',name:'AI for Management',instructor:'Saji Mathew',v:'IS'},
-    {slot:'WW',code:'MS6600',name:'Global Corporate Governance',instructor:'Arun Kumar G',v:'Finance'},
-    {slot:'VV',code:'MS6230',name:'Strategic Sourcing',instructor:'Arshinder Kaur',v:'Ops'},
+    {slot:'QQ',code:'MS6210',name:'Business Models',instructor:'L P Shenoy',v:'Integrative',room:'401'},
+    {slot:'RR',code:'MS5529',name:'Behavioural lab',instructor:'Lata Dyaram',v:'HR',room:'401'},
+    {slot:'TT',code:'MS5015',name:'Design Thinking',instructor:'Richa Agrawal',v:'Marketing',room:'252'},
+    {slot:'XX',code:'MS6580',name:'Sales and Distribution Management',instructor:'Prathamesh Kittur',v:'Marketing',room:'252'},
+    {slot:'XX',code:'MS5460',name:'Compensation Management',instructor:'Srinivasan S',v:'HR',room:'253'},
+    {slot:'XX',code:'MS5690',name:'Computational Finance',instructor:'Thenmozhi M',v:'Finance',room:'401'},
+    {slot:'UU',code:'MS6030',name:'Advanced Data Analytics for Management',instructor:'Usha Mohan',v:'Ops',room:'253'},
+    {slot:'PP',code:'MS5613',name:'Corporate Hedging Strategies',instructor:'Madhumathi R',v:'Finance',room:'252'},
+    {slot:'PP',code:'MS5770',name:'Strategic Marketing',instructor:'Vaibhav Chawla',v:'Marketing',room:'253'},
+    {slot:'SS',code:'MS5750',name:'Brand Management',instructor:'Varisha Rehman',v:'Marketing',room:'252'},
+    {slot:'WW',code:'MS6022',name:'AI for Management',instructor:'Saji Mathew',v:'IS',room:'253'},
+    {slot:'WW',code:'MS6600',name:'Global Corporate Governance',instructor:'Arun Kumar G',v:'Finance',room:'252'},
+    {slot:'VV',code:'MS6230',name:'Strategic Sourcing',instructor:'Arshinder Kaur',v:'Ops',room:'253'}
   ]},
   Q7:{label:'Q7 — Jan–Mar 2027',slots:null,subjects:[
     {slot:'PP',code:'MS5550',name:'Operations Research Applications',instructor:'Usha Mohan',v:'Ops'},
@@ -707,7 +709,7 @@ const DCOL={Finance:'#185fa5',HR:'#0f6e56',Marketing:'#854f0b',IS:'#534ab7',Ops:
 const VC={Finance:'vF',HR:'vH',Marketing:'vM',IS:'vI',Ops:'vO',Strategy:'vS',Integrative:'vX'};
 
 // ── STATE ────────────────────────────────────────────────────────────────────
-let cQ='Q5';
+let cQ='Q6';
 let sel={Q5:{},Q6:{},Q7:{}};
 let fDom='All';
 let fFromTracker='';
@@ -719,6 +721,7 @@ let goalMajorDom='';
 let goalDualD1='';
 let goalDualD2='';
 let exportQ='Q5';
+let q6AlertShown=false;
 
 // ── GOAL MODE ────────────────────────────────────────────────────────────────
 function toggleGoal(g){
@@ -765,7 +768,7 @@ function buildSuggestions(){
 
   function availFor(dom){
     const res=[];
-    ['Q5','Q6','Q7'].forEach(q=>{
+    ['Q6','Q5','Q7'].forEach(q=>{
       DATA[q].subjects.filter(s=>s.v===dom&&!all[s.code]).forEach(s=>res.push({...s,q}));
     });
     return res;
@@ -868,7 +871,11 @@ function toggleSubject(code){
 }
 function switchQ(q){
   cQ=q;
-  document.querySelectorAll('.qtab').forEach((t,i)=>t.classList.toggle('on',['Q5','Q6','Q7'][i]===q));
+  document.querySelectorAll('.qtab').forEach((t,i)=>t.classList.toggle('on',['Q6','Q5','Q7'][i]===q));
+  if(q === 'Q6' && !q6AlertShown) {
+    alert("Q6 Updates[cite: 1]:\n• Course timings and rooms have been updated based on the latest timetable.\n• 2 Core courses (Business Models, Behavioural lab) have been added.");
+    q6AlertShown = true;
+  }
   render();
 }
 function setFilter(d){fDom=(fDom===d?'All':d);fFromTracker=(fDom!=='All'?fDom:'');render();}
@@ -971,7 +978,7 @@ function render(){
 
   renderGrid();
 
-  ['Q5','Q6','Q7'].forEach(q=>{
+  ['Q6','Q5','Q7'].forEach(q=>{
     const n=Object.keys(sel[q]).length,b=document.getElementById('qb-'+q);
     if(n>0){b.textContent=n;b.classList.add('show');}else b.classList.remove('show');
   });
@@ -985,7 +992,7 @@ function render(){
 
 // ── EXPORT ───────────────────────────────────────────────────────────────────
 function openExport(){
-  const qs=['Q5','Q6','Q7'].filter(q=>Object.keys(sel[q]).length>0);
+  const qs=['Q6','Q5','Q7'].filter(q=>Object.keys(sel[q]).length>0);
   if(!qs.length){alert('Select some electives first!');return;}
   exportQ=qs[0];
   document.getElementById('modal-qs').innerHTML=qs.map(q=>`<button class="mq${exportQ===q?' active':''}" onclick="setExportQ('${q}')">${DATA[q].label}</button>`).join('');
@@ -1699,7 +1706,7 @@ function renderCmpFriends(){
 }
 
 function renderCmpQtabs(){
-  document.getElementById('cmp-qtabs').innerHTML=['Q5','Q6','Q7'].map(q=>
+  document.getElementById('cmp-qtabs').innerHTML=['Q6','Q5','Q7'].map(q=>
     `<button class="cmp-qtab${compareQ===q?' on':''}" onclick="setCompareQ('${q}')">${q}</button>`
   ).join('');
 }
@@ -1807,7 +1814,7 @@ function renderCmpTogether(){
 }
 
 // ── ATTENDANCE LOGIC ─────────────────────────────────────────────────────────
-let attQ = 'Q5';
+let attQ = 'Q6';
 let attData = JSON.parse(localStorage.getItem('mbaplanner_attendance')) || { Q5:{}, Q6:{}, Q7:{} };
 
 function setAttQ(q) { 
@@ -1817,7 +1824,7 @@ function setAttQ(q) {
 }
 
 function renderAttQtabs() {
-  document.getElementById('att-qtabs').innerHTML = ['Q5','Q6','Q7'].map(q =>
+  document.getElementById('att-qtabs').innerHTML = ['Q6','Q5','Q7'].map(q =>
     `<button class="cmp-qtab${attQ===q?' on':''}" onclick="setAttQ('${q}')">${q}</button>`
   ).join('');
 }
@@ -2035,6 +2042,15 @@ const wasShared=loadFromURL();
 render();
 if(wasShared) document.getElementById('shared-banner').classList.add('show');
 
+// Trigger Q6 update alert on first load if it's default
+setTimeout(() => {
+    if(cQ === 'Q6' && !q6AlertShown) {
+         alert("Q6 Updates[cite: 1]:\n• Course timings and rooms have been updated based on the latest timetable.\n• 2 Core courses (Business Models, Behavioural lab) have been added.");
+         q6AlertShown = true;
+    }
+}, 500);
+
+
 // Firebase init only
 roster={};
 document.getElementById('cmp-status').classList.remove('connected');
@@ -2061,5 +2077,3 @@ if('serviceWorker' in navigator){
 </script>
 </body>
 </html>
-
-
