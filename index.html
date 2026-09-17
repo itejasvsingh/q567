@@ -387,7 +387,6 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
   <button class="view-tab on" id="vtab-plan" onclick="switchView('plan')">📋 My Planner</button>
   <button class="view-tab" id="vtab-att" onclick="switchView('att')">✅ Attendance</button>
   <button class="view-tab" id="vtab-compare" onclick="switchView('compare')">👥 Compare with Friends</button>
-  <button class="view-tab" id="vtab-mess" onclick="switchView('mess')">🍽 Mess Menu</button>
 </div>
 
 <div id="view-plan">
@@ -567,26 +566,8 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
   </div>
 
   <div class="cmp-together-sec" id="cmp-together-sec"></div>
-
-  <div id="secret-admin-panel" class="admin-panel" style="display:none;margin-top:25px;background:var(--bg);border:2px dashed var(--tx-info);border-radius:8px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--bg3);padding-bottom:10px;margin-bottom:15px;">
-      <h3 style="color:var(--tx-info);margin:0;">📊 Master Dashboard (Admin Only)</h3>
-      <button onclick="document.getElementById('secret-admin-panel').style.display='none'" style="background:#a32d2d;color:#fff;border:none;padding:5px 10px;border-radius:4px;cursor:pointer;">Hide</button>
-    </div>
-    <div id="admin-live-data" style="max-height:400px;overflow-y:auto;font-size:13px;">
-      Loading master directory...
-    </div>
-  </div>
-
 </div>
 
-<div id="view-mess" style="display:none">
-  <p class="cmp-intro">Live mess menu — this pulls directly from <a href="https://mess-menu-iitm.vercel.app/" target="_blank" rel="noopener">mess-menu-iitm.vercel.app</a> (run by someone else, updated monthly), embedded here for convenience.</p>
-  <div class="mess-frame-wrap">
-    <iframe id="mess-iframe" class="mess-iframe" title="IIT Madras Mess Menu" loading="lazy" style="width:100%;border:.5px solid var(--bd);border-radius:var(--rl);background:var(--bg)"></iframe>
-  </div>
-  <p style="font-size:11px;color:var(--tx3);margin-top:8px;line-height:1.6">Menu not showing up? <a href="https://mess-menu-iitm.vercel.app/" target="_blank" rel="noopener">Open it directly in a new tab →</a></p>
-</div>
 
 <div id="view-att" style="display:none">
   <p class="cmp-intro">Log your classes below. Your attendance is saved automatically to this device. Target is 85%.</p>
@@ -646,6 +627,7 @@ const DATA={
     WW:[{d:'Monday',t:'3pm-5pm'},{d:'Wednesday',t:'10am-12pm'}],
     XX:[{d:'Tuesday',t:'3pm-5pm'},{d:'Friday',t:'10am-12pm'}]},
   subjects:[
+    {slot:'FLEX',code:'CORE-LAW',name:'Legal Aspects of Business',instructor:'Core Faculty',v:'Integrative',isCore:true},
     {slot:'WW',code:'MS5011',name:'Strategic Human Resource Management',instructor:'Lata Dyaram',v:'HR',room:'MSB 359'},
     {slot:'WW',code:'MS5988',name:'Digital Transformation with AI',instructor:'Imon Chakraborty',v:'IS',room:'401'},
     {slot:'UU',code:'MS5012',name:'Data Driven Decision Making for HR',instructor:'Srinivasan S',v:'HR',room:'252'},
@@ -665,7 +647,7 @@ const DATA={
   Q6:{label:'Q6 — 24 Sep–13 Nov 2026',slots:{
     PP:[{d:'Monday',t:'8am-10am'},{d:'Wednesday',t:'1pm-3pm'}],
     QQ:[{d:'Tuesday',t:'8am-10am'},{d:'Thursday',t:'10am-12pm'}],
-    RR:[{d:'Wednesday',t:'8am-10am'},{d:'Friday',t:'1pm-3pm'}],
+    RR:[{d:'Wednesday',t:'5pm-7pm'},{d:'Friday',t:'1pm-3pm'}],
     SS:[{d:'Monday',t:'1pm-3pm'},{d:'Thursday',t:'8am-10am'}],
     TT:[{d:'Tuesday',t:'1pm-3pm'},{d:'Friday',t:'8am-10am'}],
     UU:[{d:'Monday',t:'10am-12pm'},{d:'Wednesday',t:'3pm-5pm'}],
@@ -723,7 +705,6 @@ let goalMajorDom='';
 let goalDualD1='';
 let goalDualD2='';
 let exportQ='Q5';
-let q6AlertShown=false;
 
 // ── GOAL MODE ────────────────────────────────────────────────────────────────
 function toggleGoal(g){
@@ -870,7 +851,7 @@ function toggleSubject(code){
   const q=cQ,subj=DATA[q].subjects.find(s=>s.code===code);
   if(!subj)return;
   if(subj.isCore) { 
-    alert("This is a mandatory core course and is automatically included in your timetable."); 
+    alert("Core courses are automatically included in your timetable and excluded from the 4-elective limit. They cannot be removed."); 
     return; 
   }
   if(sel[q][code]){delete sel[q][code];}
@@ -884,10 +865,6 @@ function toggleSubject(code){
 function switchQ(q){
   cQ=q;
   document.querySelectorAll('.qtab').forEach((t,i)=>t.classList.toggle('on',['Q6','Q5','Q7'][i]===q));
-  if(q === 'Q6' && !q6AlertShown) {
-    alert("Q6 Updates:\n• Course timings and rooms have been updated based on the latest timetable.\n• 2 Core courses (Business Models, Behavioural lab) have been added.");
-    q6AlertShown = true;
-  }
   render();
 }
 function setFilter(d){fDom=(fDom===d?'All':d);fFromTracker=(fDom!=='All'?fDom:'');render();}
@@ -1363,11 +1340,6 @@ function loadFromURL(){
 }
 
 // ── GROUP COMPARE (Firebase Realtime Database, live sync) ─────────────────────
-// Simplified: type your name + a group code, tap Compare. That publishes your
-// current picks under your name and pulls everyone else who used the same
-// code, live. No share links, no leave/switch/reset buttons, no filters —
-// just your group's schedules side by side. Nothing here is remembered on
-// screen after a reload (see INIT below); the data itself stays in Firebase.
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyBFZ2NfMxFApWvbswSiL9uLNpeoc-aALUA",
   authDomain: "q567mba.firebaseapp.com",
@@ -1424,22 +1396,16 @@ function switchView(v){
   document.getElementById('vtab-plan').classList.toggle('on', v==='plan');
   document.getElementById('vtab-att')?.classList.toggle('on', v==='att');
   document.getElementById('vtab-compare').classList.toggle('on', v==='compare');
-  document.getElementById('vtab-mess').classList.toggle('on', v==='mess');
   
   document.getElementById('view-plan').style.display = v==='plan' ? '' : 'none';
   if(document.getElementById('view-att')) document.getElementById('view-att').style.display = v==='att' ? '' : 'none';
   document.getElementById('view-compare').style.display = v==='compare' ? '' : 'none';
-  document.getElementById('view-mess').style.display = v==='mess' ? '' : 'none';
   
   if(v==='compare'){
     renderCompareView();
     if(!localStorage.getItem('mbaplanner_seen_compare_hint')){
       document.getElementById('compare-onboard-hint').classList.add('show');
     }
-  }
-  if(v==='mess'){
-    const f=document.getElementById('mess-iframe');
-    if(!f.src) f.src='https://mess-menu-iitm.vercel.app/';
   }
   if(v==='att'){
     setAttQ(cQ);
@@ -1462,14 +1428,6 @@ function cmpConnect(){
   const codeInput=document.getElementById('cmp-code-input');
   const name=nameInput.value.trim();
   const codeRaw=codeInput.value.trim();
-
-  // --- Admin dashboard hook: type this as the "group code" to see every group. ---
-  if(codeRaw==='admin123'){
-    document.getElementById('secret-admin-panel').style.display='block';
-    document.getElementById('secret-admin-panel').scrollIntoView({behavior:'smooth'});
-    listenToAllGroups();
-    return;
-  }
 
   const code=sanitizeGroupCode(codeRaw);
   if(!code){ flashError(codeInput); return; }
@@ -1505,66 +1463,6 @@ function cmpConnect(){
   }
 }
 
-// Admin-only: live view of every group and everyone's picks. Reached by
-// typing "admin123" into the group code field.
-function listenToAllGroups(){
-  if(!fbDb) return;
-  fbDb.ref('groups').on('value', snap=>{
-    const data=snap.val();
-    const container=document.getElementById('admin-live-data');
-    if(!data){ container.innerHTML="<p style='color:var(--tx3);'>No groups exist in the database yet.</p>"; return; }
-    let html='';
-    Object.keys(data).forEach(gCode=>{
-      const gCodeEsc=gCode.replace(/'/g,"\\'");
-      html+=`<div style="background:var(--bg2);padding:10px;border-radius:6px;margin-bottom:10px;border-left:4px solid var(--tx-info);">`;
-      html+=`<strong style="color:var(--tx)">Group Code: <span style="color:var(--tx-info);">${gCode}</span></strong>`;
-      const members=data[gCode].members||{};
-      const memberNames=Object.keys(members);
-      if(!memberNames.length){
-        html+=`<div style="margin-left:15px;margin-top:5px;font-size:11px;color:var(--tx3);">No active members</div>`;
-      } else {
-        memberNames.forEach(name=>{
-          const nameEsc=name.replace(/'/g,"\\'");
-          html+=`<div style="margin-left:15px;margin-top:5px;background:var(--bg);padding:6px;border-radius:4px;border:.5px solid var(--bd);">`;
-          html+=`<div style="display:flex;justify-content:space-between;align-items:center;">`;
-          html+=`<span style="color:var(--tx)">👤 <strong>${name}</strong></span>`;
-          html+=`<button onclick="adminRemoveMember('${gCodeEsc}','${nameEsc}')" style="background:#a32d2d;color:#fff;border:none;padding:3px 9px;border-radius:4px;font-size:11px;cursor:pointer;">Remove</button>`;
-          html+=`</div>`;
-          ['Q5','Q6','Q7'].forEach(q=>{
-            if(members[name][q]){
-              const codes=Object.keys(members[name][q]);
-              if(codes.length){
-                const courses=codes.map(c=>{
-                  const subj=DATA[q]&&DATA[q].subjects?DATA[q].subjects.find(s=>s.code===c):null;
-                  if(!subj) return c;
-                  return subj.name+(subj.room?` <span class="roomb" style="margin-left:3px">📍 ${subj.room}</span>`:'');
-                }).join(' &nbsp;•&nbsp; ');
-                html+=`<div style="font-size:11px;background:var(--bg-info);color:var(--tx-info);padding:3px 6px;border-radius:4px;margin-top:4px;line-height:1.6;"><strong>${q}:</strong> ${courses}</div>`;
-              }
-            }
-          });
-          html+=`</div>`;
-        });
-      }
-      html+=`</div>`;
-    });
-    container.innerHTML=html;
-  }, err=>{
-    document.getElementById('admin-live-data').innerHTML=`<p style="color:var(--tx-danger);">❌ Permission denied — check your Firebase security rules allow read access.</p>`;
-  });
-}
-
-// Admin-only: delete one member's saved schedule from a group directly on the server.
-function adminRemoveMember(groupCode,name){
-  if(!fbDb) return;
-  const ok=confirm(`Remove "${name}"'s schedule from group "${groupCode}"? This can't be undone.`);
-  if(!ok) return;
-  fbDb.ref('groups/'+groupCode+'/members/'+name).remove().catch(e=>{
-    alert('Could not remove — check your internet connection.');
-    console.error(e);
-  });
-}
-
 function joinGroup(code){
   if(!fbDb) return;
   myGroupCode=code;
@@ -1583,12 +1481,6 @@ function joinGroup(code){
   });
 }
 
-// Stored plans (yours or a friend's) snapshot the subject object at the time
-// it was selected/published. If the catalog is later updated (e.g. room
-// numbers added/changed), old snapshots go stale forever unless we re-check
-// them against the live DATA on every read. This merges live fields (room,
-// name, instructor, etc.) over the stored ones, falling back to the stored
-// snapshot only if the course no longer exists in the current catalog.
 function resolveSubj(q, storedSubj){
   const live=((DATA[q]&&DATA[q].subjects)||[]).find(x=>x.code===storedSubj.code);
   return live ? {...storedSubj, ...live} : storedSubj;
@@ -1613,7 +1505,6 @@ function publishMyPlan(name){
 
   const total=Object.values(sel).reduce((a,q)=>a+Object.values(q).filter(s=>!s.isCore).length,0);
   if(total===0){
-    // No local selections — reset any stale plan previously published under this name.
     groupRef.child(key).remove();
     if(oldName && sanitizeKey(oldName)!==key) groupRef.child(sanitizeKey(oldName)).remove();
     statusEl.innerHTML=`📍 Connected to <b>"${myGroupCode}"</b> as <b>${name}</b>. Pick some electives in My Planner so friends can see your schedule!`;
@@ -1640,8 +1531,6 @@ function flashError(el){
   setTimeout(()=>{ el.style.borderColor=orig; },1100);
 }
 
-// Remove a friend from the group's roster (in Firebase, so it removes them
-// for everyone). If you remove yourself, you're disconnected locally too.
 function removeFromRoster(key){
   if(!groupRef) return;
   groupRef.child(key).remove();
@@ -1652,7 +1541,6 @@ function removeFromRoster(key){
   if(compareFilter===key) compareFilter='all';
 }
 
-// Focus the comparison on just you + one friend, or back to everyone.
 function cmpSetFilter(key){
   compareFilter=(compareFilter===key)?'all':key;
   renderCompareView();
@@ -1660,8 +1548,6 @@ function cmpSetFilter(key){
 
 function setCompareQ(q){ compareQ=q; renderCompareView(); }
 
-// Merge live roster with my own up-to-the-second local plan (so I don't need to
-// re-publish every time I tweak a selection just to see myself reflected).
 function cmpParticipants(){
   const parts={};
   Object.keys(roster).forEach(k=>{
@@ -1680,8 +1566,6 @@ function cmpParticipants(){
   return parts;
 }
 
-// Same as cmpParticipants(), but narrowed to you + one friend when a filter is
-// active. Falls back to everyone if the picked friend has left the group.
 function cmpFilteredParticipants(){
   const all=cmpParticipants();
   if(compareFilter!=='all' && !all[compareFilter]) compareFilter='all';
@@ -1761,7 +1645,6 @@ function renderCmpGrid(){
     return;
   }
 
-  // day -> time -> [{key,label,subj}]
   const lk={};
   keys.forEach(k=>{
     const plan=parts[k].plan[q]||{};
@@ -1877,7 +1760,6 @@ function updateAtt(code, type, delta) {
   localStorage.setItem('mbaplanner_attendance', JSON.stringify(attData));
   renderAttendance();
   
-  // Quietly auto-sync to cloud if a username is entered
   if(document.getElementById('att-sync-username').value.trim()) {
     saveAttendanceCloud(false); 
   }
@@ -1886,16 +1768,6 @@ function updateAtt(code, type, delta) {
 function renderAttendance() {
   const area = document.getElementById('att-grid');
   const subjects = Object.values(sel[attQ] || {});
-
-  // Forcibly add the Core Class to the top of the tracker if in Q5 or global
-  if(attQ === 'Q5') {
-    subjects.unshift({
-      code: 'CORE-LAW',
-      name: 'Legal Aspects (Core)',
-      slot: '5-7pm (Flexible Wed-Sat)',
-      instructor: 'Core Faculty'
-    });
-  }
 
   let html = '';
   subjects.forEach(s => {
@@ -1959,7 +1831,6 @@ function renderAttendance() {
 }
 
 // ── ATTENDANCE CLOUD SYNC ────────────────────────────────────────────────────
-
 function getAttUsername() {
   const u = document.getElementById('att-sync-username').value.trim();
   const statusEl = document.getElementById('att-sync-status');
@@ -2074,12 +1945,15 @@ render();
 if(wasShared) document.getElementById('shared-banner').classList.add('show');
 
 // Trigger Q6 update alert on first load if it's default
-setTimeout(() => {
-    if(cQ === 'Q6' && !q6AlertShown) {
-         alert("Q6 Updates:\n• Course timings and rooms have been updated based on the latest timetable.\n• 2 Core courses (Business Models, Behavioural lab) have been added and automatically locked.");
-         q6AlertShown = true;
-    }
-}, 500);
+let q6AlertShownStorage = localStorage.getItem('mbaplanner_q6_alert');
+if(cQ === 'Q6' && !q6AlertShownStorage) {
+   // Wait a tiny bit for render
+   setTimeout(() => {
+     alert("Q6 Updates:\n• Course timings and rooms have been updated based on the latest timetable.\n• 2 Core courses (Business Models, Behavioural lab) have been added and automatically locked.");
+     localStorage.setItem('mbaplanner_q6_alert', '1');
+     q6AlertShown = true;
+   }, 500);
+}
 
 
 // Firebase init only
