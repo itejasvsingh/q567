@@ -590,6 +590,20 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 
 </div>
 
+<!-- ALERT MODAL FOR Q6 MISTAKE -->
+<div class="modal-bg" id="alert-modal-bg" style="z-index:200">
+  <div class="modal">
+    <h3 style="color:var(--tx-info)">📅 Q6 Timetable Corrections</h3>
+    <p style="margin-top:8px;font-size:13px;color:var(--tx)"><strong>The previous planner had a mistake regarding the core courses in Q6.</strong> Here is what has been fixed:</p>
+    <ul style="margin-left:20px;margin-top:8px;margin-bottom:16px;font-size:12px;color:var(--tx2)">
+      <li><strong>Course timings and rooms</strong> have been thoroughly updated based on the latest timetable.</li>
+      <li><strong>2 Core courses (Business Models, Behavioural lab)</strong> were incorrectly slotted. They have now been pinned to their correct, exact timings and automatically locked into your planner.</li>
+    </ul>
+    <button class="cmp-btn" style="width:100%" onclick="closeAlertModal()">Got it</button>
+  </div>
+</div>
+
+<!-- EXPORT MODAL -->
 <div class="modal-bg" id="modal-bg" onclick="handleModalBgClick(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <h3>Export timetable</h3>
@@ -655,7 +669,7 @@ const DATA={
     WW:[{d:'Monday',t:'3pm-5pm'},{d:'Wednesday',t:'10am-12pm'}],
     XX:[{d:'Tuesday',t:'3pm-5pm'},{d:'Friday',t:'10am-12pm'}]},
   subjects:[
-    {slot:'QQ',code:'MS6210',name:'Business Models',instructor:'L P Shenoy',v:'Integrative',room:'401',isCore:true},
+    {slot:'QQ',code:'MS6210',name:'Business Models',instructor:'LPS',v:'Integrative',room:'401',isCore:true},
     {slot:'RR',code:'MS5529',name:'Behavioural lab',instructor:'Lata Dyaram',v:'HR',room:'401',isCore:true},
     {slot:'TT',code:'MS5015',name:'Design Thinking',instructor:'Richa Agrawal',v:'Marketing',room:'252'},
     {slot:'XX',code:'MS6580',name:'Sales and Distribution Management',instructor:'Prathamesh Kittur',v:'Marketing',room:'252'},
@@ -705,6 +719,7 @@ let goalMajorDom='';
 let goalDualD1='';
 let goalDualD2='';
 let exportQ='Q5';
+let q6AlertShown=false;
 
 // ── GOAL MODE ────────────────────────────────────────────────────────────────
 function toggleGoal(g){
@@ -862,9 +877,18 @@ function toggleSubject(code){
   }
   render();
 }
+
+function closeAlertModal() {
+  document.getElementById('alert-modal-bg').classList.remove('open');
+}
+
 function switchQ(q){
   cQ=q;
   document.querySelectorAll('.qtab').forEach((t,i)=>t.classList.toggle('on',['Q6','Q5','Q7'][i]===q));
+  if(q === 'Q6' && !q6AlertShown) {
+    document.getElementById('alert-modal-bg').classList.add('open');
+    q6AlertShown = true;
+  }
   render();
 }
 function setFilter(d){fDom=(fDom===d?'All':d);fFromTracker=(fDom!=='All'?fDom:'');render();}
@@ -1949,7 +1973,7 @@ let q6AlertShownStorage = localStorage.getItem('mbaplanner_q6_alert');
 if(cQ === 'Q6' && !q6AlertShownStorage) {
    // Wait a tiny bit for render
    setTimeout(() => {
-     alert("Q6 Updates:\n• Course timings and rooms have been updated based on the latest timetable.\n• 2 Core courses (Business Models, Behavioural lab) have been added and automatically locked.");
+     document.getElementById('alert-modal-bg').classList.add('open');
      localStorage.setItem('mbaplanner_q6_alert', '1');
      q6AlertShown = true;
    }, 500);
