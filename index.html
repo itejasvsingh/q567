@@ -1416,7 +1416,7 @@ function sanitizeGroupCode(code){
 }
 function sanitizeKey(name){
   // Firebase keys can't contain . $ # [ ] /
-  return name.trim().replace(/[.$#\[\]\/g,'_').slice(0,30);
+  return name.trim().replace(/[.$#\[\]\/]/g,'_').slice(0,30);
 }
 
 function initFirebase(){
