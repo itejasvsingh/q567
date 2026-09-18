@@ -709,6 +709,24 @@ const VC={Finance:'vF',HR:'vH',Marketing:'vM',IS:'vI',Ops:'vO',Strategy:'vS',Int
 // ── STATE ────────────────────────────────────────────────────────────────────
 let cQ='Q6';
 let sel={Q5:{},Q6:{},Q7:{}};
+
+// Initialize sel from localStorage before anything else
+try {
+  const savedSel = JSON.parse(localStorage.getItem('mbaplanner_selections'));
+  if (savedSel) {
+    ['Q5', 'Q6', 'Q7'].forEach(q => {
+      if (savedSel[q]) {
+        Object.keys(savedSel[q]).forEach(code => {
+          const liveSubj = DATA[q].subjects.find(s => s.code === code);
+          if (liveSubj) sel[q][code] = liveSubj;
+        });
+      }
+    });
+  }
+} catch (e) {
+  console.warn("Could not parse saved selections from localStorage.", e);
+}
+
 let fDom='All';
 let fFromTracker='';
 let searchQuery='';
@@ -875,6 +893,9 @@ function toggleSubject(code){
     if(used.includes(subj.slot)||Object.values(sel[q]).filter(s=>!s.isCore).length>=4)return;
     sel[q][code]=subj;
   }
+  
+  // Save to localStorage
+  localStorage.setItem('mbaplanner_selections', JSON.stringify(sel));
   render();
 }
 
@@ -1289,11 +1310,12 @@ function decodeState(str){
         if(!subj) return;
         // Respect slot uniqueness
         const used=Object.values(sel[q]).map(s=>s.slot);
-        if(!used.includes(subj.slot)&&Object.keys(sel[q]).length<4){
+        if(!used.includes(subj.slot)&&Object.values(sel[q]).filter(s=>!s.isCore).length<4){
           sel[q][code]=subj;
         }
       });
     });
+    localStorage.setItem('mbaplanner_selections', JSON.stringify(sel));
   }catch(e){console.warn('Could not decode shared state',e);}
 }
 
@@ -1394,7 +1416,7 @@ function sanitizeGroupCode(code){
 }
 function sanitizeKey(name){
   // Firebase keys can't contain . $ # [ ] /
-  return name.trim().replace(/[.$#\[\]\/]/g,'_').slice(0,30);
+  return name.trim().replace(/[.$#\[\]\/g,'_').slice(0,30);
 }
 
 function initFirebase(){
@@ -1478,6 +1500,7 @@ function cmpConnect(){
           sel[q]={};
           Object.entries(saved[q]||{}).forEach(([c,s])=>{ sel[q][c]=resolveSubj(q,s); });
         });
+        localStorage.setItem('mbaplanner_selections', JSON.stringify(sel));
         render();
       }
       publishMyPlan(name);
@@ -1934,6 +1957,7 @@ function loadAttendanceCloud() {
             sel[q] = {};
             Object.entries(data.plan[q] || {}).forEach(([c, s]) => { sel[q][c] = resolveSubj(q, s); });
           });
+          localStorage.setItem('mbaplanner_selections', JSON.stringify(sel));
         }
       } else {
         // Fallback for your previously saved data
