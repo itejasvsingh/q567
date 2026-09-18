@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>IIT Madras MBA — Elective Planner by Tejasv Singh</title>
 
-<!-- External Database -->
-<script src="database.js"></script>
-
 <!-- PWA: lets this be added to the home screen and open like a real app -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#185fa5">
@@ -2017,6 +2014,118 @@ function loadAttendanceCloud() {
 }
 
 // ── LIVE COHORT ATTENDANCE FETCHER ──────────────────────────────────────────
+
+// Embedded Static Database of entire cohort Q5 Official Attendance
+const CLASS_ATTENDANCE_DB = {
+  "MS25D023": { "name": "Anjali Sharma", "attendance": { "MS5760": { "p": 10, "a": 2, "t": 12, "pct": 83 }, "MS5720": { "p": 11, "a": 1, "t": 12, "pct": 92 }, "MS5710": { "p": 12, "a": 0, "t": 12, "pct": 100 } } },
+  "MS25A012": { "name": "Anuj Prakash Gupta", "attendance": { "MS5760": { "p": 9, "a": 3, "t": 12, "pct": 75 }, "MS5012": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5710": { "p": 11, "a": 1, "t": 12, "pct": 92 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A020": { "name": "Burla Harshith Reddy", "attendance": { "MS5760": { "p": 5, "a": 6, "t": 11, "pct": 45 }, "MS5012": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS5640": { "p": 2, "a": 11, "t": 13, "pct": 15 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5610": { "p": 14, "a": 1, "t": 15, "pct": 93 }, "MS6840": { "p": 6, "a": 8, "t": 14, "pct": 43 }, "CORE-LAW": { "p": 11, "a": 3, "t": 14, "pct": 79 } } },
+  "MS25A023": { "name": "Chaitanya Prashant Talokar", "attendance": { "MS5760": { "p": 12, "a": 1, "t": 13, "pct": 92 }, "MS5720": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "MS5560": { "p": 12, "a": 1, "t": 13, "pct": 92 }, "MS5710": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "CORE-LAW": { "p": 14, "a": 0, "t": 14, "pct": 100 } } },
+  "MS25A024": { "name": "Chandan Singh", "attendance": { "MS5760": { "p": 10, "a": 3, "t": 13, "pct": 77 }, "MS5720": { "p": 9, "a": 3, "t": 12, "pct": 75 }, "MS6910": { "p": 4, "a": 0, "t": 4, "pct": 100 }, "MS5710": { "p": 11, "a": 1, "t": 12, "pct": 92 }, "CORE-LAW": { "p": 12, "a": 2, "t": 14, "pct": 86 } } },
+  "MS25D028": { "name": "Deeksha Dwivedi", "attendance": { "MS5760": { "p": 10, "a": 2, "t": 12, "pct": 83 }, "MS5710": { "p": 12, "a": 0, "t": 12, "pct": 100 } } },
+  "MS25A041": { "name": "Mohamed Kasim Raja M", "attendance": { "MS5760": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "MS5012": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS5070": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS6840": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A053": { "name": "Prachi Hassija", "attendance": { "MS5760": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "MS5012": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5610": { "p": 12, "a": 3, "t": 15, "pct": 80 }, "MS6840": { "p": 2, "a": 12, "t": 14, "pct": 14 }, "CORE-LAW": { "p": 12, "a": 2, "t": 14, "pct": 86 } } },
+  "MS25A059": { "name": "Samarth Vijaykumar Satpute", "attendance": { "MS5760": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "MS5012": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS5070": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS6840": { "p": 11, "a": 3, "t": 14, "pct": 79 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A064": { "name": "Snega V", "attendance": { "MS5760": { "p": 10, "a": 2, "t": 12, "pct": 83 }, "MS5012": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5070": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS5610": { "p": 13, "a": 2, "t": 15, "pct": 87 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A071": { "name": "Tejasv Singh", "attendance": { "MS5760": { "p": 11, "a": 0, "t": 11, "pct": 100 }, "MS5012": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS6840": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A073": { "name": "Trivedhan Sivaprakash", "attendance": { "MS5760": { "p": 11, "a": 0, "t": 11, "pct": 100 }, "MS5012": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS5560": { "p": 11, "a": 2, "t": 13, "pct": 85 }, "MS6840": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A082": { "name": "Velmurugan M", "attendance": { "MS5760": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "MS5560": { "p": 12, "a": 1, "t": 13, "pct": 92 }, "MS5610": { "p": 15, "a": 0, "t": 15, "pct": 100 }, "CORE-LAW": { "p": 11, "a": 3, "t": 14, "pct": 79 } } },
+  "MS25A078": { "name": "Yoshita Chauhan", "attendance": { "MS5760": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "MS5012": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5610": { "p": 11, "a": 4, "t": 15, "pct": 73 }, "MS6840": { "p": 2, "a": 12, "t": 14, "pct": 14 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A079": { "name": "Yuvika Kapoor", "attendance": { "MS5760": { "p": 11, "a": 1, "t": 12, "pct": 92 }, "MS5012": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5610": { "p": 13, "a": 2, "t": 15, "pct": 87 }, "CORE-LAW": { "p": 12, "a": 0, "t": 12, "pct": 100 } } },
+  "MS25A050": { "name": "Naresh", "attendance": { "MS5530": { "p": 11, "a": 0, "t": 11, "pct": 100 }, "MS5012": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5070": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A001": { "name": "Abhinav Rastogi", "attendance": { "MS5510": { "p": 10, "a": 2, "t": 12, "pct": 83 }, "MS5560": { "p": 12, "a": 1, "t": 13, "pct": 92 }, "MS5070": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS6840": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "CORE-LAW": { "p": 11, "a": 3, "t": 14, "pct": 79 } } },
+  "MS25A007": { "name": "Ahmed Hossain", "attendance": { "MS5510": { "p": 10, "a": 2, "t": 12, "pct": 83 }, "MS5560": { "p": 11, "a": 2, "t": 13, "pct": 85 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "CORE-LAW": { "p": 12, "a": 2, "t": 14, "pct": 86 } } },
+  "MS25A008": { "name": "Akash V", "attendance": { "MS5510": { "p": 11, "a": 1, "t": 12, "pct": 92 }, "MS5720": { "p": 11, "a": 1, "t": 12, "pct": 92 }, "MS5012": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5070": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "CORE-LAW": { "p": 14, "a": 0, "t": 14, "pct": 100 } } },
+  "MS25A013": { "name": "Arvind V S", "attendance": { "MS5510": { "p": 11, "a": 1, "t": 12, "pct": 92 }, "MS5012": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5560": { "p": 13, "a": 0, "t": 13, "pct": 100 }, "MS6840": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "CORE-LAW": { "p": 12, "a": 2, "t": 14, "pct": 86 } } },
+  "MS25A015": { "name": "Arnav Gupta", "attendance": { "MS5510": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "MS5012": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS5070": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS6840": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A019": { "name": "Ayush", "attendance": { "MS5510": { "p": 11, "a": 1, "t": 12, "pct": 92 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5610": { "p": 15, "a": 0, "t": 15, "pct": 100 }, "MS6840": { "p": 14, "a": 0, "t 14, "pct": 100 }, "CORE-LAW": { "p": 12, "a": 2, "t": 14, "pct": 86 } } },
+  "MS25A022": { "name": "C V Sreeram", "attendance": { "MS5510": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "MS5560": { "p": 12, "a": 1, "t": 13, "pct": 92 }, "MS5640": { "p": 12, "a": 1, "t": 13, "pct": 92 }, "MS5610": { "p": 13, "a": 2, "t": 15, "pct": 87 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A030": { "name": "Hariharasudhan J", "attendance": { "MS5510": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "MS5070": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS5610": { "p": 15, "a": 0, "t": 15, "pct": 100 }, "MS6840": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A034": { "name": "K J Vishaal", "attendance": { "MS5510": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "MS5012": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS5070": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS6840": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A037": { "name": "Kishlay Kinjal", "attendance": { "MS5510": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "MS5012": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS5560": { "p": 11, "a": 2, "t": 13, "pct": 85 }, "MS5070": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "CORE-LAW": { "p": 11, "a": 3, "t": 14, "pct": 79 } } },
+  "MS25A038": { "name": "Lavanya", "attendance": { "MS5510": { "p": 10, "a": 2, "t": 12, "pct": 83 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5610": { "p": 13, "a": 2, "t": 15, "pct": 87 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A039": { "name": "Lenessa", "attendance": { "MS5510": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "MS5012": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS5560": { "p": 13, "a": 0, "t": 13, "pct": 100 }, "MS5070": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "CORE-LAW": { "p": 14, "a": 0, "t": 14, "pct": 100 } } },
+  "MS25A049": { "name": "Nakul", "attendance": { "MS5510": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "MS5070": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS5610": { "p": 12, "a": 3, "t": 15, "pct": 80 }, "MS6840": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "CORE-LAW": { "p": 10, "a": 4, "t": 14, "pct": 71 } } },
+  "MS25A055": { "name": "Priyesh", "attendance": { "MS5510": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "MS5560": { "p": 12, "a": 1, "t": 13, "pct": 92 }, "MS5070": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "CORE-LAW": { "p": 11, "a": 3, "t": 14, "pct": 79 } } },
+  "MS25A057": { "name": "Rishabh Pandey", "attendance": { "MS5510": { "p": 11, "a": 1, "t": 12, "pct": 92 }, "MS5012": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS5560": { "p": 12, "a": 1, "t": 13, "pct": 92 }, "MS5610": { "p": 13, "a": 2, "t": 15, "pct": 87 }, "CORE-LAW": { "p": 11, "a": 3, "t": 14, "pct": 79 } } },
+  "MS25A060": { "name": "Senthil Vinod S", "attendance": { "MS5510": { "p": 11, "a": 1, "t": 12, "pct": 92 }, "MS5012": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5560": { "p": 12, "a": 1, "t": 13, "pct": 92 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A061": { "name": "Shashank Mishra", "attendance": { "MS5510": { "p": 11, "a": 1, "t": 12, "pct": 92 }, "MS5012": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS5560": { "p": 11, "a": 2, "t": 13, "pct": 85 }, "MS5070": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "CORE-LAW": { "p": 11, "a": 3, "t": 14, "pct": 79 } } },
+  "MS25A070": { "name": "Tejas Nikam", "attendance": { "MS5510": { "p": 11, "a": 1, "t": 12, "pct": 92 }, "MS5012": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS5070": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS5710": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "CORE-LAW": { "p": 11, "a": 3, "t": 14, "pct": 79 } } },
+  "MS25A074": { "name": "V Shankar Raman", "attendance": { "MS5510": { "p": 11, "a": 1, "t": 12, "pct": 92 }, "MS5720": { "p": 11, "a": 1, "t": 12, "pct": 92 }, "MS5012": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS5560": { "p": 13, "a": 0, "t": 13, "pct": 100 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A077": { "name": "Yashpal Momaya", "attendance": { "MS5510": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "MS5560": { "p": 13, "a": 0, "t": 13, "pct": 100 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5710": { "p": 11, "a": 1, "t": 12, "pct": 92 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A081": { "name": "Adarsh Kumar", "attendance": { "MS5510": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "MS5560": { "p": 13, "a": 0, "t": 13, "pct": 100 }, "MS5640": { "p": 4, "a": 9, "t": 13, "pct": 31 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5610": { "p": 14, "a": 1, "t": 15, "pct": 93 }, "MS6840": { "p": 7, "a": 7, "t": 14, "pct": 50 }, "CORE-LAW": { "p": 14, "a": 0, "t": 14, "pct": 100 } } },
+  "MS25A052": { "name": "Pourab Roy", "attendance": { "MS5510": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "MS5012": { "p": 9, "a": 5, "t": 14, "pct": 64 }, "MS5070": { "p": 11, "a": 3, "t": 14, "pct": 79 }, "MS5610": { "p": 10, "a": 5, "t": 15, "pct": 67 }, "CORE-LAW": { "p": 12, "a": 2, "t": 14, "pct": 86 } } },
+  "MS25A018": { "name": "Aysha Thania", "attendance": { "MS5720": { "p": 11, "a": 1, "t": 12, "pct": 92 }, "MS5012": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS5070": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS6840": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "CORE-LAW": { "p": 14, "a": 0, "t": 14, "pct": 100 } } },
+  "MS25A035": { "name": "Karthik Suresh", "attendance": { "MS5720": { "p": 10, "a": 2, "t": 12, "pct": 83 }, "MS5560": { "p": 11, "a": 2, "t": 13, "pct": 85 }, "MS5070": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS6840": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A031": { "name": "Hrithik Chowdhry", "attendance": { "MS5720": { "p": 11, "a": 1, "t": 12, "pct": 92 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5610": { "p": 14, "a": 1, "t": 15, "pct": 93 }, "MS6840": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A002": { "name": "Abhinav Singh", "attendance": { "MS5720": { "p": 11, "a": 1, "t": 12, "pct": 92 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5710": { "p": 11, "a": 1, "t": 12, "pct": 92 }, "MS6840": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A043": { "name": "Mathi B.N", "attendance": { "MS5720": { "p": 11, "a": 1, "t": 12, "pct": 92 }, "MS5640": { "p": 12, "a": 1, "t": 13, "pct": 92 }, "MS5610": { "p": 13, "a": 2, "t": 15, "pct": 87 }, "CORE-LAW": { "p": 14, "a": 0, "t": 14, "pct": 100 } } },
+  "MS25A032": { "name": "Dharani J.S", "attendance": { "MS5720": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "MS5012": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS5560": { "p": 11, "a": 2, "t": 13, "pct": 85 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "CORE-LAW": { "p": 10, "a": 4, "t": 14, "pct": 71 } } },
+  "MS25A065": { "name": "Sriram A.M", "attendance": { "MS5720": { "p": 11, "a": 1, "t": 12, "pct": 92 }, "MS5012": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5070": { "p": 11, "a": 3, "t": 14, "pct": 79 }, "MS6840": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "CORE-LAW": { "p": 12, "a": 2, "t": 14, "pct": 86 } } },
+  "MS25A009": { "name": "Ally Saha", "attendance": { "MS5720": { "p": 10, "a": 2, "t": 12, "pct": 83 }, "MS5012": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS6840": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A068": { "name": "Dhwani T.B", "attendance": { "MS5720": { "p": 11, "a": 1, "t": 12, "pct": 92 }, "MS5640": { "p": 13, "a": 0, "t": 13, "pct": 100 }, "MS6840": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "CORE-LAW": { "p": 14, "a": 0, "t": 14, "pct": 100 } } },
+  "MS25A017": { "name": "Arvaj Salmani", "attendance": { "MS5720": { "p": 10, "a": 2, "t": 12, "pct": 83 }, "MS5012": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS5560": { "p": 11, "a": 2, "t": 13, "pct": 85 }, "MS5070": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A006": { "name": "Aditya Raj", "attendance": { "MS5720": { "p": 10, "a": 2, "t": 12, "pct": 83 }, "MS5012": { "p": 11, "a": 3, "t": 14, "pct": 79 }, "MS5560": { "p": 11, "a": 2, "t": 13, "pct": 85 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS6840": { "p": 3, "a": 11, "t": 14, "pct": 21 }, "CORE-LAW": { "p": 11, "a": 3, "t": 14, "pct": 79 } } },
+  "MS25A026": { "name": "Deepansh Jain", "attendance": { "MS5720": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "MS5012": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS5640": { "p": 13, "a": 0, "t": 13, "pct": 100 }, "MS5610": { "p": 14, "a": 1, "t": 15, "pct": 93 }, "CORE-LAW": { "p": 12, "a": 2, "t": 14, "pct": 86 } } },
+  "MS25A003": { "name": "Abhirami V", "attendance": { "MS5012": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5640": { "p": 12, "a": 1, "t": 13, "pct": 92 }, "MS6910": { "p": 3, "a": 0, "t": 3, "pct": 100 }, "MS5710": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A004": { "name": "Abhishek Jayara", "attendance": { "MS5012": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS5640": { "p": 12, "a": 1, "t": 13, "pct": 92 }, "MS5610": { "p": 14, "a": 1, "t": 15, "pct": 93 }, "MS6840": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A005": { "name": "Aditya Pradeep Mirji", "attendance": { "MS5012": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5640": { "p": 10, "a": 3, "t": 13, "pct": 77 }, "MS5710": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "MS6840": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "CORE-LAW": { "p": 12, "a": 2, "t": 14, "pct": 86 } } },
+  "MS25A014": { "name": "Arjun V", "attendance": { "MS5012": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS5560": { "p": 13, "a": 0, "t": 13, "pct": 100 }, "MS5070": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS6840": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A021": { "name": "C R Narasimha Krishna Sai", "attendance": { "MS5012": { "p": 11, "a": 3, "t": 14, "pct": 79 }, "MS6910": { "p": 4, "a": 0, "t": 4, "pct": 100 }, "MS5710": { "p": 10, "a": 2, "t": 12, "pct": 83 }, "MS6840": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A028": { "name": "Gundavarapu Yamini", "attendance": { "MS5012": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5560": { "p": 12, "a": 1, "t": 13, "pct": 92 }, "MS5070": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS5710": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "CORE-LAW": { "p": 11, "a": 3, "t": 14, "pct": 79 } } },
+  "MS25A029": { "name": "Hardik Patel", "attendance": { "MS5012": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS5640": { "p": 11, "a": 2, "t": 13, "pct": 85 }, "MS5610": { "p": 13, "a": 2, "t": 15, "pct": 87 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A033": { "name": "John Glen Mynatty", "attendance": { "MS5012": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5710": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "MS6840": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A040": { "name": "Likitha M", "attendance": { "MS5012": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5560": { "p": 12, "a": 1, "t": 13, "pct": 92 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS6840": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A042": { "name": "Maddala Prudhvi Tej", "attendance": { "MS5012": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS5560": { "p": 12, "a": 1, "t": 13, "pct": 92 }, "MS5640": { "p": 12, "a": 1, "t": 13, "pct": 92 }, "MS6840": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "CORE-LAW": { "p": 11, "a": 3, "t": 14, "pct": 79 } } },
+  "MS25A045": { "name": "Misfer M", "attendance": { "MS5012": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5070": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS5710": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "MS6840": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A046": { "name": "Mohammed Ashik S", "attendance": { "MS5012": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS5560": { "p": 13, "a": 0, "t": 13, "pct": 100 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS6840": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A047": { "name": "Mohnish Saini", "attendance": { "MS5012": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5640": { "p": 9, "a": 4, "t": 13, "pct": 69 }, "MS5610": { "p": 14, "a": 1, "t": 15, "pct": 93 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A048": { "name": "Muhammed Thanveer K K", "attendance": { "MS5012": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS5560": { "p": 13, "a": 0, "t": 13, "pct": 100 }, "MS5640": { "p": 8, "a": 5, "t": 13, "pct": 62 }, "CORE-LAW": { "p": 11, "a": 3, "t": 14, "pct": 79 } } },
+  "MS25A051": { "name": "Ponnada Lakshmi Manasa", "attendance": { "MS5012": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS5640": { "p": 13, "a": 0, "t": 13, "pct": 100 }, "MS5610": { "p": 12, "a": 3, "t": 15, "pct": 80 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A054": { "name": "Pranab R", "attendance": { "MS5012": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS6840": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "CORE-LAW": { "p": 12, "a": 2, "t": 14, "pct": 86 } } },
+  "MS25A056": { "name": "Raghupatruni Shashank", "attendance": { "MS5012": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS5560": { "p": 10, "a": 3, "t": 13, "pct": 77 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5710": { "p": 11, "a": 1, "t": 12, "pct": 92 }, "CORE-LAW": { "p": 11, "a": 3, "t": 14, "pct": 79 } } },
+  "MS25A058": { "name": "B Sai Kalyan", "attendance": { "MS5012": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS5710": { "p": 12, "a": 0, "t": 12, "pct": 100 }, "MS6840": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A062": { "name": "Siddhartha Gaba", "attendance": { "MS5012": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5610": { "p": 13, "a": 2, "t": 15, "pct": 87 }, "MS6840": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "CORE-LAW": { "p": 11, "a": 3, "t": 14, "pct": 79 } } },
+  "MS25A063": { "name": "Sivabharathi E", "attendance": { "MS5012": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5610": { "p": 13, "a": 2, "t": 15, "pct": 87 }, "CORE-LAW": { "p": 11, "a": 3, "t": 14, "pct": 79 } } },
+  "MS25A067": { "name": "Stuti Upadhyay", "attendance": { "MS5012": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5610": { "p": 14, "a": 1, "t": 15, "pct": 93 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A069": { "name": "Tanya Pinheiro", "attendance": { "MS5012": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS5560": { "p": 12, "a": 1, "t": 13, "pct": 92 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS6840": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A072": { "name": "Kolla Tejender Reddy", "attendance": { "MS5012": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "MS5640": { "p": 11, "a": 2, "t": 13, "pct": 85 }, "MS5610": { "p": 12, "a": 3, "t": 15, "pct": 80 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A075": { "name": "Vaishnabi Prakash", "attendance": { "MS5012": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5610": { "p": 13, "a": 2, "t": 15, "pct": 87 }, "MS6840": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "CORE-LAW": { "p": 12, "a": 2, "t": 14, "pct": 86 } } },
+  "MS25A076": { "name": "Vivek A", "attendance": { "MS5012": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5560": { "p": 12, "a": 1, "t": 13, "pct": 92 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS6840": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A080": { "name": "Kandula Yamini Krishna", "attendance": { "MS5012": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5560": { "p": 13, "a": 0, "t": 13, "pct": 100 }, "MS5070": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS6840": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A083": { "name": "Nesan Antony J S", "attendance": { "MS5012": { "p": 11, "a": 3, "t": 14, "pct": 79 }, "MS5070": { "p": 10, "a": 4, "t": 14, "pct": 71 }, "MS5610": { "p": 11, "a": 4, "t": 15, "pct": 73 }, "MS6840": { "p": 10, "a": 4, "t": 14, "pct": 71 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25D017": { "name": "Surendheran R", "attendance": { "MS5012": { "p": 10, "a": 4, "t": 14, "pct": 71 } } },
+  "MS25D032": { "name": "Mahalingam", "attendance": { "MS5012": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS5070": { "p": 12, "a": 1, "t": 13, "pct": 92 }, "MS6840": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25D033": { "name": "Harinath Chakrapani", "attendance": { "MS5012": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS5070": { "p": 11, "a": 3, "t": 14, "pct": 79 }, "MS6840": { "p": 14, "a": 0, "t": 14, "pct": 100 } } },
+  "MS25D200": { "name": "Yash Gopal Deshpande", "attendance": { "MS5012": { "p": 14, "a": 0, "t": 14, "pct": 100 } } },
+  "MS25S010": { "name": "Innocent Divya J", "attendance": { "MS5012": { "p": 10, "a": 4, "t": 14, "pct": 71 } } },
+  "MS25S011": { "name": "Ponni R", "attendance": { "MS5012": { "p": 10, "a": 4, "t": 14, "pct": 71 } } },
+  "MS25A066": { "name": "Stuti Goyal", "attendance": { "MS5560": { "p": 11, "a": 2, "t": 13, "pct": 85 }, "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "MS5610": { "p": 14, "a": 1, "t": 15, "pct": 93 }, "MS6840": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "CORE-LAW": { "p": 12, "a": 2, "t": 14, "pct": 86 } } },
+  "MS25S008": { "name": "Omkar Nushad", "attendance": { "MS5560": { "p": 3, "a": 10, "t": 13, "pct": 23 } } },
+  "MS25A010": { "name": "Ankit Patel", "attendance": { "MS5560": { "p": 11, "a": 2, "t": 13, "pct": 85 }, "MS5070": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS5610": { "p": 14, "a": 1, "t": 15, "pct": 93 }, "CORE-LAW": { "p": 12, "a": 2, "t": 14, "pct": 86 } } },
+  "MS24A062": { "name": "Saleem Jahangeer A", "attendance": { "MS5560": { "p": 12, "a": 1, "t": 13, "pct": 92 }, "MS5070": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "MS6840": { "p": 12, "a": 2, "t": 14, "pct": 86 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS24D020": { "name": "Venkata", "attendance": { "MS5640": { "p": 3, "a": 10, "t": 13, "pct": 23 } } },
+  "ME22B092": { "name": "Abhinav", "attendance": { "MS5640": { "p": 9, "a": 4, "t": 13, "pct": 69 }, "MS5610": { "p": 12, "a": 3, "t": 15, "pct": 80 } } },
+  "ME22B162": { "name": "Vedant", "attendance": { "MS5640": { "p": 10, "a": 3, "t": 13, "pct": 77 }, "MS5610": { "p": 13, "a": 2, "t": 15, "pct": 87 } } },
+  "AE22B070": { "name": "Chirag", "attendance": { "MS5640": { "p": 2, "a": 11, "t": 13, "pct": 15 }, "MS5610": { "p": 10, "a": 5, "t": 15, "pct": 67 } } },
+  "MS25A027": { "name": "Gowtham", "attendance": { "MS5640": { "p": 10, "a": 2, "t": 12, "pct": 83 }, "MS5610": { "p": 13, "a": 2, "t": 15, "pct": 87 }, "MS6840": { "p": 14, "a": 0, "t": 14, "pct": 100 }, "CORE-LAW": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "ME22B223": { "name": "Shyam", "attendance": { "MS5640": { "p": 9, "a": 4, "t": 13, "pct": 69 }, "MS5610": { "p": 12, "a": 3, "t": 15, "pct": 80 } } },
+  "ME22B196": { "name": "Shubham", "attendance": { "MS5640": { "p": 11, "a": 2, "t": 13, "pct": 85 }, "MS5610": { "p": 12, "a": 3, "t": 15, "pct": 80 } } },
+  "ME22B152": { "name": "Harshitha", "attendance": { "MS5640": { "p": 7, "a": 6, "t": 13, "pct": 54 }, "MS5610": { "p": 10, "a": 5, "t": 15, "pct": 67 } } },
+  "AE22B026": { "name": "A Neeraja", "attendance": { "MS5640": { "p": 10, "a": 3, "t": 13, "pct": 77 }, "MS5610": { "p": 13, "a": 2, "t": 15, "pct": 87 } } },
+  "MS25D025": { "name": "Priyadarshini Rajasekaran", "attendance": { "MS5070": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS24S801": { "name": "11.0", "attendance": { "MS6910": { "p": 4, "a": 0, "t": 4, "pct": 100 } } },
+  "MS24S800": { "name": "13.0", "attendance": { "MS6910": { "p": 4, "a": 0, "t": 4, "pct": 100 } } },
+  "ME22B048": { "name": "Vaibhav K E", "attendance": { "MS5610": { "p": 10, "a": 5, "t": 15, "pct": 67 } } },
+  "ME22B046": { "name": "Jai Sakhthivelan", "attendance": { "MS5610": { "p": 11, "a": 4, "t": 15, "pct": 73 } } },
+  "MS25A036": { "name": "Lavanya Tembhlne", "attendance": { "MS6840": { "p": 13, "a": 1, "t": 14, "pct": 93 }, "CORE-LAW": { "p": 5, "a": 9, "t": 14, "pct": 36 } } },
+  "MS25S007": { "name": "Utsav Bhardwaj", "attendance": { "MS6840": { "p": 14, "a": 0, "t": 14, "pct": 100 } } },
+  "MS25S002": { "name": "Vivek Yadav", "attendance": { "MS6840": { "p": 12, "a": 2, "t": 14, "pct": 86 } } },
+  "MS25S003": { "name": "Samrat Shardul Viklram", "attendance": { "MS6840": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A667": { "name": "Stuti Upadhyam", "attendance": { "MS6840": { "p": 13, "a": 1, "t": 14, "pct": 93 } } },
+  "MS25A607": { "name": "Ahmed", "attendance": { "MS6840": { "p": 12, "a": 2, "t": 14, "pct": 86 } } }
+};
+
 function searchCohortAttendance() {
   const query = document.getElementById('cohort-search-input').value.trim().toUpperCase();
   const container = document.getElementById('cohort-att-table-container');
@@ -2026,7 +2135,7 @@ function searchCohortAttendance() {
     return;
   }
 
-  // Find user by matching Roll No or Name from database.js
+  // Find user by matching Roll No or Name
   let foundStudentId = null;
   let foundStudent = null;
 
@@ -2053,7 +2162,7 @@ function searchCohortAttendance() {
   let html = `<div style="font-size: 13px; font-weight: 700; color: var(--tx-info); margin-bottom: 8px;">👤 ${foundStudent.name} (${foundStudentId})</div>`;
   html += '<table style="width:100%; border-collapse: collapse; font-size: 12px; text-align: left; background: var(--bg); border: .5px solid var(--bd);">';
   html += '<thead><tr style="border-bottom: 1px solid var(--bd); background: var(--bg2);">';
-  html += '<th style="padding: 8px 10px;">Subject Code</th>';
+  html += '<th style="padding: 8px 10px;">Subject</th>';
   html += '<th style="padding: 8px 10px; text-align: center;">Present</th>';
   html += '<th style="padding: 8px 10px; text-align: center;">Absent</th>';
   html += '<th style="padding: 8px 10px; text-align: center;">Percentage</th>';
@@ -2066,12 +2175,29 @@ function searchCohortAttendance() {
     if (attKey) {
       matchCount++;
       const att = foundStudent.attendance[attKey];
+
+      // Color coding for percentages
       let color = 'var(--tx)';
       if (att.pct < 85) color = 'var(--tx-danger)';
       else if (att.pct >= 85) color = 'var(--tx-success)';
 
+      // Look up the full Subject Name from the DATA catalog
+      let subjectName = "Unknown Subject";
+      for (let q of ['Q5', 'Q6', 'Q7']) {
+          if (DATA[q] && DATA[q].subjects) {
+              let found = DATA[q].subjects.find(s => s.code.includes(attKey) || attKey.includes(s.code));
+              if (found) {
+                  subjectName = found.name;
+                  break;
+              }
+          }
+      }
+
       html += `<tr style="border-bottom: .5px solid var(--bd);">`;
-      html += `<td style="padding: 8px 10px; font-weight:600;">${attKey}</td>`;
+      html += `<td style="padding: 8px 10px; line-height: 1.3;">
+                  <span style="font-weight:700;">${attKey}</span><br>
+                  <span style="font-size:11px; color:var(--tx2);">${subjectName}</span>
+               </td>`;
       html += `<td style="padding: 8px 10px; text-align: center;">${att.p}</td>`;
       html += `<td style="padding: 8px 10px; text-align: center;">${att.a}</td>`;
       html += `<td style="padding: 8px 10px; text-align: center; color: ${color}; font-weight: 700;">${att.pct}%</td>`;
@@ -2084,7 +2210,7 @@ function searchCohortAttendance() {
   }
 
   html += '</tbody></table>';
-  
+
   if(mySelectedSubjects.length > 0 && matchCount > 0) {
      html += `<div style="font-size: 10px; color: var(--tx3); margin-top: 6px;">Showing official data filtered by your active Q5 planner selections.</div>`;
   }
@@ -2092,48 +2218,6 @@ function searchCohortAttendance() {
   container.style.display = 'block';
   container.innerHTML = html;
 }
-
-// ── INIT ────────────────────────────────────────────────────────────────────
-renderGoalDomChips();
-const wasShared=loadFromURL();
-render();
-if(wasShared) document.getElementById('shared-banner').classList.add('show');
-
-// Trigger Q6 update alert on first load if it's default
-let q6AlertShownStorage = localStorage.getItem('mbaplanner_q6_alert');
-if(cQ === 'Q6' && !q6AlertShownStorage) {
-   // Wait a tiny bit for render
-   setTimeout(() => {
-     document.getElementById('alert-modal-bg').classList.add('open');
-     localStorage.setItem('mbaplanner_q6_alert', '1');
-     q6AlertShown = true;
-   }, 500);
-}
-
-
-// Firebase init only
-roster={};
-document.getElementById('cmp-status').classList.remove('connected');
-document.getElementById('cmp-code-input').value='';
-document.getElementById('cmp-name-input').value='';
-document.getElementById('cmp-status').textContent='Enter your name and a group code, then tap Compare.';
-if(!initFirebase()){
-  document.getElementById('cmp-status').textContent='⚠️ Could not reach the live database — check your internet connection and reload the page.';
-}
-
-// Init Attendance Username from cache
-const savedAttNameInit = localStorage.getItem('mbaplanner_att_username') || localStorage.getItem('mbaplanner_myname');
-if(savedAttNameInit) {
-  document.getElementById('att-sync-username').value = savedAttNameInit;
-}
-
-// PWA
-if('serviceWorker' in navigator){
-  window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('SW registration failed', err));
-  });
-}
-
 </script>
 </body>
 </html>
