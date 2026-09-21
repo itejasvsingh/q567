@@ -1350,19 +1350,29 @@ if('serviceWorker' in navigator){
 
 
 // --- FIREBASE LIVE SCHEDULE LISTENER ---
-if(typeof fbDb !== 'undefined' && fbDb) {
-  fbDb.ref('schedule').once('value').then(snap => {
-    const data = snap.val();
-    if(data) {
-        liveDailyCache = data.daily;
-        liveWeeklyCache = data.weekly;
-        if (typeof currentView !== 'undefined') {
-            if (currentView === 'daily') renderDailySchedule();
-            if (currentView === 'master') renderMasterSchedule();
+window.lastSyncedTime = null;
+window.refreshLiveSchedule = function(btnElement) {
+    if(btnElement) btnElement.innerText = "⏳ Syncing...";
+    if(typeof fbDb !== 'undefined' && fbDb) {
+      fbDb.ref('schedule').once('value').then(snap => {
+        const data = snap.val();
+        if(data) {
+            liveDailyCache = data.daily;
+            liveWeeklyCache = data.weekly;
+            window.lastSyncedTime = new Date();
+            if (typeof currentView !== 'undefined') {
+                if (currentView === 'daily') renderDailySchedule();
+                if (currentView === 'master') renderMasterSchedule();
+            }
         }
+      }).catch(e => {
+          console.warn('Could not fetch live cloud schedule.', e);
+          if(btnElement) btnElement.innerText = "❌ Sync failed";
+      });
     }
-  }).catch(e => console.warn('Could not fetch live cloud schedule.', e));
-}
+};
+// Initial fetch
+refreshLiveSchedule();
 
 // --- MASTER SCHEDULE LOGIC ---
 function renderMasterSchedule() {
@@ -1447,21 +1457,57 @@ function renderDailySchedule() {
   }
 
   const excelAcronyms = {
-    'MS5015': 'DT', 'MS6580': 'SDM', 'MS5460': 'CM', 'MS5690': 'CF', 'MS5529': 'B.Lab',
-    'MS6230': 'SS', 'MS5613': 'CHS', 'MS5770': 'SM', 'MS6030': 'ADAM', 'MS5750': 'BM',
-    'MS6600': 'GCG', 'MS6022': 'AIM', 'MS6210': 'Bs.Models', 'CORE-LAW': 'LAW'
+      'MBA2029': 'GTM', 'MBA2067': 'BM', 'MBA2146': 'FSA', 'MBA2096': 'SBM',
+      'MBA2128': 'C&B', 'MBA2145': 'HRA', 'MBA2038': 'L&C', 'MBA2027': 'DMC',
+      'MBA2055': 'SCM', 'MBA2052': 'SOM', 'MBA2098': 'B2B', 'MBA2104': 'SDM',
+      'MBA2117': 'MR'
   };
-
   const timeOrder = ['8am-10am', '10am-12pm', '12pm-1pm', '1pm-3pm', '3pm-5pm', '5pm-7pm'];
+  
+  const now = new Date();
+  const todayYmd = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  const tmrw = new Date(now); tmrw.setDate(tmrw.getDate() + 1);
+  const tomorrowYmd = `${tmrw.getFullYear()}-${String(tmrw.getMonth()+1).padStart(2,'0')}-${String(tmrw.getDate()).padStart(2,'0')}`;
+  
+  let currentSlot = null;
+  const currentHour = now.getHours();
+  if (currentHour >= 8 && currentHour < 10) currentSlot = '8am-10am';
+  else if (currentHour >= 10 && currentHour < 12) currentSlot = '10am-12pm';
+  else if (currentHour >= 12 && currentHour < 13) currentSlot = '12pm-1pm';
+  else if (currentHour >= 13 && currentHour < 15) currentSlot = '1pm-3pm';
+  else if (currentHour >= 15 && currentHour < 17) currentSlot = '3pm-5pm';
+  else if (currentHour >= 17 && currentHour < 19) currentSlot = '5pm-7pm';
 
-  let h = `
-    <div style="background:var(--bg-info); border:.5px solid var(--bd-info); padding: 12px 14px; border-radius: 10px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
-        <div style="font-size: 20px;">📢</div>
-        <div>
-            <div style="font-size: 13px; font-weight: 700; color: var(--tx-info);">Q6 Term Begins Sept 24th</div>
-            <div style="font-size: 11px; color: var(--tx-info); opacity: 0.85; margin-top: 2px;">Your daily schedule will commence on Thursday, September 24, 2026.</div>
-        </div>
-    </div>`;
+  // Build Pager
+  let pagerHtml = `<div class="day-pager" style="display:flex; gap:8px; overflow-x:auto; margin-bottom:15px; padding-bottom:8px; scrollbar-width:none; -webkit-overflow-scrolling:touch;">`;
+  for (const dateString of Object.keys(liveDailyCache)) {
+      const [ymd, dayName] = dateString.split(' ');
+      const shortDay = dayName ? dayName.substring(0,3) : '';
+      const dd = ymd ? ymd.split('-')[2] : '';
+      const chipId = `chip-${dateString.replace(/\s/g, '-')}`;
+      const isToday = ymd === todayYmd;
+      const activeStyle = isToday ? 'background:var(--bg-info); color:var(--tx-info); border-color:var(--bd-info);' : 'background:var(--bg2); color:var(--tx2);';
+      pagerHtml += `<div id="${chipId}" onclick="document.getElementById('card-${dateString.replace(/\s/g, '-')}').scrollIntoView({behavior:'smooth', block:'start'})" style="flex-shrink:0; padding:6px 12px; border-radius:16px; border:.5px solid var(--bd2); cursor:pointer; font-size:12px; font-weight:700; ${activeStyle}">${shortDay} ${dd}</div>`;
+  }
+  pagerHtml += `</div>`;
+
+  // Time Since Logic
+  let syncText = "Synced just now";
+  if (window.lastSyncedTime) {
+      const seconds = Math.floor((now - window.lastSyncedTime) / 1000);
+      if (seconds > 60) {
+          let m = Math.floor(seconds/60);
+          syncText = `Synced ${m}m ago`;
+          if (m > 60) syncText = `Synced ${Math.floor(m/60)}h ago`;
+      }
+  }
+
+  let fullHtml = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        ${pagerHtml}
+    </div>
+    <div onclick="window.refreshLiveSchedule(this)" style="font-size:10px; color:var(--tx3); text-align:right; margin-bottom:10px; cursor:pointer; font-weight:600;">🔄 ${syncText}</div>
+  `;
 
   for (const [dateString, dailySlots] of Object.entries(liveDailyCache)) {
       let dailyHtml = '';
@@ -1485,7 +1531,6 @@ function renderDailySchedule() {
           dailyHtml += `<div style="font-size:12px; font-weight:700; color:var(--tx-pink); margin-bottom:8px; background:var(--bg-pink); border:.5px solid var(--bd-pink); padding:6px 10px; border-radius:6px;">🎉 Happy Birthday: ${birthdays}!</div>`;
       }
 
-      // Pass 1: Determine what classes the user has today
       let todaysClasses = {};
       let hasClasses = false;
 
@@ -1516,42 +1561,71 @@ function renderDailySchedule() {
           }
       }
 
-      // Pass 2: Render the full timeline for the day
+      const finalBlocks = [];
       if (hasClasses) {
           for (const t of timeOrder) {
               if (t === '12pm-1pm') {
-                  dailyHtml += `<div class="lc" style="min-height:30px; margin-bottom:6px; font-weight:600; color:var(--tx3); text-align:center; font-size:11px;">🍽 Lunch Break (12pm - 1pm)</div>`;
+                  finalBlocks.push({ type: 'lunch', t });
                   continue;
               }
-
               if (todaysClasses[t]) {
-                  const cancelled = todaysClasses[t].cancelled;
-                  const strikeStyle = cancelled ? 'text-decoration: line-through; opacity: 0.7;' : '';
-                  const bgStyle = cancelled ? 'background:var(--bg-warn); border:.5px solid var(--bd-warn);' : 'background:var(--bg-info); border:.5px solid var(--bd-info);';
-                  const txColor = cancelled ? 'var(--tx-warn)' : 'var(--tx-info)';
+                  finalBlocks.push({ type: 'class', t, data: todaysClasses[t] });
+              } else {
+                  const last = finalBlocks[finalBlocks.length - 1];
+                  if (last && last.type === 'free') {
+                      last.end = t.split('-')[1];
+                  } else {
+                      finalBlocks.push({ type: 'free', start: t.split('-')[0], end: t.split('-')[1] });
+                  }
+              }
+          }
+      }
 
-                  if (todaysClasses[t].type === 'icrc') {
+      const [ymd, dayName] = dateString.split(' ');
+      const isToday = ymd === todayYmd;
+      const isTomorrow = ymd === tomorrowYmd;
+      
+      if (hasClasses) {
+          for (const b of finalBlocks) {
+              const isHappeningNow = isToday && currentSlot === b.t;
+              
+              if (b.type === 'lunch') {
+                  dailyHtml += `<div class="lc" style="min-height:30px; margin-bottom:6px; font-weight:600; color:var(--tx3); text-align:center; font-size:11px;">🍽 Lunch Break (12pm - 1pm)</div>`;
+              } else if (b.type === 'class') {
+                  const data = b.data;
+                  const cancelled = data.cancelled;
+                  const strikeStyle = cancelled ? 'text-decoration: line-through; opacity: 0.7;' : '';
+                  let bgStyle = cancelled ? 'background:var(--bg-warn); border:.5px solid var(--bd-warn);' : 'background:var(--bg-info); border:.5px solid var(--bd-info);';
+                  const txColor = cancelled ? 'var(--tx-warn)' : 'var(--tx-info)';
+                  
+                  if (isHappeningNow) {
+                      bgStyle = 'background:var(--tx-info); border:.5px solid var(--bd-info); color:var(--bg);';
+                  }
+
+                  if (data.type === 'icrc') {
                       dailyHtml += `
                       <div style="display:flex; justify-content:flex-start; align-items:center; padding:10px; ${bgStyle} border-radius:8px; margin-bottom:6px;">
-                          <div style="width: 75px; font-size:11px; font-weight:700; color:${txColor};">${t}</div>
-                          <div style="font-size:13px; font-weight:700; color:${txColor}; ${strikeStyle}">🏢 ICRC</div>
+                          <div style="width: 75px; font-size:11px; font-weight:700; color:${isHappeningNow ? 'var(--bg)' : txColor};">${b.t}</div>
+                          <div style="font-size:13px; font-weight:700; color:${isHappeningNow ? 'var(--bg)' : txColor}; ${strikeStyle}">🏢 ICRC</div>
                       </div>`;
                   } else {
-                      const subjectDetails = todaysClasses[t].subject;
+                      const subjectDetails = data.subject;
                       dailyHtml += `
                       <div style="display:flex; justify-content:flex-start; align-items:center; padding:10px; ${bgStyle} border-radius:8px; margin-bottom:6px;">
-                          <div style="width: 75px; font-size:11px; font-weight:700; color:${txColor}; opacity: 0.8;">${t}</div>
+                          <div style="width: 75px; font-size:11px; font-weight:700; color:${isHappeningNow ? 'var(--bg)' : txColor}; opacity: 0.8;">${b.t}</div>
                           <div style="flex:1;">
-                              <div style="font-size:13px; font-weight:700; color:${txColor}; ${strikeStyle}">${subjectDetails.name}</div>
+                              <div style="font-size:13px; font-weight:700; color:${isHappeningNow ? 'var(--bg)' : txColor}; ${strikeStyle}">${subjectDetails.name}</div>
                           </div>
                           ${subjectDetails.room && !cancelled ? `<div style="font-size:10px; font-weight:700; color:var(--tx-warn); background:var(--bg-warn); padding:3px 6px; border-radius:4px; border:.5px solid var(--bd-warn);">📍 ${subjectDetails.room}</div>` : ''}
                       </div>`;
                   }
-              } else {
+              } else if (b.type === 'free') {
+                  const tStr = `${b.start.replace(/[a-z]/g, '')}-${b.end}`; // Clean up 8am-10am to 8-10am if we want, but keeping raw is fine
+                  const isHappeningNowFree = isToday && currentSlot && tStr.includes(currentSlot.split('-')[0]);
                   dailyHtml += `
-                  <div style="display:flex; justify-content:flex-start; align-items:center; padding:10px; border:.5px dashed var(--bd); background:var(--bg2); border-radius:8px; margin-bottom:6px; opacity: 0.6;">
-                      <div style="width: 75px; font-size:11px; font-weight:600; color:var(--tx3);">${t}</div>
-                      <div style="font-size:12px; font-weight:600; color:var(--tx3);">☕ Free Slot</div>
+                  <div style="display:flex; justify-content:flex-start; align-items:center; padding:6px 10px; border:.5px dashed var(--bd); background:var(--bg2); border-radius:8px; margin-bottom:6px; opacity: 0.4; min-height: 20px;">
+                      <div style="width: 75px; font-size:10px; font-weight:600; color:var(--tx3);">${b.start}-${b.end}</div>
+                      <div style="font-size:11px; font-weight:600; color:var(--tx3);">☕ Free</div>
                   </div>`;
               }
           }
@@ -1559,24 +1633,40 @@ function renderDailySchedule() {
           dailyHtml += `<div style="font-size:12px; color:var(--tx3); padding: 12px 0; text-align:center; border: .5px dashed var(--bd); border-radius: 8px; background: var(--bg2);">☕ No classes today.</div>`;
       }
 
-      // Parse "2026-09-24 Thursday" into "Thursday, Sep 24"
       let cleanDate = dateString;
       try {
-          const [ymd, dayName] = dateString.split(' ');
           const [yyyy, mm, dd] = ymd.split('-');
           const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
           cleanDate = `${dayName}, ${monthNames[parseInt(mm, 10)-1]} ${parseInt(dd, 10)}`;
       } catch (e) {
-          cleanDate = dateString.replace(/-/g, ' '); // Fallback
+          cleanDate = dateString.replace(/-/g, ' '); 
+      }
+      
+      if (isToday) {
+          cleanDate = `Today · ${cleanDate}`;
+      } else if (isTomorrow) {
+          cleanDate = `Tomorrow · ${cleanDate}`;
       }
 
-      h += `
-      <div style="background:var(--bg); border:.5px solid var(--bd); border-radius:12px; padding:14px; margin-bottom:14px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
-          <div style="font-size:15px; font-weight:800; border-bottom:1px solid var(--bd); padding-bottom:8px; margin-bottom:10px; color:var(--tx);">📅 ${cleanDate}</div>
+      const cardStyle = isToday ? 'background:var(--bg2); border:1.5px solid var(--bd-info); box-shadow: 0 4px 12px rgba(0,0,0,0.05);' : 'background:var(--bg); border:.5px solid var(--bd); box-shadow: 0 2px 4px rgba(0,0,0,0.02);';
+      const hdrStyle = isToday ? 'color:var(--tx-info);' : 'color:var(--tx);';
+      
+      fullHtml += `
+      <div id="card-${dateString.replace(/\s/g, '-')}" data-is-today="${isToday ? 'true' : 'false'}" style="border-radius:12px; padding:14px; margin-bottom:14px; scroll-margin-top: 80px; ${cardStyle}">
+          <div style="font-size:15px; font-weight:800; border-bottom:1px solid var(--bd); padding-bottom:8px; margin-bottom:10px; ${hdrStyle}">📅 ${cleanDate}</div>
           ${dailyHtml}
       </div>`;
   }
-  area.innerHTML = h || '<div class="empty-tt">No upcoming schedule found.</div>';
+  
+  area.innerHTML = fullHtml || '<div class="empty-tt">No upcoming schedule found.</div>';
+  
+  if (window._isFirstDailyRender === undefined) {
+      window._isFirstDailyRender = true;
+      setTimeout(() => {
+          const todayCard = document.querySelector('[data-is-today="true"]');
+          if (todayCard) todayCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 300);
+  }
 }
 
 
