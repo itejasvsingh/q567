@@ -1507,6 +1507,14 @@ function renderDailySchedule() {
         ${pagerHtml}
     </div>
     <div onclick="window.refreshLiveSchedule(this)" style="font-size:10px; color:var(--tx3); text-align:right; margin-bottom:10px; cursor:pointer; font-weight:600;">🔄 ${syncText}</div>
+    
+    <div style="margin-bottom: 20px; border-radius: 8px; border: .5px solid var(--bd-info); background: var(--bg-info); padding: 15px; display: flex; align-items: center; gap: 15px;">
+        <div style="font-size: 24px;">🎉</div>
+        <div>
+            <div style="font-size: 13px; font-weight: 700; color: var(--tx-info);">Q6 Term Begins Sept 24th</div>
+            <div style="font-size: 11px; color: var(--tx-info); opacity: 0.85; margin-top: 2px;">Your daily schedule will commence on Thursday, September 24, 2026.</div>
+        </div>
+    </div>
   `;
 
   for (const [dateString, dailySlots] of Object.entries(liveDailyCache)) {
@@ -1616,7 +1624,7 @@ function renderDailySchedule() {
                           <div style="flex:1;">
                               <div style="font-size:13px; font-weight:700; color:${isHappeningNow ? 'var(--bg)' : txColor}; ${strikeStyle}">${subjectDetails.name}</div>
                           </div>
-                          ${subjectDetails.room && !cancelled ? `<div style="font-size:10px; font-weight:700; color:var(--tx-warn); background:var(--bg-warn); padding:3px 6px; border-radius:4px; border:.5px solid var(--bd-warn);">📍 ${subjectDetails.room}</div>` : ''}
+                          ${subjectDetails.room && !cancelled ? `<div style="font-size:10px; font-weight:700; color:var(--tx-warn); background:var(--bg-warn); padding:3px 6px; border-radius:6px; border:.5px solid var(--bd-warn);">📍 ${subjectDetails.room}</div>` : ''}
                       </div>`;
                   }
               } else if (b.type === 'free') {
@@ -1648,7 +1656,7 @@ function renderDailySchedule() {
           cleanDate = `Tomorrow · ${cleanDate}`;
       }
 
-      const cardStyle = isToday ? 'background:var(--bg2); border:1.5px solid var(--bd-info); box-shadow: 0 4px 12px rgba(0,0,0,0.05);' : 'background:var(--bg); border:.5px solid var(--bd); box-shadow: 0 2px 4px rgba(0,0,0,0.02);';
+      const cardStyle = isToday ? 'background:var(--bg2); border:.5px solid var(--bd-info); box-shadow: 0 4px 12px rgba(0,0,0,0.05);' : 'background:var(--bg); border:.5px solid var(--bd); box-shadow: 0 2px 4px rgba(0,0,0,0.02);';
       const hdrStyle = isToday ? 'color:var(--tx-info);' : 'color:var(--tx);';
       
       fullHtml += `
