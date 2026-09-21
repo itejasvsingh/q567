@@ -350,3 +350,59 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
 .att-step-btn { width: 28px; height: 28px; border-radius: 50%; border: none; background: var(--bg2); color: var(--tx); font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; }
 .att-step-btn:active { background: var(--bg3); }
 .att-count { font-size: 13px; font-weight: 700; min-width: 20px; text-align: center; }
+
+/* Mobile PWA Optimizations */
+body {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    
+}
+
+@media (max-width: 768px) {
+    body {
+        padding: 8px;
+        font-size: 14px;
+    }
+    
+    /* Make view navigation tabs scrollable horizontally on mobile */
+    .view-tabs {
+        display: flex;
+        overflow-x: auto;
+        white-space: nowrap;
+        padding-bottom: 4px;
+        -webkit-overflow-scrolling: touch;
+        gap: 6px;
+    }
+    
+    .view-tab {
+        flex: 0 0 auto;
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+
+    /* Card styling adjustments for smaller screens */
+    #daily-render > div {
+        padding: 10px !important;
+    }
+}
+
+
+/* Fix mobile view tabs scrolling */
+.view-tabs {
+    display: flex;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    gap: 8px;
+    padding-bottom: 8px;
+    scrollbar-width: none; /* Hide scrollbar for clean native look on Firefox */
+}
+
+.view-tabs::-webkit-scrollbar {
+    display: none; /* Hide scrollbar for clean native look on Chrome/Safari */
+}
+
+.view-tab {
+    flex-shrink: 0;
+    white-space: nowrap;
+}

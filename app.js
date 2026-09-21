@@ -8,6 +8,8 @@ const VC={Finance:'vF',HR:'vH',Marketing:'vM',IS:'vI',Ops:'vO',Strategy:'vS',Int
 
 let cQ='Q6';
 let sel={Q5:{},Q6:{},Q7:{}};
+let liveDailyCache = null;
+let liveWeeklyCache = null;
 
 try {
   const savedSel = JSON.parse(localStorage.getItem('mbaplanner_selections'));
@@ -705,11 +707,18 @@ function switchView(v){
   document.getElementById('vtab-att')?.classList.toggle('on', v==='att');
   document.getElementById('vtab-compare').classList.toggle('on', v==='compare');
   document.getElementById('vtab-mess').classList.toggle('on', v==='mess');
+  document.getElementById('vtab-daily')?.classList.toggle('on', v==='daily');
+  document.getElementById('vtab-master')?.classList.toggle('on', v==='master');
   
   document.getElementById('view-plan').style.display = v==='plan' ? '' : 'none';
   if(document.getElementById('view-att')) document.getElementById('view-att').style.display = v==='att' ? '' : 'none';
   document.getElementById('view-compare').style.display = v==='compare' ? '' : 'none';
   document.getElementById('view-mess').style.display = v==='mess' ? '' : 'none';
+  if(document.getElementById('view-daily')) document.getElementById('view-daily').style.display = v==='daily' ? '' : 'none';
+  if(document.getElementById('view-master')) document.getElementById('view-master').style.display = v==='master' ? '' : 'none';
+  
+  if (v === 'master') renderMasterSchedule();
+  if (v === 'daily') renderDailySchedule();
   
   if(v==='compare'){
     renderCompareView();
@@ -1340,4 +1349,207 @@ if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
     navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('SW registration failed', err));
   });
+}
+
+
+// --- FIREBASE LIVE SCHEDULE LISTENER ---
+if(typeof fbDb !== 'undefined' && fbDb) {
+  fbDb.ref('schedule').once('value').then(snap => {
+    const data = snap.val();
+    if(data) {
+        liveDailyCache = data.daily;
+        liveWeeklyCache = data.weekly;
+        if (typeof currentView !== 'undefined') {
+            if (currentView === 'daily') renderDailySchedule();
+            if (currentView === 'master') renderMasterSchedule();
+        }
+    }
+  }).catch(e => console.warn('Could not fetch live cloud schedule.', e));
+}
+
+// --- MASTER SCHEDULE LOGIC ---
+function renderMasterSchedule() {
+  const area = document.getElementById('master-tt-render');
+  if (!area) return;
+
+  if (!liveWeeklyCache) {
+      area.innerHTML = '<div class="empty-tt">Loading weekly schedule from database... ⏳</div>';
+      return;
+  }
+
+  // Define standard columns/timeslots from the sheet
+  const timeslots = ['8am-10am', '10am-12pm', '12pm-1pm', '1pm-3pm', '3pm-5pm', '5pm-7pm'];
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+  let h = `
+    <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
+      <thead>
+        <tr style="background:var(--bg2); border-bottom:2px solid var(--bd);">
+          <th style="padding:10px; border:1px solid var(--bd); width:100px;">Day</th>
+          <th style="padding:10px; border:1px solid var(--bd);">8am - 10am</th>
+          <th style="padding:10px; border:1px solid var(--bd);">10am - 12pm</th>
+          <th style="padding:10px; border:1px solid var(--bd); background:var(--bg3);">12pm - 1pm</th>
+          <th style="padding:10px; border:1px solid var(--bd);">1pm - 3pm</th>
+          <th style="padding:10px; border:1px solid var(--bd);">3pm - 5pm</th>
+          <th style="padding:10px; border:1px solid var(--bd);">5pm - 7pm</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  for (const day of days) {
+      const daySlots = liveWeeklyCache[day] || {};
+      h += `<tr>`;
+      h += `<td style="padding:10px; border:1px solid var(--bd); font-weight:700; background:var(--bg2);">${day}</td>`;
+
+      for (const t of timeslots) {
+          if (t === '12pm-1pm') {
+              h += `<td style="padding:10px; border:1px solid var(--bd); text-align:center; color:var(--tx3); font-style:italic; background:var(--bg3);">Lunch</td>`;
+              continue;
+          }
+
+          const cellContent = daySlots[t] || '';
+          
+          if (!cellContent) {
+              h += `<td style="padding:10px; border:1px solid var(--bd); color:var(--tx3); text-align:center;">—</td>`;
+          } else {
+              // Format multi-class cells nicely if separated by slashes
+              const formattedContent = cellContent.split('/').map(c => `<div style="margin-bottom:2px; font-weight:600;">${c.trim()}</div>`).join('');
+              h += `<td style="padding:10px; border:1px solid var(--bd);">${formattedContent}</td>`;
+          }
+      }
+      h += `</tr>`;
+  }
+
+  h += `</tbody></table>`;
+  area.innerHTML = h;
+}
+
+// --- DAILY AGENDA LOGIC ---
+function renderDailySchedule() {
+  const area = document.getElementById('daily-render');
+  if (!area) return;
+  const activeSubjects = Object.values(sel[cQ]);
+
+  if(activeSubjects.length === 0) {
+      area.innerHTML = '<div class="empty-tt">Select electives in My Planner to see your live schedule.</div>';
+      return;
+  }
+  if (!liveDailyCache) {
+      area.innerHTML = '<div class="empty-tt">Loading daily schedule from database... ⏳</div>';
+      return;
+  }
+
+  const excelAcronyms = {
+    'MS5015': 'DT', 'MS6580': 'SDM', 'MS5460': 'CM', 'MS5690': 'CF', 'MS5529': 'B.Lab',
+    'MS6230': 'SS', 'MS5613': 'CHS', 'MS5770': 'SM', 'MS6030': 'ADAM', 'MS5750': 'BM',
+    'MS6600': 'GCG', 'MS6022': 'AIM', 'MS6210': 'Bs.Models', 'CORE-LAW': 'LAW'
+  };
+
+  const timeOrder = ['8am-10am', '10am-12pm', '12pm-1pm', '1pm-3pm', '3pm-5pm', '5pm-7pm'];
+
+  let h = `
+    <div style="background:var(--bg-info); border:.5px solid var(--bd-info); padding: 12px 14px; border-radius: 10px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
+        <div style="font-size: 20px;">📢</div>
+        <div>
+            <div style="font-size: 13px; font-weight: 700; color: var(--tx-info);">Q6 Term Begins Sept 24th</div>
+            <div style="font-size: 11px; color: var(--tx-info); opacity: 0.85; margin-top: 2px;">Your daily schedule will commence on Thursday, September 24, 2026.</div>
+        </div>
+    </div>`;
+
+  for (const [dateString, dailySlots] of Object.entries(liveDailyCache)) {
+      let dailyHtml = '';
+      const comment = dailySlots['Comments'];
+      const birthdays = dailySlots['Birthdays'];
+      
+      if (comment) {
+          dailyHtml += `<div style="font-size:11px; font-weight:600; color:var(--tx-warn); margin-bottom:8px; background:var(--bg-warn); padding:6px 10px; border-radius:6px;">⚠️ ${comment}</div>`;
+      }
+      if (birthdays) {
+          dailyHtml += `<div style="font-size:12px; font-weight:700; color:#d946ef; margin-bottom:8px; background:#fdf4ff; border:.5px solid #f0abfc; padding:6px 10px; border-radius:6px;">🎉 Happy Birthday: ${birthdays}!</div>`;
+      }
+
+      // Pass 1: Determine what classes the user has today
+      let todaysClasses = {};
+      let hasClasses = false;
+
+      for (const t of timeOrder) {
+          if (t === '12pm-1pm') continue;
+          
+          const classStr = dailySlots[t];
+          if (!classStr) continue;
+
+          if (classStr.includes('ICRC')) {
+              todaysClasses[t] = { type: 'icrc' };
+              hasClasses = true;
+              continue;
+          }
+
+          const classesInCell = classStr.split('/').map(c => c.trim());
+          for (const s of activeSubjects) {
+              const acronym = excelAcronyms[s.code];
+              if (classesInCell.includes(s.code) || (acronym && classesInCell.includes(acronym)) || classesInCell.includes(s.name)) {
+                  todaysClasses[t] = { type: 'class', subject: s };
+                  hasClasses = true;
+                  break;
+              }
+          }
+      }
+
+      // Pass 2: Render the full timeline for the day
+      if (hasClasses) {
+          for (const t of timeOrder) {
+              if (t === '12pm-1pm') {
+                  dailyHtml += `<div class="lc" style="min-height:30px; margin-bottom:6px; font-weight:600; color:var(--tx3); text-align:center; font-size:11px;">🍽 Lunch Break (12pm - 1pm)</div>`;
+                  continue;
+              }
+
+              if (todaysClasses[t]) {
+                  if (todaysClasses[t].type === 'icrc') {
+                      dailyHtml += `
+                      <div style="display:flex; justify-content:flex-start; align-items:center; padding:10px; border:.5px solid var(--bd-warn); background:var(--bg-warn); border-radius:8px; margin-bottom:6px; opacity: 0.7;">
+                          <div style="width: 75px; font-size:11px; font-weight:700; color:var(--tx-warn);">${t}</div>
+                          <div style="font-size:13px; font-weight:700; color:var(--tx-warn); text-decoration: line-through;">🏢 ICRC</div>
+                      </div>`;
+                  } else {
+                      const subjectDetails = todaysClasses[t].subject;
+                      dailyHtml += `
+                      <div style="display:flex; justify-content:flex-start; align-items:center; padding:10px; border:.5px solid var(--bd-info); background:var(--bg-info); border-radius:8px; margin-bottom:6px;">
+                          <div style="width: 75px; font-size:11px; font-weight:700; color:var(--tx-info); opacity: 0.8;">${t}</div>
+                          <div style="flex:1;">
+                              <div style="font-size:13px; font-weight:700; color:var(--tx-info);">${subjectDetails.name}</div>
+                          </div>
+                          ${subjectDetails.room ? `<div style="font-size:10px; font-weight:700; color:var(--tx-warn); background:var(--bg-warn); padding:3px 6px; border-radius:4px; border:.5px solid var(--bd-warn);">📍 ${subjectDetails.room}</div>` : ''}
+                      </div>`;
+                  }
+              } else {
+                  dailyHtml += `
+                  <div style="display:flex; justify-content:flex-start; align-items:center; padding:10px; border:.5px dashed var(--bd); background:var(--bg2); border-radius:8px; margin-bottom:6px; opacity: 0.6;">
+                      <div style="width: 75px; font-size:11px; font-weight:600; color:var(--tx3);">${t}</div>
+                      <div style="font-size:12px; font-weight:600; color:var(--tx3);">☕ Free Slot</div>
+                  </div>`;
+              }
+          }
+      } else {
+          dailyHtml += `<div style="font-size:12px; color:var(--tx3); padding: 12px 0; text-align:center; border: .5px dashed var(--bd); border-radius: 8px; background: var(--bg2);">☕ No classes today.</div>`;
+      }
+
+      // Parse "2026-09-24 Thursday" into "Thursday, Sep 24"
+      let cleanDate = dateString;
+      try {
+          const [ymd, dayName] = dateString.split(' ');
+          const [yyyy, mm, dd] = ymd.split('-');
+          const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+          cleanDate = `${dayName}, ${monthNames[parseInt(mm, 10)-1]} ${parseInt(dd, 10)}`;
+      } catch (e) {
+          cleanDate = dateString.replace(/-/g, ' '); // Fallback
+      }
+
+      h += `
+      <div style="background:var(--bg); border:.5px solid var(--bd); border-radius:12px; padding:14px; margin-bottom:14px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+          <div style="font-size:15px; font-weight:800; border-bottom:1px solid var(--bd); padding-bottom:8px; margin-bottom:10px; color:var(--tx);">📅 ${cleanDate}</div>
+          ${dailyHtml}
+      </div>`;
+  }
+  area.innerHTML = h || '<div class="empty-tt">No upcoming schedule found.</div>';
 }
