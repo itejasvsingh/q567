@@ -1464,9 +1464,9 @@ function renderDailySchedule() {
       
       if (comment) {
           const isExam = comment.toLowerCase().includes('end term') || comment.toLowerCase().includes('exam') || comment.toLowerCase().includes('quiz');
-          const badgeBg = isExam ? 'var(--bg-warn)' : 'var(--bg-warn)';
-          const badgeBorder = isExam ? '#f87171' : 'var(--bd-warn)';
-          const badgeColor = isExam ? '#991b1b' : 'var(--tx-warn)';
+          const badgeBg = isExam ? 'var(--bg-danger)' : 'var(--bg-warn)';
+          const badgeBorder = isExam ? 'var(--bd-danger)' : 'var(--bd-warn)';
+          const badgeColor = isExam ? 'var(--tx-danger)' : 'var(--tx-warn)';
           const icon = isExam ? '📝' : '⚠️';
 
           dailyHtml += `<div style="font-size:12px; font-weight:700; color:${badgeColor}; margin-bottom:8px; background:${badgeBg}; padding:8px 12px; border-radius:6px; border:.5px solid ${badgeBorder}; display:flex; align-items:center; gap:8px;">
@@ -1476,7 +1476,7 @@ function renderDailySchedule() {
       }
 
       if (birthdays) {
-          dailyHtml += `<div style="font-size:12px; font-weight:700; color:#d946ef; margin-bottom:8px; background:#fdf4ff; border:.5px solid #f0abfc; padding:6px 10px; border-radius:6px;">🎉 Happy Birthday: ${birthdays}!</div>`;
+          dailyHtml += `<div style="font-size:12px; font-weight:700; color:var(--tx-pink); margin-bottom:8px; background:var(--bg-pink); border:.5px solid var(--bd-pink); padding:6px 10px; border-radius:6px;">🎉 Happy Birthday: ${birthdays}!</div>`;
       }
 
       // Pass 1: Determine what classes the user has today

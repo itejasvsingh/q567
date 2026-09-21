@@ -13,6 +13,7 @@ html[data-theme="dark"] {
   --tx-info:#0a84ff;--tx-danger:#ff453a;--tx-success:#30d158;--tx-warn:#ff9f0a;
   --bd:rgba(255,255,255,0.15);--bd2:rgba(255,255,255,0.25);
   --bd-info:rgba(10,132,255,0.3);--bd-success:rgba(48,209,88,0.3);--bd-warn:rgba(255,159,10,0.3);--bd-danger:rgba(255,69,58,0.3);
+  --bg-pink:rgba(217,70,239,0.15);--bd-pink:rgba(217,70,239,0.3);--tx-pink:#e879f9;
 }
 html{-webkit-text-size-adjust:100%;overflow-x:hidden}
 body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px;line-height:1.6;min-height:100vh;overflow-x:hidden}
