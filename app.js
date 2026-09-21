@@ -1482,6 +1482,74 @@ function scheduleClassNotifications(todaysClasses, ymdStr) {
 }
 
 // --- DAILY AGENDA LOGIC ---
+function renderMasterSchedule() {
+  const area = document.getElementById('master-tt-render');
+  if (!area) return;
+
+  if (!liveWeeklyCache) {
+      area.innerHTML = '<div class="empty-tt">Loading weekly schedule from database... ⏳</div>';
+      return;
+  }
+
+  // Define standard columns/timeslots from the sheet
+  const timeslots = ['8am-10am', '10am-12pm', '12pm-1pm', '1pm-3pm', '3pm-5pm', '5pm-7pm'];
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+  let h = `
+    <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
+      <thead>
+        <tr style="background:var(--bg2); border-bottom:2px solid var(--bd);">
+          <th style="padding:10px; border:1px solid var(--bd); width:100px;">Day</th>
+          <th style="padding:10px; border:1px solid var(--bd);">8am - 10am</th>
+          <th style="padding:10px; border:1px solid var(--bd);">10am - 12pm</th>
+          <th style="padding:10px; border:1px solid var(--bd); background:var(--bg3);">12pm - 1pm</th>
+          <th style="padding:10px; border:1px solid var(--bd);">1pm - 3pm</th>
+          <th style="padding:10px; border:1px solid var(--bd);">3pm - 5pm</th>
+          <th style="padding:10px; border:1px solid var(--bd);">5pm - 7pm</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  for (const day of days) {
+      const daySlots = liveWeeklyCache[day] || {};
+      h += `<tr>`;
+      h += `<td style="padding:10px; border:1px solid var(--bd); font-weight:700; background:var(--bg2);">${day}</td>`;
+
+      for (const t of timeslots) {
+          if (t === '12pm-1pm') {
+              h += `<td style="padding:10px; border:1px solid var(--bd); text-align:center; color:var(--tx3); font-style:italic; background:var(--bg3);">Lunch</td>`;
+              continue;
+          }
+
+          const cellData = daySlots[t];
+          if (!cellData) {
+              h += `<td style="padding:10px; border:1px solid var(--bd); color:var(--tx3); text-align:center;">—</td>`;
+          } else {
+              const entries = Array.isArray(cellData) ? cellData : [cellData];
+              let formattedContent = '';
+              for (const entry of entries) {
+                  const text = typeof entry === 'object' ? entry.text : String(entry);
+                  const isStrike = typeof entry === 'object' ? entry.strike : false;
+                  
+                  // Also support legacy manual triggers
+                  const isCancelled = isStrike || text.includes('~') || text.toLowerCase().includes('cancel') || text.includes('<s>') || text.includes('<strike>');
+                  
+                  const style = isCancelled ? 'text-decoration: line-through; opacity: 0.6; color: var(--tx-warn);' : '';
+                  formattedContent += `<div style="margin-bottom:2px; font-weight:600; ${style}">${text}</div>`;
+              }
+              h += `<td style="padding:10px; border:1px solid var(--bd);">${formattedContent}</td>`;
+          }
+      }
+      h += `</tr>`;
+  }
+
+  h += `</tbody></table>`;
+  area.innerHTML = h;
+}
+
+
+// --- DAILY AGENDA LOGIC ---
 function renderDailySchedule() {
   const area = document.getElementById('daily-render');
   if (!area) return;
@@ -1528,7 +1596,7 @@ function renderDailySchedule() {
   
   // IST Date logic
   const now = new Date();
-  const nowIST = new Date(now.getTime() + (330 * 60000) + (now.getTimezoneOffset() * 60000));
+  const nowIST = new Date(new Date().toLocaleString('en-US', {timeZone: 'Asia/Kolkata'}));
   const todayYmd = `${nowIST.getFullYear()}-${String(nowIST.getMonth()+1).padStart(2,'0')}-${String(nowIST.getDate()).padStart(2,'0')}`;
   const tmrw = new Date(nowIST); tmrw.setDate(tmrw.getDate() + 1);
   const tomorrowYmd = `${tmrw.getFullYear()}-${String(tmrw.getMonth()+1).padStart(2,'0')}-${String(tmrw.getDate()).padStart(2,'0')}`;
@@ -1634,8 +1702,18 @@ function renderDailySchedule() {
           const slotData = dailySlots[t];
           if (!slotData) continue;
 
-          const classStr = typeof slotData === 'object' ? slotData.text : String(slotData);
-          const isStrikethrough = typeof slotData === 'object' ? slotData.strike : false;
+          let classStr = '';
+          let isStrikethrough = false;
+          if (Array.isArray(slotData)) {
+              classStr = slotData.map(e => typeof e === 'object' && e ? (e.text||'') : String(e)).join(' / ');
+              isStrikethrough = slotData.some(e => typeof e === 'object' && e ? e.strike : false);
+          } else if (typeof slotData === 'object' && slotData !== null) {
+              classStr = slotData.text || '';
+              isStrikethrough = slotData.strike || false;
+          } else {
+              classStr = String(slotData);
+          }
+          if (!classStr) continue;
           const cancelled = isStrikethrough || classStr.includes('~') || classStr.toLowerCase().includes('cancel') || classStr.includes('<s>') || classStr.includes('<strike>');
 
           if (classStr.toUpperCase().includes('ICRC')) {
@@ -1820,3 +1898,28 @@ function renderDailySchedule() {
 }
 
 
+
+// --- PWA SPECIFIC LOGIC ---
+setTimeout(() => {
+    // Detect if running as standalone PWA
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    
+    if (isPWA) {
+        // 1. Force the PWA to boot directly into the Daily Agenda
+        switchView('daily');
+        
+        // 2. Reorder the DOM tabs so Daily Agenda is the first button physically 
+        const viewTabs = document.querySelector('.view-tabs');
+        const vtabDaily = document.getElementById('vtab-daily');
+        if (viewTabs && vtabDaily) {
+            viewTabs.insertBefore(vtabDaily, viewTabs.firstChild);
+        }
+
+        // 3. Make Daily Agenda prominent by hiding the massive desktop header
+        const hdr = document.querySelector('.hdr');
+        if (hdr) hdr.style.display = 'none';
+        
+        // 4. Optionally scroll the view tabs strictly to the left so it's focused
+        if (viewTabs) viewTabs.scrollLeft = 0;
+    }
+}, 50);
