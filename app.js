@@ -1587,10 +1587,9 @@ function renderDailySchedule() {
   }
 
   const excelAcronyms = {
-      'MBA2029': 'GTM', 'MBA2067': 'BM', 'MBA2146': 'FSA', 'MBA2096': 'SBM',
-      'MBA2128': 'C&B', 'MBA2145': 'HRA', 'MBA2038': 'L&C', 'MBA2027': 'DMC',
-      'MBA2055': 'SCM', 'MBA2052': 'SOM', 'MBA2098': 'B2B', 'MBA2104': 'SDM',
-      'MBA2117': 'MR'
+      'MS5015': 'DT', 'MS6580': 'SDM', 'MS5460': 'CM', 'MS5690': 'CF', 'MS5529': 'B.Lab',
+      'MS6230': 'SS', 'MS5613': 'CHS', 'MS5770': 'SM', 'MS6030': 'ADAM', 'MS5750': 'BM',
+      'MS6600': 'GCG', 'MS6022': 'AIM', 'MS6210': 'Bs.Models', 'CORE-LAW': 'LAW'
   };
   const timeOrder = ['8am-10am', '10am-12pm', '12pm-1pm', '1pm-3pm', '3pm-5pm', '5pm-7pm'];
   
@@ -1623,19 +1622,7 @@ function renderDailySchedule() {
   }
   pagerHtml += `</div>`;
 
-  // Time Since Logic
-  let syncText = "Synced just now";
-  if (window.lastSyncedTime) {
-      const seconds = Math.floor((now - window.lastSyncedTime) / 1000);
-      if (seconds > 60) {
-          let m = Math.floor(seconds/60);
-          syncText = `Synced ${m}m ago`;
-          if (m > 60) syncText = `Synced ${Math.floor(m/60)}h ago`;
-      }
-  }
-  if (window._isOfflineFallback) {
-      syncText = `Showing last synced data from ${syncText.replace('Synced ', '')} — you're offline`;
-  }
+
 
   let notifyBtnHtml = '';
   if ('Notification' in window && 'serviceWorker' in navigator) {
