@@ -1463,8 +1463,18 @@ function renderDailySchedule() {
       const birthdays = dailySlots['Birthdays'];
       
       if (comment) {
-          dailyHtml += `<div style="font-size:11px; font-weight:600; color:var(--tx-warn); margin-bottom:8px; background:var(--bg-warn); padding:6px 10px; border-radius:6px;">⚠️ ${comment}</div>`;
+          const isExam = comment.toLowerCase().includes('end term') || comment.toLowerCase().includes('exam') || comment.toLowerCase().includes('quiz');
+          const badgeBg = isExam ? 'var(--bg-warn)' : 'var(--bg-warn)';
+          const badgeBorder = isExam ? '#f87171' : 'var(--bd-warn)';
+          const badgeColor = isExam ? '#991b1b' : 'var(--tx-warn)';
+          const icon = isExam ? '📝' : '⚠️';
+
+          dailyHtml += `<div style="font-size:12px; font-weight:700; color:${badgeColor}; margin-bottom:8px; background:${badgeBg}; padding:8px 12px; border-radius:6px; border:.5px solid ${badgeBorder}; display:flex; align-items:center; gap:8px;">
+              <span style="font-size:16px;">${icon}</span>
+              <span style="flex:1;">${comment}</span>
+          </div>`;
       }
+
       if (birthdays) {
           dailyHtml += `<div style="font-size:12px; font-weight:700; color:#d946ef; margin-bottom:8px; background:#fdf4ff; border:.5px solid #f0abfc; padding:6px 10px; border-radius:6px;">🎉 Happy Birthday: ${birthdays}!</div>`;
       }

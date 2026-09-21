@@ -7,7 +7,29 @@
 
 <!-- PWA: lets this be added to the home screen and open like a real app -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#ffffff">
+<meta name="theme-color" id="meta-theme-color" content="#ffffff">
+<script>
+  (function() {
+    var storedTheme = localStorage.getItem('mbaplanner_theme');
+    var isDark = storedTheme === 'dark' || (!storedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    if (isDark) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      document.getElementById('meta-theme-color').setAttribute('content', '#000000');
+    }
+  })();
+  function toggleTheme() {
+    var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    if (isDark) {
+      document.documentElement.removeAttribute('data-theme');
+      document.getElementById('meta-theme-color').setAttribute('content', '#ffffff');
+      localStorage.setItem('mbaplanner_theme', 'light');
+    } else {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      document.getElementById('meta-theme-color').setAttribute('content', '#000000');
+      localStorage.setItem('mbaplanner_theme', 'dark');
+    }
+  }
+</script>
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="mobile-web-app-capable" content="yes">
@@ -23,11 +45,12 @@
 <body>
 <div class="page">
 
-<div class="hdr">
+<div class="hdr" style="display:flex; justify-content:space-between; align-items:center;">
   <div>
     <h1>IIT Madras MBA — Elective Planner</h1>
     <p>Q5: Jul–Sep 2026 · Q6: Oct–Dec 2026 · Q7: Jan–Mar 2027 · 12 electives total</p>
   </div>
+  <button id="theme-toggle" onclick="toggleTheme()" style="background:var(--bg2); border:.5px solid var(--bd); border-radius:20px; padding:6px 12px; font-size:16px; cursor:pointer; margin-left:10px;">🌗</button>
 </div>
 
 <div class="view-tabs">
