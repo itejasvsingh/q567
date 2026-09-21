@@ -1,0 +1,39 @@
+
+  <p class="cmp-intro">Type your name and a group code (share the same code with friends), tap Compare — see everyone's schedule and where you overlap. Leave the name blank to just watch a group anonymously.</p>
+
+  <div class="shared-banner" id="compare-onboard-hint">
+    <div class="shared-banner-icon">👥</div>
+    <div style="flex:1">
+      <div class="shared-banner-text">
+        <strong>How Compare works</strong>
+        <span>A "group code" is just a shared word — anyone who types the same one sees each other's picks, like a room name. Try something like <b>doms-mba-2026</b> and share it with your friends so you land in the same group.</span>
+      </div>
+      <button class="shared-banner-btn" onclick="dismissCompareHint()">Got it</button>
+    </div>
+  </div>
+
+  <div class="cmp-setup">
+    <div class="cmp-row">
+      <input class="cmp-input" id="cmp-name-input" placeholder="Your name (leave blank to view anonymously)" maxlength="24">
+      <input class="cmp-input" id="cmp-code-input" placeholder="Group code (e.g. doms-mba-2026)" maxlength="30">
+      <button class="cmp-btn" onclick="cmpConnect()">👥 Compare</button>
+    </div>
+    <div class="cmp-status" id="cmp-status">Enter your name and a group code, then tap Compare.</div>
+  </div>
+
+  <div class="cmp-friends-sec">
+    <div class="sec-lbl">Your group <span style="text-transform:none;letter-spacing:0;color:var(--tx3)">— to change your own picks, edit them in My Planner, then come back here and tap Compare again</span></div>
+    <div class="cmp-friends-row" id="cmp-friends-row"></div>
+    <div class="cmp-empty" id="cmp-empty">Enter your name and group code above, then tap Compare — friends using the same code will show up here.</div>
+  </div>
+
+  <div class="cmp-qtabs" id="cmp-qtabs"></div>
+
+  <div class="cmp-legend" id="cmp-legend"></div>
+
+  <div class="swipe-hint">↔ swipe to see the full week</div>
+  <div class="cmp-grid-wrap">
+    <div id="cmp-grid-render"></div>
+  </div>
+
+  <div class="cmp-together-sec" id="cmp-together-sec"></div>

@@ -1,0 +1,135 @@
+
+<div class="panel">
+  <div class="panel-title">🎯 Goals <span style="font-size:11px;font-weight:400;color:var(--tx3)">— pick one or more, then choose domains</span></div>
+  <div class="chip-row">
+    <button class="chip" id="g-minor" onclick="toggleGoal('minor')">Minor (2 in a domain)</button>
+    <button class="chip" id="g-major" onclick="toggleGoal('major')">Major (4 in a domain)</button>
+    <button class="chip" id="g-dual"  onclick="toggleGoal('dual')">Dual Major (4+4)</button>
+  </div>
+
+  <div class="goal-section" id="gs-minor">
+    <div class="goal-row">
+      <div class="goal-row-label">Minor in →</div>
+      <div class="chip-row" id="minor-doms"></div>
+    </div>
+  </div>
+  <div class="goal-section" id="gs-major">
+    <div class="goal-row">
+      <div class="goal-row-label">Major in →</div>
+      <div class="chip-row" id="major-doms"></div>
+    </div>
+  </div>
+  <div class="goal-section" id="gs-dual">
+    <div class="goal-row">
+      <div class="goal-row-label">Dual major: domain A →</div>
+      <div class="chip-row" id="dual-d1"></div>
+    </div>
+    <div class="goal-row" id="dual-d2-row" style="display:none">
+      <div class="goal-row-label">Dual major: domain B →</div>
+      <div class="chip-row" id="dual-d2"></div>
+    </div>
+  </div>
+
+  <div id="sug-area"></div>
+</div>
+
+<div class="panel">
+  <div class="rules-toggle" onclick="toggleRules()"><span id="rarrow">▶</span> Degree rules</div>
+  <div class="rules-body" id="rbody">
+    <div class="rule-card rq"><div class="rc-lbl">Quarter quota</div><div class="rc-val">Exactly 4 electives / quarter</div><div class="rc-note">3 × 4 = 12 total</div></div>
+    <div class="rule-card rmaj"><div class="rc-lbl">Major</div><div class="rc-val">4 electives in one domain</div><div class="rc-note">e.g. 4 Marketing courses</div></div>
+    <div class="rule-card rdual"><div class="rc-lbl">Dual Major</div><div class="rc-val">4 + 4 in two domains</div><div class="rc-note">Uses 8 of your 12 slots</div></div>
+    <div class="rule-card rmin"><div class="rc-lbl">Minor</div><div class="rc-val">2 electives in one domain</div><div class="rc-note">e.g. 2 Finance courses</div></div>
+  </div>
+</div>
+
+<div class="tracker">
+  <div class="sec-lbl">Domain tracker — all quarters</div>
+  <div class="total-pill">Total: <strong id="tot">0</strong> / 12 electives</div>
+  <div class="deg-banner" id="deg-banner"></div>
+  <div class="ach-warn" id="ach-warn"></div>
+  <div class="dom-grid" id="dom-grid"></div>
+</div>
+
+<div class="ctrl">
+  <div class="qtabs">
+    <button class="qtab on" onclick="switchQ('Q6')" id="tab-Q6">Q6<span class="qbadge" id="qb-Q6"></span></button>
+    <button class="qtab"    onclick="switchQ('Q5')" id="tab-Q5">Q5<span class="qbadge" id="qb-Q5"></span></button>
+    <button class="qtab"    onclick="switchQ('Q7')" id="tab-Q7">Q7<span class="qbadge" id="qb-Q7"></span></button>
+  </div>
+  <div class="fbar">
+    <span class="flbl">Filter:</span>
+    <div class="fscroll-track" id="fscroll-track">
+      <span id="fchips"></span>
+    </div>
+  </div>
+</div>
+<div class="search-wrap">
+  <input type="text" id="courseSearch" class="search-input" placeholder="🔍 Search by name, code, or instructor…" oninput="onSearchInput(this.value)">
+  <button class="search-clear-x" id="search-clear-x" onclick="clearSearch()">✕</button>
+</div>
+
+<div class="supply-panel">
+  <div class="supply-header">
+    <div class="supply-title">📊 Subject availability this quarter <span id="supply-qlabel" class="supply-qlabel">Q6</span></div>
+  </div>
+  <div class="supply-grid" id="supply-grid"></div>
+  <div class="supply-note" id="supply-note"></div>
+</div>
+
+<div class="sel-ctr">Selected: <strong id="qcnt">0</strong> / 4 electives this quarter</div>
+<div class="wmsg" id="wmsg">4 electives selected — deselect one to change.</div>
+<div class="sgrid" id="sgrid"></div>
+
+<div class="shared-banner" id="shared-banner">
+  <div class="shared-banner-icon">🔗</div>
+  <div style="flex:1">
+    <div class="shared-banner-text">
+      <strong>You're viewing a shared timetable</strong>
+      <span>This plan was shared with you. You can explore it or edit it freely — changes only affect your own view.</span>
+    </div>
+    <button class="shared-banner-btn" onclick="clearSharedBanner()">Got it — start editing</button>
+  </div>
+</div>
+
+<div class="share-bar" id="share-bar">
+  <div class="share-bar-top">
+    <div class="share-bar-title">🔗 Share your timetable</div>
+    <span style="font-size:11px;color:var(--tx-success);opacity:.8">Anyone with this link sees your exact picks</span>
+  </div>
+  <div class="share-url-row">
+    <input class="share-url-input" id="share-url-input" readonly onclick="this.select()" value="">
+    <button class="share-btn" onclick="copyShareLink()">📋 Copy</button>
+  </div>
+  <div class="share-actions">
+    <button class="share-btn wa" onclick="shareWhatsApp()">💬 WhatsApp</button>
+    <button class="share-btn" onclick="shareNative()" id="native-share-btn" style="display:none">📤 Share</button>
+  </div>
+  <div class="share-copied" id="share-copied">✅ Link copied to clipboard!</div>
+</div>
+
+<div class="tt-section">
+  <div class="tt-header-row">
+    <div class="tt-title">📅 Weekly timetable</div>
+    <div class="export-row">
+      <button class="exp-btn" onclick="openSharePanel()" id="share-toggle-btn">🔗 Share</button>
+      <button class="exp-btn xl" onclick="openExport()">⬇ Export timetable</button>
+    </div>
+  </div>
+  <div class="swipe-hint">↔ swipe to see the full week</div>
+  <div class="tt-wrap">
+    <div id="tt-render">
+      <div class="empty-tt">Select electives above to see your schedule.</div>
+    </div>
+  </div>
+  <div class="legend">
+    <div class="leg"><div class="leg-dot" style="background:var(--col-F)"></div>Finance</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--col-HR)"></div>HR</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--col-M)"></div>Marketing</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--col-IS)"></div>IS</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--col-O)"></div>Ops</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--col-S)"></div>Strategy</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--col-X)"></div>Integrative</div>
+  </div>
+</div>
+</div>

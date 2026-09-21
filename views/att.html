@@ -1,0 +1,29 @@
+  <p class="cmp-intro">Log your personal classes manually, or type a Roll No to instantly view official Q5 attendance data.</p>
+  
+  <!-- Class-Wide Offline Fetcher Panel -->
+  <div class="panel" style="margin-top: 10px; margin-bottom: 15px; border-color: var(--bd-info); background: #fdfefe;">
+    <div class="panel-title" style="color: var(--tx-info)">📊 Official Class Attendance (Q5)</div>
+    <p style="font-size:11px; color:var(--tx2); margin-bottom:10px;">Type any student's Roll No (e.g. MS25A071) or first name to see their attendance across your selected planner subjects.</p>
+    <div class="cmp-row" style="margin-bottom:0">
+      <input type="text" id="cohort-search-input" class="cmp-input" placeholder="Enter Roll No or Name..." oninput="searchCohortAttendance()">
+      <button class="cmp-btn" onclick="searchCohortAttendance()">Search</button>
+    </div>
+    
+    <!-- Render Official Table Here -->
+    <div id="cohort-att-table-container" style="margin-top: 15px; display:none;"></div>
+  </div>
+
+  <!-- Cloud Sync Panel (Personal) -->
+  <div class="panel" style="margin-bottom: 15px;">
+    <div class="panel-title">☁️ Personal Cloud Backup</div>
+    <div class="cmp-row">
+      <input type="text" id="att-sync-username" class="cmp-input" placeholder="e.g. tejasv-att" maxlength="30">
+      <button class="cmp-btn" onclick="loadAttendanceCloud()" style="background:var(--bg2); border-color:var(--bd2); color:var(--tx)">⬇️ Load</button>
+      <button class="cmp-btn" onclick="saveAttendanceCloud(true)">☁️ Save to Cloud</button>
+    </div>
+    <div id="att-sync-status" style="font-size:11px; margin-top:8px; font-weight:600;"></div>
+  </div>
+
+  <div class="cmp-qtabs" id="att-qtabs"></div>
+  <div id="att-grid"></div>
+</div>

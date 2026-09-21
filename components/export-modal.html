@@ -1,0 +1,24 @@
+<!-- EXPORT MODAL -->
+<div class="modal-bg" id="modal-bg" onclick="handleModalBgClick(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>Export timetable</h3>
+    <p>Choose quarter and format</p>
+    <div class="modal-q-row" id="modal-qs"></div>
+    <div class="modal-opts">
+      <div class="mopt" onclick="doExport('ics')">
+        <div class="mopt-icon">📆</div>
+        <div class="mopt-text"><strong>Add to Calendar</strong><span>.ics file — imports into Google/Apple/Outlook Calendar with weekly reminders</span></div>
+      </div>
+      <div class="mopt" onclick="doExport('img')">
+        <div class="mopt-icon">🖼</div>
+        <div class="mopt-text"><strong>Save as Image</strong><span>PNG file — easy to share or set as wallpaper</span></div>
+      </div>
+      <div class="mopt" onclick="doExport('xlsx')">
+        <div class="mopt-icon">📊</div>
+        <div class="mopt-text"><strong>Save as Excel</strong><span>XLSX file — editable spreadsheet with colour coding</span></div>
+      </div>
+    </div>
+    <div class="spinner" id="spinner">Generating… ⏳</div>
+    <button class="modal-close" onclick="closeModal()">Cancel</button>
+  </div>
+</div>
