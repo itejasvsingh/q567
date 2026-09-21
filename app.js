@@ -664,7 +664,7 @@ let myGroupCode='';
 let roster={}; 
 let compareQ='Q6';
 let compareFilter='all'; 
-let currentView='plan';
+let currentView='daily';
 let fbApp=null, fbDb=null, groupRef=null;
 
 const CMP_PALETTE=['#185fa5','#0f6e56','#993556','#854f0b','#534ab7','#993c1d','#1a6b3c','#a32d2d','#0c6478','#6b4f9e'];
@@ -1652,7 +1652,7 @@ function renderDailySchedule() {
     </div>
     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
         ${notifyBtnHtml}
-        <div onclick="window.refreshLiveSchedule(this)" style="font-size:10px; color:var(--tx3); text-align:right; margin-bottom:10px; cursor:pointer; font-weight:600; padding:6px;">🔄 ${syncText}</div>
+        
     </div>
     <div style="margin-bottom: 20px; border-radius: 8px; border: .5px solid var(--bd-info); background: var(--bg-info); padding: 15px; display: flex; align-items: center; gap: 15px;">
         <div style="font-size: 24px;">🎉</div>
@@ -1840,11 +1840,11 @@ function renderDailySchedule() {
           cleanDate = `Tomorrow · ${cleanDate}`;
       }
 
-      const cardStyle = isToday ? 'background:var(--bg2); border:.5px solid var(--bd-info); box-shadow: 0 4px 12px rgba(0,0,0,0.05);' : 'background:var(--bg); border:.5px solid var(--bd); box-shadow: 0 2px 4px rgba(0,0,0,0.02);';
+      const cardStyle = isToday ? 'background:var(--bg2); border:1px solid var(--bd-info); box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 30px;' : 'background:var(--bg); border:1px solid var(--bd2); box-shadow: 0 4px 10px rgba(0,0,0,0.04); margin-bottom: 30px;';
       const hdrStyle = isToday ? 'color:var(--tx-info);' : 'color:var(--tx);';
       
       fullHtml += `
-      <div id="card-${dateString.replace(/\s/g, '-')}" data-is-today="${isToday ? 'true' : 'false'}" style="border-radius:12px; padding:14px; margin-bottom:14px; scroll-margin-top: 80px; ${cardStyle}">
+      <div id="card-${dateString.replace(/\s/g, '-')}" data-is-today="${isToday ? 'true' : 'false'}" style="border-radius:12px; padding:14px; scroll-margin-top: 80px; ${cardStyle}">
           <div style="font-size:15px; font-weight:800; border-bottom:1px solid var(--bd); padding-bottom:8px; margin-bottom:10px; ${hdrStyle}">📅 ${cleanDate}</div>
           ${dailyHtml}
       </div>`;
