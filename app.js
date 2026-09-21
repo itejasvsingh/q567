@@ -1704,7 +1704,14 @@ function renderDailySchedule() {
           const cancelled = isStrikethrough || classStr.includes('~') || classStr.toLowerCase().includes('cancel') || classStr.includes('<s>') || classStr.includes('<strike>');
 
           if (classStr.toUpperCase().includes('ICRC')) {
-              todaysClasses[t] = { type: 'icrc', cancelled: cancelled };
+              let icrcCancelled = cancelled;
+              if (Array.isArray(slotData)) {
+                  const icrcObj = slotData.find(e => typeof e === 'object' && e && e.text && e.text.toUpperCase().includes('ICRC'));
+                  if (icrcObj) {
+                      icrcCancelled = icrcObj.strike || icrcObj.text.includes('~') || icrcObj.text.toLowerCase().includes('cancel');
+                  }
+              }
+              todaysClasses[t] = { type: 'icrc', cancelled: icrcCancelled };
               hasClasses = true;
               continue;
           }
@@ -1713,7 +1720,14 @@ function renderDailySchedule() {
           for (const s of activeSubjects) {
               const acronym = excelAcronyms[s.code];
               if (classesInCell.includes(s.code) || (acronym && classesInCell.includes(acronym)) || classesInCell.includes(s.name)) {
-                  todaysClasses[t] = { type: 'class', subject: s, cancelled: cancelled, rawStr: classStr };
+                  let subjCancelled = cancelled;
+                  if (Array.isArray(slotData)) {
+                      const subjObj = slotData.find(e => typeof e === 'object' && e && e.text && (e.text.includes(s.code) || (acronym && e.text.includes(acronym)) || e.text.includes(s.name)));
+                      if (subjObj) {
+                          subjCancelled = subjObj.strike || subjObj.text.includes('~') || subjObj.text.toLowerCase().includes('cancel');
+                      }
+                  }
+                  todaysClasses[t] = { type: 'class', subject: s, cancelled: subjCancelled, rawStr: classStr };
                   hasClasses = true;
                   break;
               }
