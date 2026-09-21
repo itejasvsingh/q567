@@ -1405,13 +1405,22 @@ function renderMasterSchedule() {
               continue;
           }
 
-          const cellContent = daySlots[t] || '';
-          
-          if (!cellContent) {
+          const cellData = daySlots[t];
+          if (!cellData) {
               h += `<td style="padding:10px; border:1px solid var(--bd); color:var(--tx3); text-align:center;">—</td>`;
           } else {
-              // Format multi-class cells nicely if separated by slashes
-              const formattedContent = cellContent.split('/').map(c => `<div style="margin-bottom:2px; font-weight:600;">${c.trim()}</div>`).join('');
+              const entries = Array.isArray(cellData) ? cellData : [cellData];
+              let formattedContent = '';
+              for (const entry of entries) {
+                  const text = typeof entry === 'object' ? entry.text : String(entry);
+                  const isStrike = typeof entry === 'object' ? entry.strike : false;
+                  
+                  // Also support legacy manual triggers
+                  const isCancelled = isStrike || text.includes('~') || text.toLowerCase().includes('cancel') || text.includes('<s>') || text.includes('<strike>');
+                  
+                  const style = isCancelled ? 'text-decoration: line-through; opacity: 0.6; color: var(--tx-warn);' : '';
+                  formattedContent += `<div style="margin-bottom:2px; font-weight:600; ${style}">${text}</div>`;
+              }
               h += `<td style="padding:10px; border:1px solid var(--bd);">${formattedContent}</td>`;
           }
       }
@@ -1483,11 +1492,15 @@ function renderDailySchedule() {
       for (const t of timeOrder) {
           if (t === '12pm-1pm') continue;
           
-          const classStr = dailySlots[t];
-          if (!classStr) continue;
+          const slotData = dailySlots[t];
+          if (!slotData) continue;
 
-          if (classStr.includes('ICRC')) {
-              todaysClasses[t] = { type: 'icrc' };
+          const classStr = typeof slotData === 'object' ? slotData.text : String(slotData);
+          const isStrikethrough = typeof slotData === 'object' ? slotData.strike : false;
+          const cancelled = isStrikethrough || classStr.includes('~') || classStr.toLowerCase().includes('cancel') || classStr.includes('<s>') || classStr.includes('<strike>');
+
+          if (classStr.toUpperCase().includes('ICRC')) {
+              todaysClasses[t] = { type: 'icrc', cancelled: cancelled };
               hasClasses = true;
               continue;
           }
@@ -1496,7 +1509,7 @@ function renderDailySchedule() {
           for (const s of activeSubjects) {
               const acronym = excelAcronyms[s.code];
               if (classesInCell.includes(s.code) || (acronym && classesInCell.includes(acronym)) || classesInCell.includes(s.name)) {
-                  todaysClasses[t] = { type: 'class', subject: s };
+                  todaysClasses[t] = { type: 'class', subject: s, cancelled: cancelled, rawStr: classStr };
                   hasClasses = true;
                   break;
               }
@@ -1512,21 +1525,26 @@ function renderDailySchedule() {
               }
 
               if (todaysClasses[t]) {
+                  const cancelled = todaysClasses[t].cancelled;
+                  const strikeStyle = cancelled ? 'text-decoration: line-through; opacity: 0.7;' : '';
+                  const bgStyle = cancelled ? 'background:var(--bg-warn); border:.5px solid var(--bd-warn);' : 'background:var(--bg-info); border:.5px solid var(--bd-info);';
+                  const txColor = cancelled ? 'var(--tx-warn)' : 'var(--tx-info)';
+
                   if (todaysClasses[t].type === 'icrc') {
                       dailyHtml += `
-                      <div style="display:flex; justify-content:flex-start; align-items:center; padding:10px; border:.5px solid var(--bd-warn); background:var(--bg-warn); border-radius:8px; margin-bottom:6px; opacity: 0.7;">
-                          <div style="width: 75px; font-size:11px; font-weight:700; color:var(--tx-warn);">${t}</div>
-                          <div style="font-size:13px; font-weight:700; color:var(--tx-warn); text-decoration: line-through;">🏢 ICRC</div>
+                      <div style="display:flex; justify-content:flex-start; align-items:center; padding:10px; ${bgStyle} border-radius:8px; margin-bottom:6px;">
+                          <div style="width: 75px; font-size:11px; font-weight:700; color:${txColor};">${t}</div>
+                          <div style="font-size:13px; font-weight:700; color:${txColor}; ${strikeStyle}">🏢 ICRC</div>
                       </div>`;
                   } else {
                       const subjectDetails = todaysClasses[t].subject;
                       dailyHtml += `
-                      <div style="display:flex; justify-content:flex-start; align-items:center; padding:10px; border:.5px solid var(--bd-info); background:var(--bg-info); border-radius:8px; margin-bottom:6px;">
-                          <div style="width: 75px; font-size:11px; font-weight:700; color:var(--tx-info); opacity: 0.8;">${t}</div>
+                      <div style="display:flex; justify-content:flex-start; align-items:center; padding:10px; ${bgStyle} border-radius:8px; margin-bottom:6px;">
+                          <div style="width: 75px; font-size:11px; font-weight:700; color:${txColor}; opacity: 0.8;">${t}</div>
                           <div style="flex:1;">
-                              <div style="font-size:13px; font-weight:700; color:var(--tx-info);">${subjectDetails.name}</div>
+                              <div style="font-size:13px; font-weight:700; color:${txColor}; ${strikeStyle}">${subjectDetails.name}</div>
                           </div>
-                          ${subjectDetails.room ? `<div style="font-size:10px; font-weight:700; color:var(--tx-warn); background:var(--bg-warn); padding:3px 6px; border-radius:4px; border:.5px solid var(--bd-warn);">📍 ${subjectDetails.room}</div>` : ''}
+                          ${subjectDetails.room && !cancelled ? `<div style="font-size:10px; font-weight:700; color:var(--tx-warn); background:var(--bg-warn); padding:3px 6px; border-radius:4px; border:.5px solid var(--bd-warn);">📍 ${subjectDetails.room}</div>` : ''}
                       </div>`;
                   }
               } else {
