@@ -200,10 +200,7 @@ function closeAlertModal() {
 function switchQ(q){
   cQ=q;
   document.querySelectorAll('.qtab').forEach((t,i)=>t.classList.toggle('on',['Q6','Q5','Q7'][i]===q));
-  if(q === 'Q6' && !q6AlertShown) {
-    document.getElementById('alert-modal-bg').classList.add('open');
-    q6AlertShown = true;
-  }
+
   render();
 }
 function setFilter(d){fDom=(fDom===d?'All':d);fFromTracker=(fDom!=='All'?fDom:'');render();}
@@ -1322,12 +1319,12 @@ const wasShared=loadFromURL();
 render();
 if(wasShared) document.getElementById('shared-banner').classList.add('show');
 
-let q6AlertShownStorage = localStorage.getItem('mbaplanner_q6_alert');
-if(cQ === 'Q6' && !q6AlertShownStorage) {
+let pwaAlertShownStorage = localStorage.getItem('mbaplanner_pwa_alert');
+if(!pwaAlertShownStorage) {
    setTimeout(() => {
-     document.getElementById('alert-modal-bg').classList.add('open');
-     localStorage.setItem('mbaplanner_q6_alert', '1');
-     q6AlertShown = true;
+     const modal = document.getElementById('alert-modal-bg');
+     if(modal) modal.classList.add('open');
+     localStorage.setItem('mbaplanner_pwa_alert', '1');
    }, 500);
 }
 
