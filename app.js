@@ -1553,3 +1553,30 @@ function renderDailySchedule() {
   }
   area.innerHTML = h || '<div class="empty-tt">No upcoming schedule found.</div>';
 }
+
+
+
+// --- PWA SPECIFIC LOGIC ---
+setTimeout(() => {
+    // Detect if running as standalone PWA
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    
+    if (isPWA) {
+        // 1. Force the PWA to boot directly into the Daily Agenda
+        switchView('daily');
+        
+        // 2. Reorder the DOM tabs so Daily Agenda is the first button physically 
+        const viewTabs = document.querySelector('.view-tabs');
+        const vtabDaily = document.getElementById('vtab-daily');
+        if (viewTabs && vtabDaily) {
+            viewTabs.insertBefore(vtabDaily, viewTabs.firstChild);
+        }
+
+        // 3. Make Daily Agenda prominent by hiding the massive desktop header
+        const hdr = document.querySelector('.hdr');
+        if (hdr) hdr.style.display = 'none';
+        
+        // 4. Optionally scroll the view tabs strictly to the left so it's focused
+        if (viewTabs) viewTabs.scrollLeft = 0;
+    }
+}, 50);
