@@ -713,6 +713,10 @@ function switchView(v){
   document.getElementById('view-mess').style.display = v==='mess' ? '' : 'none';
   if(document.getElementById('view-daily')) document.getElementById('view-daily').style.display = v==='daily' ? '' : 'none';
   if(document.getElementById('view-master')) document.getElementById('view-master').style.display = v==='master' ? '' : 'none';
+  if (v !== 'daily' && window._nextClassInterval) {
+      clearInterval(window._nextClassInterval);
+      window._nextClassInterval = null;
+  }
   
   if (v === 'master') renderMasterSchedule();
   if (v === 'daily') renderDailySchedule();
@@ -1351,8 +1355,13 @@ if('serviceWorker' in navigator){
 
 // --- FIREBASE LIVE SCHEDULE LISTENER ---
 window.lastSyncedTime = null;
+window._isOfflineFallback = false;
+
 window.refreshLiveSchedule = function(btnElement) {
     if(btnElement) btnElement.innerText = "⏳ Syncing...";
+    const ptrEl = document.getElementById('ptr-indicator');
+    if (ptrEl && !btnElement) ptrEl.style.height = '40px';
+    
     if(typeof fbDb !== 'undefined' && fbDb) {
       fbDb.ref('schedule').once('value').then(snap => {
         const data = snap.val();
@@ -1360,85 +1369,116 @@ window.refreshLiveSchedule = function(btnElement) {
             liveDailyCache = data.daily;
             liveWeeklyCache = data.weekly;
             window.lastSyncedTime = new Date();
+            window._isOfflineFallback = false;
+            
+            // Offline Cache
+            localStorage.setItem('mbaplanner_daily_cache', JSON.stringify({
+                data: liveDailyCache,
+                time: window.lastSyncedTime.getTime()
+            }));
+            
             if (typeof currentView !== 'undefined') {
                 if (currentView === 'daily') renderDailySchedule();
                 if (currentView === 'master') renderMasterSchedule();
             }
         }
+        if (ptrEl) ptrEl.style.height = '0px';
       }).catch(e => {
           console.warn('Could not fetch live cloud schedule.', e);
           if(btnElement) btnElement.innerText = "❌ Sync failed";
+          if (ptrEl) ptrEl.style.height = '0px';
+          
+          if (!liveDailyCache) {
+             // Let renderDailySchedule handle the fallback UI
+             if (currentView === 'daily') renderDailySchedule();
+          }
       });
     }
 };
+
 // Initial fetch
 refreshLiveSchedule();
 
-// --- MASTER SCHEDULE LOGIC ---
-function renderMasterSchedule() {
-  const area = document.getElementById('master-tt-render');
-  if (!area) return;
+// Pull-to-refresh logic
+let touchStartY = 0;
+let isPulling = false;
+window.addEventListener('touchstart', e => {
+    if (typeof currentView !== 'undefined' && currentView === 'daily' && window.scrollY <= 10) {
+        touchStartY = e.touches[0].clientY;
+        isPulling = true;
+    }
+}, {passive: true});
+window.addEventListener('touchmove', e => {
+    if (!isPulling || currentView !== 'daily') return;
+    const dy = e.touches[0].clientY - touchStartY;
+    if (dy > 60 && window.scrollY <= 10) {
+        let ptr = document.getElementById('ptr-indicator');
+        if (!ptr) {
+            ptr = document.createElement('div');
+            ptr.id = 'ptr-indicator';
+            ptr.style = 'height:0px; overflow:hidden; transition:height 0.2s; text-align:center; font-size:12px; font-weight:700; color:var(--tx-info); display:flex; align-items:center; justify-content:center; background:var(--bg2);';
+            ptr.innerHTML = '⏳ Syncing live schedule...';
+            const area = document.getElementById('daily-render');
+            if (area && area.parentNode) area.parentNode.insertBefore(ptr, area);
+        }
+        ptr.style.height = '40px';
+    }
+}, {passive: true});
+window.addEventListener('touchend', e => {
+    if (!isPulling || currentView !== 'daily') return;
+    isPulling = false;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (dy > 60 && window.scrollY <= 10) {
+        window.refreshLiveSchedule();
+    } else {
+        const ptr = document.getElementById('ptr-indicator');
+        if (ptr) ptr.style.height = '0px';
+    }
+}, {passive: true});
 
-  if (!liveWeeklyCache) {
-      area.innerHTML = '<div class="empty-tt">Loading weekly schedule from database... ⏳</div>';
-      return;
-  }
+// Notification Request
+window.requestNotificationPermission = function() {
+    if ('Notification' in window) {
+        Notification.requestPermission().then(perm => {
+            renderDailySchedule(); // re-render to update btn
+        });
+    }
+};
 
-  // Define standard columns/timeslots from the sheet
-  const timeslots = ['8am-10am', '10am-12pm', '12pm-1pm', '1pm-3pm', '3pm-5pm', '5pm-7pm'];
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-
-  let h = `
-    <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
-      <thead>
-        <tr style="background:var(--bg2); border-bottom:2px solid var(--bd);">
-          <th style="padding:10px; border:1px solid var(--bd); width:100px;">Day</th>
-          <th style="padding:10px; border:1px solid var(--bd);">8am - 10am</th>
-          <th style="padding:10px; border:1px solid var(--bd);">10am - 12pm</th>
-          <th style="padding:10px; border:1px solid var(--bd); background:var(--bg3);">12pm - 1pm</th>
-          <th style="padding:10px; border:1px solid var(--bd);">1pm - 3pm</th>
-          <th style="padding:10px; border:1px solid var(--bd);">3pm - 5pm</th>
-          <th style="padding:10px; border:1px solid var(--bd);">5pm - 7pm</th>
-        </tr>
-      </thead>
-      <tbody>
-  `;
-
-  for (const day of days) {
-      const daySlots = liveWeeklyCache[day] || {};
-      h += `<tr>`;
-      h += `<td style="padding:10px; border:1px solid var(--bd); font-weight:700; background:var(--bg2);">${day}</td>`;
-
-      for (const t of timeslots) {
-          if (t === '12pm-1pm') {
-              h += `<td style="padding:10px; border:1px solid var(--bd); text-align:center; color:var(--tx3); font-style:italic; background:var(--bg3);">Lunch</td>`;
-              continue;
-          }
-
-          const cellData = daySlots[t];
-          if (!cellData) {
-              h += `<td style="padding:10px; border:1px solid var(--bd); color:var(--tx3); text-align:center;">—</td>`;
-          } else {
-              const entries = Array.isArray(cellData) ? cellData : [cellData];
-              let formattedContent = '';
-              for (const entry of entries) {
-                  const text = typeof entry === 'object' ? entry.text : String(entry);
-                  const isStrike = typeof entry === 'object' ? entry.strike : false;
-                  
-                  // Also support legacy manual triggers
-                  const isCancelled = isStrike || text.includes('~') || text.toLowerCase().includes('cancel') || text.includes('<s>') || text.includes('<strike>');
-                  
-                  const style = isCancelled ? 'text-decoration: line-through; opacity: 0.6; color: var(--tx-warn);' : '';
-                  formattedContent += `<div style="margin-bottom:2px; font-weight:600; ${style}">${text}</div>`;
-              }
-              h += `<td style="padding:10px; border:1px solid var(--bd);">${formattedContent}</td>`;
-          }
-      }
-      h += `</tr>`;
-  }
-
-  h += `</tbody></table>`;
-  area.innerHTML = h;
+window._activeNotifications = window._activeNotifications || [];
+function scheduleClassNotifications(todaysClasses, ymdStr) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    
+    const [y, m, d] = ymdStr.split('-');
+    const utcMidnight = new Date(Date.UTC(y, m - 1, d));
+    
+    for (const [t, data] of Object.entries(todaysClasses)) {
+        if (data.type === 'free' || data.type === 'lunch' || data.cancelled) continue;
+        
+        const timeInfo = ICS_TIME_MAP[t];
+        if (!timeInfo) continue;
+        
+        const classStartUTC = istToUTC(utcMidnight, timeInfo.sh, timeInfo.sm);
+        const timeUntilClassMs = classStartUTC.getTime() - Date.now();
+        const notifyLeadTimeMs = 10 * 60 * 1000; // 10 mins
+        
+        if (timeUntilClassMs > notifyLeadTimeMs) {
+            const delayMs = timeUntilClassMs - notifyLeadTimeMs;
+            const timeoutId = setTimeout(() => {
+                if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
+                    navigator.serviceWorker.ready.then(reg => {
+                        const title = `${data.subject ? data.subject.name : 'ICRC'} starts in 10 min`;
+                        const roomText = data.subject && data.subject.room ? ` · Room ${data.subject.room}` : '';
+                        reg.showNotification(title + roomText, {
+                            icon: '/favicon.ico',
+                            tag: `class-${ymdStr}-${t}` // Prevent duplicates
+                        });
+                    });
+                }
+            }, delayMs);
+            window._activeNotifications.push(timeoutId);
+        }
+    }
 }
 
 // --- DAILY AGENDA LOGIC ---
@@ -1451,8 +1491,30 @@ function renderDailySchedule() {
       area.innerHTML = '<div class="empty-tt">Select electives in My Planner to see your live schedule.</div>';
       return;
   }
+  
   if (!liveDailyCache) {
-      area.innerHTML = '<div class="empty-tt">Loading daily schedule from database... ⏳</div>';
+      const cached = localStorage.getItem('mbaplanner_daily_cache');
+      if (cached) {
+          try {
+              const parsed = JSON.parse(cached);
+              liveDailyCache = parsed.data;
+              window.lastSyncedTime = new Date(parsed.time);
+              window._isOfflineFallback = true;
+          } catch(e) {}
+      }
+  }
+
+  if (!liveDailyCache) {
+      area.innerHTML = `
+      <div style="border-radius:12px; padding:14px; margin-bottom:14px; background:var(--bg); border:.5px solid var(--bd);">
+          <div style="height:20px; width:140px; background:var(--bg2); border-radius:6px; margin-bottom:12px;" class="skeleton-shimmer"></div>
+          <div style="height:64px; background:var(--bg2); border-radius:8px; margin-bottom:8px;" class="skeleton-shimmer"></div>
+          <div style="height:64px; background:var(--bg2); border-radius:8px; margin-bottom:8px;" class="skeleton-shimmer"></div>
+      </div>
+      <div style="border-radius:12px; padding:14px; margin-bottom:14px; background:var(--bg); border:.5px solid var(--bd);">
+          <div style="height:20px; width:100px; background:var(--bg2); border-radius:6px; margin-bottom:12px;" class="skeleton-shimmer"></div>
+          <div style="height:64px; background:var(--bg2); border-radius:8px; margin-bottom:8px;" class="skeleton-shimmer"></div>
+      </div>`;
       return;
   }
 
@@ -1464,13 +1526,15 @@ function renderDailySchedule() {
   };
   const timeOrder = ['8am-10am', '10am-12pm', '12pm-1pm', '1pm-3pm', '3pm-5pm', '5pm-7pm'];
   
+  // IST Date logic
   const now = new Date();
-  const todayYmd = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-  const tmrw = new Date(now); tmrw.setDate(tmrw.getDate() + 1);
+  const nowIST = new Date(now.getTime() + (330 * 60000) + (now.getTimezoneOffset() * 60000));
+  const todayYmd = `${nowIST.getFullYear()}-${String(nowIST.getMonth()+1).padStart(2,'0')}-${String(nowIST.getDate()).padStart(2,'0')}`;
+  const tmrw = new Date(nowIST); tmrw.setDate(tmrw.getDate() + 1);
   const tomorrowYmd = `${tmrw.getFullYear()}-${String(tmrw.getMonth()+1).padStart(2,'0')}-${String(tmrw.getDate()).padStart(2,'0')}`;
   
   let currentSlot = null;
-  const currentHour = now.getHours();
+  const currentHour = nowIST.getHours();
   if (currentHour >= 8 && currentHour < 10) currentSlot = '8am-10am';
   else if (currentHour >= 10 && currentHour < 12) currentSlot = '10am-12pm';
   else if (currentHour >= 12 && currentHour < 13) currentSlot = '12pm-1pm';
@@ -1487,7 +1551,7 @@ function renderDailySchedule() {
       const chipId = `chip-${dateString.replace(/\s/g, '-')}`;
       const isToday = ymd === todayYmd;
       const activeStyle = isToday ? 'background:var(--bg-info); color:var(--tx-info); border-color:var(--bd-info);' : 'background:var(--bg2); color:var(--tx2);';
-      pagerHtml += `<div id="${chipId}" onclick="document.getElementById('card-${dateString.replace(/\s/g, '-')}').scrollIntoView({behavior:'smooth', block:'start'})" style="flex-shrink:0; padding:6px 12px; border-radius:16px; border:.5px solid var(--bd2); cursor:pointer; font-size:12px; font-weight:700; ${activeStyle}">${shortDay} ${dd}</div>`;
+      pagerHtml += `<div id="${chipId}" onclick="document.querySelectorAll('.day-chip').forEach(c => { c.style.background='var(--bg2)'; c.style.color='var(--tx2)'; c.style.borderColor='var(--bd2)'; }); this.style.background='var(--bg-info)'; this.style.color='var(--tx-info)'; this.style.borderColor='var(--bd-info)'; document.getElementById('card-${dateString.replace(/\s/g, '-')}').scrollIntoView({behavior:'smooth', block:'start'})" class="day-chip" style="flex-shrink:0; padding:6px 12px; border-radius:16px; border:.5px solid var(--bd2); cursor:pointer; font-size:12px; font-weight:700; ${activeStyle}">${shortDay} ${dd}</div>`;
   }
   pagerHtml += `</div>`;
 
@@ -1501,13 +1565,27 @@ function renderDailySchedule() {
           if (m > 60) syncText = `Synced ${Math.floor(m/60)}h ago`;
       }
   }
+  if (window._isOfflineFallback) {
+      syncText = `Showing last synced data from ${syncText.replace('Synced ', '')} — you're offline`;
+  }
+
+  let notifyBtnHtml = '';
+  if ('Notification' in window && 'serviceWorker' in navigator) {
+      if (Notification.permission === 'default') {
+          notifyBtnHtml = `<div onclick="requestNotificationPermission()" style="background:var(--bg-info); color:var(--tx-info); padding:6px 10px; border-radius:6px; font-size:10px; font-weight:700; cursor:pointer; border:.5px solid var(--bd-info);">🔔 Notify me before class</div>`;
+      } else if (Notification.permission === 'granted') {
+          notifyBtnHtml = `<div style="color:var(--tx-success); background:var(--bg-success); padding:6px 10px; border-radius:6px; border:.5px solid var(--bd-success); font-size:10px; font-weight:700;">🔔 Notifications active</div>`;
+      }
+  }
 
   let fullHtml = `
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
         ${pagerHtml}
     </div>
-    <div onclick="window.refreshLiveSchedule(this)" style="font-size:10px; color:var(--tx3); text-align:right; margin-bottom:10px; cursor:pointer; font-weight:600;">🔄 ${syncText}</div>
-    
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+        ${notifyBtnHtml}
+        <div onclick="window.refreshLiveSchedule(this)" style="font-size:10px; color:var(--tx3); text-align:right; margin-bottom:10px; cursor:pointer; font-weight:600; padding:6px;">🔄 ${syncText}</div>
+    </div>
     <div style="margin-bottom: 20px; border-radius: 8px; border: .5px solid var(--bd-info); background: var(--bg-info); padding: 15px; display: flex; align-items: center; gap: 15px;">
         <div style="font-size: 24px;">🎉</div>
         <div>
@@ -1516,6 +1594,14 @@ function renderDailySchedule() {
         </div>
     </div>
   `;
+
+  // Clear existing notifications
+  if (window._activeNotifications) {
+      window._activeNotifications.forEach(id => clearTimeout(id));
+      window._activeNotifications = [];
+  }
+
+  let nextClassFound = null; // Sticky bar tracker
 
   for (const [dateString, dailySlots] of Object.entries(liveDailyCache)) {
       let dailyHtml = '';
@@ -1568,6 +1654,13 @@ function renderDailySchedule() {
               }
           }
       }
+      
+      const [ymd, dayName] = dateString.split(' ');
+      const isToday = ymd === todayYmd;
+      
+      if (isToday && hasClasses) {
+          scheduleClassNotifications(todaysClasses, ymd);
+      }
 
       const finalBlocks = [];
       if (hasClasses) {
@@ -1589,14 +1682,28 @@ function renderDailySchedule() {
           }
       }
 
-      const [ymd, dayName] = dateString.split(' ');
-      const isToday = ymd === todayYmd;
       const isTomorrow = ymd === tomorrowYmd;
       
       if (hasClasses) {
           for (const b of finalBlocks) {
               const isHappeningNow = isToday && currentSlot === b.t;
               
+              // Next Class Logic (Sticky bar)
+              if (isToday && b.type === 'class' && !b.data.cancelled && !nextClassFound && !isHappeningNow) {
+                  const timeInfo = ICS_TIME_MAP[b.t];
+                  if (timeInfo) {
+                      const utcMidnight = new Date(Date.UTC(parseInt(ymd.split('-')[0]), parseInt(ymd.split('-')[1])-1, parseInt(ymd.split('-')[2])));
+                      const classStartUTC = istToUTC(utcMidnight, timeInfo.sh, timeInfo.sm);
+                      if (classStartUTC.getTime() > Date.now()) {
+                          nextClassFound = {
+                              name: b.data.subject ? b.data.subject.name : 'ICRC',
+                              room: b.data.subject ? b.data.subject.room : null,
+                              timeMs: classStartUTC.getTime()
+                          };
+                      }
+                  }
+              }
+
               if (b.type === 'lunch') {
                   dailyHtml += `<div class="lc" style="min-height:30px; margin-bottom:6px; font-weight:600; color:var(--tx3); text-align:center; font-size:11px;">🍽 Lunch Break (12pm - 1pm)</div>`;
               } else if (b.type === 'class') {
@@ -1628,8 +1735,7 @@ function renderDailySchedule() {
                       </div>`;
                   }
               } else if (b.type === 'free') {
-                  const tStr = `${b.start.replace(/[a-z]/g, '')}-${b.end}`; // Clean up 8am-10am to 8-10am if we want, but keeping raw is fine
-                  const isHappeningNowFree = isToday && currentSlot && tStr.includes(currentSlot.split('-')[0]);
+                  const tStr = `${b.start.replace(/[a-z]/g, '')}-${b.end}`;
                   dailyHtml += `
                   <div style="display:flex; justify-content:flex-start; align-items:center; padding:6px 10px; border:.5px dashed var(--bd); background:var(--bg2); border-radius:8px; margin-bottom:6px; opacity: 0.4; min-height: 20px;">
                       <div style="width: 75px; font-size:10px; font-weight:600; color:var(--tx3);">${b.start}-${b.end}</div>
@@ -1666,8 +1772,44 @@ function renderDailySchedule() {
       </div>`;
   }
   
-  area.innerHTML = fullHtml || '<div class="empty-tt">No upcoming schedule found.</div>';
+  // Sticky Mini Bar Injection
+  let stickyHtml = '';
+  if (nextClassFound) {
+      stickyHtml = `
+      <div id="sticky-next-class" style="position:sticky; top:60px; z-index:90; background:var(--bg-info); border:.5px solid var(--bd-info); color:var(--tx-info); padding:8px 14px; border-radius:12px; margin-bottom:14px; font-weight:700; font-size:12px; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); backdrop-filter:blur(8px);">
+          <div style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">🔜 ${nextClassFound.name} ${nextClassFound.room ? `· Room ${nextClassFound.room}` : ''}</div>
+          <div id="sticky-next-countdown" style="font-variant-numeric: tabular-nums; flex-shrink:0; padding-left:10px; background:var(--bg); color:var(--tx); padding:3px 8px; border-radius:6px; margin-left:8px; border:.5px solid var(--bd2);"></div>
+      </div>`;
+  } else if (todayYmd in liveDailyCache) {
+      // If we parsed today and there's no next class found
+      stickyHtml = `
+      <div id="sticky-next-class" style="position:sticky; top:60px; z-index:90; background:var(--bg2); border:.5px solid var(--bd); color:var(--tx3); padding:8px 14px; border-radius:12px; margin-bottom:14px; font-weight:700; font-size:12px; text-align:center; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+          No more classes today! 🎉
+      </div>`;
+  }
   
+  area.innerHTML = stickyHtml + (fullHtml || '<div class="empty-tt">No upcoming schedule found.</div>');
+  
+  if (nextClassFound) {
+      const updateCountdown = () => {
+          const cd = document.getElementById('sticky-next-countdown');
+          if (!cd) return;
+          const diffMin = Math.ceil((nextClassFound.timeMs - Date.now()) / 60000);
+          if (diffMin <= 0) {
+              document.getElementById('sticky-next-class').style.display = 'none';
+          } else if (diffMin > 60) {
+              cd.textContent = `in ${Math.floor(diffMin/60)}h ${diffMin%60}m`;
+          } else {
+              cd.textContent = `in ${diffMin} min`;
+          }
+      };
+      updateCountdown();
+      if (window._nextClassInterval) clearInterval(window._nextClassInterval);
+      window._nextClassInterval = setInterval(updateCountdown, 30000);
+  } else {
+      if (window._nextClassInterval) clearInterval(window._nextClassInterval);
+  }
+
   if (window._isFirstDailyRender === undefined) {
       window._isFirstDailyRender = true;
       setTimeout(() => {
@@ -1678,28 +1820,3 @@ function renderDailySchedule() {
 }
 
 
-
-// --- PWA SPECIFIC LOGIC ---
-setTimeout(() => {
-    // Detect if running as standalone PWA
-    const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-    
-    if (isPWA) {
-        // 1. Force the PWA to boot directly into the Daily Agenda
-        switchView('daily');
-        
-        // 2. Reorder the DOM tabs so Daily Agenda is the first button physically 
-        const viewTabs = document.querySelector('.view-tabs');
-        const vtabDaily = document.getElementById('vtab-daily');
-        if (viewTabs && vtabDaily) {
-            viewTabs.insertBefore(vtabDaily, viewTabs.firstChild);
-        }
-
-        // 3. Make Daily Agenda prominent by hiding the massive desktop header
-        const hdr = document.querySelector('.hdr');
-        if (hdr) hdr.style.display = 'none';
-        
-        // 4. Optionally scroll the view tabs strictly to the left so it's focused
-        if (viewTabs) viewTabs.scrollLeft = 0;
-    }
-}, 50);

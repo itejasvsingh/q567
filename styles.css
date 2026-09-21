@@ -441,3 +441,13 @@ body {
     flex-shrink: 0;
     white-space: nowrap;
 }
+
+/* Skeleton Loading Animation */
+@keyframes shimmer {
+    0% { opacity: 0.4; }
+    50% { opacity: 0.8; }
+    100% { opacity: 0.4; }
+}
+.skeleton-shimmer {
+    animation: shimmer 1.5s infinite ease-in-out;
+}
