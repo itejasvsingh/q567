@@ -664,7 +664,7 @@ let myGroupCode='';
 let roster={}; 
 let compareQ='Q6';
 let compareFilter='all'; 
-let currentView='daily';
+let currentView='plan';
 let fbApp=null, fbDb=null, groupRef=null;
 
 const CMP_PALETTE=['#185fa5','#0f6e56','#993556','#854f0b','#534ab7','#993c1d','#1a6b3c','#a32d2d','#0c6478','#6b4f9e'];
