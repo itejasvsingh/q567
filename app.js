@@ -1323,13 +1323,13 @@ const wasShared=loadFromURL();
 render();
 if(wasShared) document.getElementById('shared-banner').classList.add('show');
 
-let pwaAlertShownStorage = localStorage.getItem('mbaplanner_pwa_alert');
+let pwaAlertShownStorage = localStorage.getItem('mbaplanner_pwa_alert_v2');
 if(!pwaAlertShownStorage) {
    setTimeout(() => {
      const modal = document.getElementById('alert-modal-bg');
      if(modal) modal.classList.add('open');
-     localStorage.setItem('mbaplanner_pwa_alert', '1');
-   }, 500);
+     localStorage.setItem('mbaplanner_pwa_alert_v2', '1');
+   }, 800);
 }
 
 roster={};
