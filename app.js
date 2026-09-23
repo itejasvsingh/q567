@@ -818,6 +818,17 @@ function switchView(v){
       else if(savedCompareName) inputEl.value = savedCompareName;
     }
   }
+
+  // Sync PWA side drawer active state + top bar title
+  const DRAWER_LABELS = {
+    plan: '📋 Planner', daily: '📅 Daily Agenda', master: '🗓️ Weekly Schedule',
+    att: '✅ Attendance', compare: '👥 Compare', mess: '🍽 Mess Menu'
+  };
+  const titleEl = document.getElementById('pwa-topbar-title');
+  if (titleEl) titleEl.textContent = DRAWER_LABELS[v] || '';
+  document.querySelectorAll('.pwa-drawer-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.view === v);
+  });
 }
 
 function cmpConnect(){
@@ -1477,34 +1488,66 @@ window.refreshLiveSchedule = function(btnElement) {
     }
 };
 
-// ── PWA INSTANT BOOT FROM CACHE ─────────────────────────────────────────────
-// In standalone PWA mode: preload the last-known schedule from localStorage
-// immediately so the Daily Agenda renders without waiting for Firebase.
-// Firebase fetch still runs in parallel and silently updates the view.
+// ── PWA INSTANT BOOT FROM CACHE + SIDE DRAWER INJECTION ─────────────────────
 (function pwaInstantBoot() {
     const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     if (!isPWA) return;
 
+    // 1. Inject top bar + side drawer HTML
+    const drawerHTML = `
+    <div id="pwa-topbar">
+      <button id="pwa-hamburger" onclick="pwaOpenDrawer()" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+      <span id="pwa-topbar-title">📅 Daily Agenda</span>
+      <button id="pwa-theme-inline" onclick="toggleTheme()" style="background:none;border:none;font-size:20px;cursor:pointer;padding:4px 8px;-webkit-tap-highlight-color:transparent;">🌗</button>
+    </div>
+    <div id="pwa-drawer-backdrop" onclick="pwaCloseDrawer()"></div>
+    <nav id="pwa-drawer">
+      <div id="pwa-drawer-header">MBA Planner</div>
+      <button class="pwa-drawer-item active" data-view="daily"  onclick="pwaNav('daily')">📅 Daily Agenda</button>
+      <button class="pwa-drawer-item"        data-view="plan"   onclick="pwaNav('plan')">📋 My Planner</button>
+      <button class="pwa-drawer-item"        data-view="master" onclick="pwaNav('master')">🗓️ Weekly Schedule</button>
+      <button class="pwa-drawer-item"        data-view="att"    onclick="pwaNav('att')">✅ Attendance</button>
+      <button class="pwa-drawer-item"        data-view="compare" onclick="pwaNav('compare')">👥 Compare</button>
+      <button class="pwa-drawer-item"        data-view="mess"   onclick="pwaNav('mess')">🍽 Mess Menu</button>
+    </nav>`;
+    document.body.insertAdjacentHTML('afterbegin', drawerHTML);
+
+    // Hide the floating theme toggle (replaced by inline button in top bar)
+    const floatingTheme = document.getElementById('theme-toggle');
+    if (floatingTheme) floatingTheme.style.display = 'none';
+
+    // 2. Try loading cached schedule immediately
     const cached = localStorage.getItem('mbaplanner_daily_cache');
-    if (!cached) return;
-
-    try {
-        const parsed = JSON.parse(cached);
-        if (!parsed || !parsed.data) return;
-
-        // Populate the cache variables immediately
-        liveDailyCache = parsed.data;
-        window.lastSyncedTime = parsed.time ? new Date(parsed.time) : null;
-        window._isOfflineFallback = false; // not offline, just pre-loaded
-
-        // Switch to Daily Agenda and render instantly from cache
-        switchView('daily');
-        renderDailySchedule();
-
-    } catch(e) {
-        console.warn('PWA instant boot: could not parse cached schedule.', e);
+    if (cached) {
+        try {
+            const parsed = JSON.parse(cached);
+            if (parsed && parsed.data) {
+                liveDailyCache = parsed.data;
+                window.lastSyncedTime = parsed.time ? new Date(parsed.time) : null;
+                window._isOfflineFallback = false;
+            }
+        } catch(e) { console.warn('PWA boot cache parse error', e); }
     }
+
+    // 3. Always land on Daily Agenda
+    switchView('daily');
+    renderDailySchedule();
 })();
+
+window.pwaOpenDrawer = function() {
+    document.getElementById('pwa-drawer').classList.add('open');
+    document.getElementById('pwa-drawer-backdrop').classList.add('open');
+};
+window.pwaCloseDrawer = function() {
+    document.getElementById('pwa-drawer').classList.remove('open');
+    document.getElementById('pwa-drawer-backdrop').classList.remove('open');
+};
+window.pwaNav = function(v) {
+    pwaCloseDrawer();
+    switchView(v);
+};
 
 // Initial Firebase fetch — runs in background, updates view when done
 refreshLiveSchedule();

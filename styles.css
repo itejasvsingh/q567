@@ -453,119 +453,135 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   PWA STANDALONE MODE — only applies when installed to home screen.
+   PWA STANDALONE MODE — side drawer navigation.
    Browser view is completely untouched by this block.
    ═══════════════════════════════════════════════════════════════════════════ */
 @media (display-mode: standalone) {
 
-    /* ── Layout ── */
-    .hdr { display: none !important; }
+    /* ── Hide browser-mode elements ── */
+    .hdr           { display: none !important; }
+    .view-tabs     { display: none !important; }
+    #theme-toggle  { display: none !important; }
 
+    /* ── Page: push down for top bar, up for iPhone home bar ── */
     .page {
-        padding-top: env(safe-area-inset-top) !important;
-        padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important;
+        padding-top: calc(54px + env(safe-area-inset-top)) !important;
+        padding-bottom: env(safe-area-inset-bottom) !important;
     }
 
-    /* ── Bottom Nav Bar ── */
-    .view-tabs {
-        position: fixed !important;
-        bottom: 0 !important; left: 0 !important; right: 0 !important;
-        top: auto !important;
-        z-index: 500 !important;
-        background: var(--bg) !important;
-        border-top: .5px solid var(--bd) !important;
-        border-bottom: none !important;
-        margin: 0 !important;
-        padding: 8px 6px !important;
-        padding-bottom: calc(8px + env(safe-area-inset-bottom)) !important;
-        display: flex !important;
-        justify-content: space-around !important;
-        align-items: flex-start !important;
-        overflow: visible !important;
-        gap: 0 !important;
-        backdrop-filter: blur(20px) !important;
-        -webkit-backdrop-filter: blur(20px) !important;
+    /* ── Top Bar ── */
+    #pwa-topbar {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        height: calc(54px + env(safe-area-inset-top));
+        padding-top: env(safe-area-inset-top);
+        z-index: 400;
+        background: var(--bg);
+        border-bottom: .5px solid var(--bd);
+        display: flex;
+        align-items: center;
+        padding-left: 4px;
+        padding-right: 4px;
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
     }
 
-    /* ── Each Tab Item ── */
-    .view-tab {
-        flex: 1 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: center !important;
-        justify-content: center !important;
-        gap: 4px !important;
-        padding: 4px 2px 2px !important;
-        border: none !important;
-        border-bottom: none !important;
-        border-radius: 0 !important;
-        background: transparent !important;
-        color: var(--tx3) !important;
-        cursor: pointer !important;
-        -webkit-tap-highlight-color: transparent !important;
-        min-width: 0 !important;
-        transition: opacity 0.1s !important;
+    /* Hamburger button */
+    #pwa-hamburger {
+        width: 44px; height: 44px;
+        background: none; border: none;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        gap: 5px; cursor: pointer;
+        flex-shrink: 0;
+        -webkit-tap-highlight-color: transparent;
+        border-radius: 10px;
+    }
+    #pwa-hamburger:active { background: var(--bg2); }
+    #pwa-hamburger span {
+        display: block;
+        width: 20px; height: 2px;
+        background: var(--tx);
+        border-radius: 2px;
+        transition: all 0.2s;
     }
 
-    .view-tab:active { opacity: 0.5 !important; }
-
-    /* ── Icon ── */
-    .tab-icon {
-        font-size: 22px !important;
-        line-height: 1 !important;
-        display: block !important;
+    /* Title */
+    #pwa-topbar-title {
+        flex: 1;
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--tx);
+        text-align: center;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
-    /* ── Label ── */
-    .tab-label {
-        font-size: 10px !important;
-        font-weight: 500 !important;
-        line-height: 1 !important;
-        display: block !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-        white-space: nowrap !important;
-        max-width: 52px !important;
-        color: var(--tx3) !important;
+    /* ── Backdrop ── */
+    #pwa-drawer-backdrop {
+        display: none;
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,0.45);
+        z-index: 450;
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+    }
+    #pwa-drawer-backdrop.open { display: block; }
+
+    /* ── Side Drawer ── */
+    #pwa-drawer {
+        position: fixed;
+        top: 0; left: 0; bottom: 0;
+        width: 270px;
+        background: var(--bg);
+        z-index: 500;
+        transform: translateX(-100%);
+        transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        box-shadow: 4px 0 24px rgba(0,0,0,0.18);
+        overflow: hidden;
+    }
+    #pwa-drawer.open { transform: translateX(0); }
+
+    /* Drawer header */
+    #pwa-drawer-header {
+        font-size: 18px;
+        font-weight: 800;
+        color: var(--tx);
+        padding: 20px 20px 14px;
+        border-bottom: .5px solid var(--bd);
+        letter-spacing: -0.3px;
     }
 
-    /* ── Active State — blue dot indicator above icon ── */
-    .view-tab.on {
-        color: var(--tx-info) !important;
-        background: transparent !important;
-        border: none !important;
-        position: relative !important;
+    /* Drawer nav items */
+    .pwa-drawer-item {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        width: 100%;
+        padding: 14px 20px;
+        background: none;
+        border: none;
+        border-left: 3px solid transparent;
+        font-family: var(--font);
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--tx2);
+        cursor: pointer;
+        text-align: left;
+        -webkit-tap-highlight-color: transparent;
+        transition: background 0.12s, color 0.12s;
     }
+    .pwa-drawer-item:active { background: var(--bg2); }
 
-    .view-tab.on::before {
-        content: '' !important;
-        display: block !important;
-        width: 20px !important;
-        height: 3px !important;
-        background: #185fa5 !important;
-        border-radius: 2px !important;
-        position: absolute !important;
-        top: -8px !important;
-        left: 50% !important;
-        transform: translateX(-50%) !important;
+    .pwa-drawer-item.active {
+        color: #185fa5;
+        font-weight: 700;
+        background: var(--bg-info);
+        border-left-color: #185fa5;
     }
-
-    .view-tab.on .tab-icon { filter: none !important; }
-
-    .view-tab.on .tab-label {
-        color: #185fa5 !important;
-        font-weight: 700 !important;
-    }
-
-    /* ── Theme toggle — above the nav bar ── */
-    #theme-toggle {
-        bottom: calc(90px + env(safe-area-inset-bottom)) !important;
-        right: 14px !important;
-        width: 42px !important;
-        height: 42px !important;
-        font-size: 18px !important;
-    }
-
-    /* ── Install button lives in header (hidden) — guard ── */
-    #hdr-install-btn { display: none !important; }
 }
