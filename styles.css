@@ -449,6 +449,9 @@ body {
     100% { opacity: 0.4; }
 }
 .skeleton-shimmer {
+    animation: shimmer 1.5s infinite ease-in-out;
+}
+
 /* ── Creative Daily Agenda UI ── */
 .date-capsules {
   display: flex;
