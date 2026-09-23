@@ -1706,7 +1706,18 @@ function renderMasterSchedule() {
 function renderDailySchedule() {
   const area = document.getElementById('daily-render');
   if (!area) return;
-  const activeSubjects = Object.values(sel[cQ]);
+  const quarter = (typeof cQ !== 'undefined' && cQ) ? cQ : 'Q6';
+  
+  // In Q6, Behavioural lab (MS5529) & Business Models (MS6210) are Mandatory Core
+  const coreCourses = (DATA[quarter] && DATA[quarter].subjects) 
+      ? DATA[quarter].subjects.filter(s => s.isCore) 
+      : [];
+  const chosenElectives = Object.values(sel[quarter] || {});
+  
+  const activeMap = {};
+  coreCourses.forEach(s => { activeMap[s.code] = s; });
+  chosenElectives.forEach(s => { activeMap[s.code] = s; });
+  const activeSubjects = Object.values(activeMap);
 
   if(activeSubjects.length === 0) {
       area.innerHTML = '<div class="empty-tt">Select electives in My Planner to see your live schedule.</div>';
@@ -1794,13 +1805,25 @@ function renderDailySchedule() {
               continue;
           }
 
-          const classesInCell = classStr.split('/').map(c => c.trim());
+          const classesInCell = classStr.split('/').map(c => c.trim().toLowerCase());
           for (const s of activeSubjects) {
-              const acronym = excelAcronyms[s.code];
-              if (classesInCell.includes(s.code) || (acronym && classesInCell.includes(acronym)) || classesInCell.includes(s.name)) {
+              const acronym = excelAcronyms[s.code] ? excelAcronyms[s.code].toLowerCase() : '';
+              const codeLower = s.code.toLowerCase();
+              const nameLower = s.name.toLowerCase();
+
+              const isMatch = classesInCell.includes(codeLower) || 
+                              (acronym && classesInCell.includes(acronym)) || 
+                              classesInCell.includes(nameLower) ||
+                              classesInCell.some(c => c === acronym || c === codeLower || c === nameLower);
+
+              if (isMatch) {
                   let subjCancelled = cancelled;
                   if (Array.isArray(slotData)) {
-                      const subjObj = slotData.find(e => typeof e === 'object' && e && e.text && (e.text.includes(s.code) || (acronym && e.text.includes(acronym)) || e.text.includes(s.name)));
+                      const subjObj = slotData.find(e => typeof e === 'object' && e && e.text && (
+                          e.text.toLowerCase().includes(codeLower) || 
+                          (acronym && e.text.toLowerCase().includes(acronym)) || 
+                          e.text.toLowerCase().includes(nameLower)
+                      ));
                       if (subjObj) subjCancelled = subjObj.strike || subjObj.text.includes('~') || subjObj.text.toLowerCase().includes('cancel');
                   }
                   dayClasses[t] = { type: 'class', subject: s, cancelled: subjCancelled, rawStr: classStr };
@@ -1940,9 +1963,13 @@ function renderDailySchedule() {
                   const cancelled = data.cancelled;
                   const subjectName = isIcrc ? 'ICRC Placement Prep' : data.subject.name;
                   const room = isIcrc ? null : data.subject.room;
-                  const domain = isIcrc ? 'Placement' : (data.subject.domain || 'Core');
-                  const domainIcon = DOMAIN_ICONS[domain] || '📚';
-                  const domainColor = DCOL[domain] || 'var(--tx-info)';
+                  
+                  // In Q6: Behavioural lab & Business Models are the 2 Mandatory Core courses; everything else is an Elective
+                  const isCore = !isIcrc && Boolean(data.subject && data.subject.isCore);
+                  const domain = isIcrc ? 'Placement' : (data.subject.v || (isCore ? 'Core' : 'Elective'));
+                  const domainIcon = isCore ? '🔒' : (DOMAIN_ICONS[domain] || '📚');
+                  const domainColor = isCore ? 'var(--tx-info)' : (DCOL[domain] || 'var(--tx-info)');
+                  const domainLabel = isCore ? 'Core Course' : domain;
 
                   // Track Ongoing and Next Class for Live Pulse
                   if (isToday && !cancelled) {
@@ -1984,7 +2011,7 @@ function renderDailySchedule() {
                           <div class="event-meta-row">
                               <span class="event-time" ${isHappeningNow ? 'style="color:var(--tx-info); font-weight:800;"' : ''}>${b.t}</span>
                               <span class="domain-pill" style="background: var(--bg); color: ${domainColor}; border: .5px solid var(--bd);">
-                                  ${domainIcon} ${domain}
+                                  ${domainIcon} ${domainLabel}
                               </span>
                           </div>
                           <div class="event-name" style="${strikeStyle}">
