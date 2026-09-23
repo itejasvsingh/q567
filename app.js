@@ -1323,8 +1323,9 @@ const wasShared=loadFromURL();
 render();
 if(wasShared) document.getElementById('shared-banner').classList.add('show');
 
+const _isRunningAsPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 let pwaAlertShownStorage = localStorage.getItem('mbaplanner_pwa_alert_v2');
-if(!pwaAlertShownStorage) {
+if(!pwaAlertShownStorage && !_isRunningAsPWA) {
    setTimeout(() => {
      const modal = document.getElementById('alert-modal-bg');
      if(modal) modal.classList.add('open');
