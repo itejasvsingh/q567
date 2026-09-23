@@ -9,10 +9,21 @@
       <li><strong>Live Updates:</strong> Instantly pulls ad-hoc placement events, ICRC blocks, exam announcements, and even <strong>Birthdays 🎉</strong> directly from the sheet!</li>
     </ul>
 
-    <div style="background:var(--bg2); border:.5px solid var(--bd); padding:10px; border-radius:8px; margin-bottom:16px;">
-        <div style="font-size:12px; font-weight:700; color:var(--tx); margin-bottom:6px;">📱 Install as an App</div>
-        <div style="font-size:11px; color:var(--tx2); margin-bottom:6px;"><strong>🍏 iOS Safari:</strong> Tap the Share icon (⎙) at the bottom and select <strong style="color:var(--tx)">Add to Home Screen</strong>.</div>
-        <div style="font-size:11px; color:var(--tx2);"><strong>🤖 Android Chrome:</strong> Tap the 3-dots menu (⋮) at the top and select <strong style="color:var(--tx)">Install App</strong>.</div>
+    <!-- ANDROID: one-tap install button (hidden until beforeinstallprompt fires) -->
+    <button id="pwa-install-btn" style="display:none; width:100%; margin-bottom:10px; background:var(--bg-info); color:var(--tx-info); border:.5px solid var(--bd-info); border-radius:8px; padding:10px 14px; font-size:13px; font-weight:700; cursor:pointer; font-family:var(--font);"
+      onclick="triggerPWAInstall()">
+      📲 Add to Home Screen
+    </button>
+
+    <!-- iOS: manual instructions (shown only on iOS Safari) -->
+    <div id="pwa-ios-hint" style="display:none; background:var(--bg2); border:.5px solid var(--bd); padding:10px; border-radius:8px; margin-bottom:12px;">
+      <div style="font-size:12px; font-weight:700; color:var(--tx); margin-bottom:6px;">📱 Add to Home Screen (iOS)</div>
+      <div style="font-size:11px; color:var(--tx2);">Tap the <strong>Share icon (⎙)</strong> at the bottom of Safari, then tap <strong style="color:var(--tx)">Add to Home Screen</strong>.</div>
+    </div>
+
+    <!-- Fallback: shown if neither Android nor iOS (e.g. desktop) -->
+    <div id="pwa-desktop-hint" style="display:none; background:var(--bg2); border:.5px solid var(--bd); padding:10px; border-radius:8px; margin-bottom:12px;">
+      <div style="font-size:11px; color:var(--tx2);">Open this page on your phone and add it to your home screen for the best experience.</div>
     </div>
 
     <button class="cmp-btn" style="width:100%" onclick="closeAlertModal()">Awesome, let's go!</button>

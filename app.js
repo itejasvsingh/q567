@@ -197,6 +197,52 @@ function closeAlertModal() {
   document.getElementById('alert-modal-bg').classList.remove('open');
 }
 
+// ── PWA INSTALL PROMPT ───────────────────────────────────────────────────────
+let _deferredInstallPrompt = null;
+
+// Capture the event early — must be registered before the modal opens
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault(); // stop the automatic browser mini-bar
+  _deferredInstallPrompt = e;
+  // Show the install button if modal is already open
+  const btn = document.getElementById('pwa-install-btn');
+  if (btn) btn.style.display = 'block';
+});
+
+window.addEventListener('appinstalled', () => {
+  _deferredInstallPrompt = null;
+  const btn = document.getElementById('pwa-install-btn');
+  if (btn) btn.style.display = 'none';
+});
+
+function triggerPWAInstall() {
+  if (!_deferredInstallPrompt) return;
+  _deferredInstallPrompt.prompt();
+  _deferredInstallPrompt.userChoice.then((choice) => {
+    _deferredInstallPrompt = null;
+    if (choice.outcome === 'accepted') closeAlertModal();
+  });
+}
+
+function _setupInstallPopupUI() {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  const installBtn = document.getElementById('pwa-install-btn');
+  const iosHint = document.getElementById('pwa-ios-hint');
+  const desktopHint = document.getElementById('pwa-desktop-hint');
+
+  if (isIOS && isSafari) {
+    // iOS Safari — manual only
+    if (iosHint) iosHint.style.display = 'block';
+  } else if (_deferredInstallPrompt) {
+    // Android Chrome — one-tap button already visible from event handler
+    if (installBtn) installBtn.style.display = 'block';
+  } else {
+    // Desktop or unsupported — show generic nudge
+    if (desktopHint) desktopHint.style.display = 'block';
+  }
+}
+
 function switchQ(q){
   cQ=q;
   document.querySelectorAll('.qtab').forEach((t,i)=>t.classList.toggle('on',['Q6','Q5','Q7'][i]===q));
@@ -1328,7 +1374,10 @@ let pwaAlertShownStorage = localStorage.getItem('mbaplanner_pwa_alert_v2');
 if(!pwaAlertShownStorage && !_isRunningAsPWA) {
    setTimeout(() => {
      const modal = document.getElementById('alert-modal-bg');
-     if(modal) modal.classList.add('open');
+     if(modal) {
+       modal.classList.add('open');
+       _setupInstallPopupUI(); // show the right install UI for this platform
+     }
      localStorage.setItem('mbaplanner_pwa_alert_v2', '1');
    }, 800);
 }
