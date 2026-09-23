@@ -204,41 +204,72 @@ let _deferredInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault(); // stop the automatic browser mini-bar
   _deferredInstallPrompt = e;
-  // Show the install button if modal is already open
-  const btn = document.getElementById('pwa-install-btn');
-  if (btn) btn.style.display = 'block';
+  // Show install button in header and popup
+  _showInstallButtons();
 });
 
 window.addEventListener('appinstalled', () => {
   _deferredInstallPrompt = null;
-  const btn = document.getElementById('pwa-install-btn');
-  if (btn) btn.style.display = 'none';
+  _hideInstallButtons();
 });
 
-function triggerPWAInstall() {
-  if (!_deferredInstallPrompt) return;
-  _deferredInstallPrompt.prompt();
-  _deferredInstallPrompt.userChoice.then((choice) => {
-    _deferredInstallPrompt = null;
-    if (choice.outcome === 'accepted') closeAlertModal();
-  });
+function _showInstallButtons() {
+  const hdrBtn = document.getElementById('hdr-install-btn');
+  const popupBtn = document.getElementById('pwa-install-btn');
+  if (hdrBtn) hdrBtn.style.display = 'inline-block';
+  if (popupBtn) popupBtn.style.display = 'block';
 }
+
+function _hideInstallButtons() {
+  const hdrBtn = document.getElementById('hdr-install-btn');
+  const popupBtn = document.getElementById('pwa-install-btn');
+  if (hdrBtn) hdrBtn.style.display = 'none';
+  if (popupBtn) popupBtn.style.display = 'none';
+}
+
+// Called by both the header button and the popup button
+function handleInstallClick() {
+  if (_deferredInstallPrompt) {
+    // Android Chrome — one-tap native prompt
+    _deferredInstallPrompt.prompt();
+    _deferredInstallPrompt.userChoice.then((choice) => {
+      _deferredInstallPrompt = null;
+      if (choice.outcome === 'accepted') {
+        _hideInstallButtons();
+        closeAlertModal();
+      }
+    });
+  } else {
+    // iOS Safari — show instructions tooltip
+    const existing = document.getElementById('ios-install-tooltip');
+    if (existing) { existing.remove(); return; }
+    const tip = document.createElement('div');
+    tip.id = 'ios-install-tooltip';
+    tip.style.cssText = 'position:fixed; top:70px; right:16px; z-index:9999; background:var(--bg); border:.5px solid var(--bd-info); border-radius:10px; padding:12px 14px; font-size:12px; color:var(--tx); max-width:240px; box-shadow:0 4px 20px rgba(0,0,0,0.15); line-height:1.5;';
+    tip.innerHTML = `<strong style="color:var(--tx-info);">📱 Add to Home Screen</strong><br>Tap the <strong>Share icon (⎙)</strong> at the bottom of Safari, then tap <strong>Add to Home Screen</strong>.<br><br><span style="font-size:10px;color:var(--tx3);">Tap Install App again to close.</span>`;
+    document.body.appendChild(tip);
+    // Auto-dismiss after 6s
+    setTimeout(() => { if (tip.parentNode) tip.remove(); }, 6000);
+  }
+}
+
+function triggerPWAInstall() { handleInstallClick(); }
 
 function _setupInstallPopupUI() {
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-  const installBtn = document.getElementById('pwa-install-btn');
   const iosHint = document.getElementById('pwa-ios-hint');
   const desktopHint = document.getElementById('pwa-desktop-hint');
 
   if (isIOS && isSafari) {
-    // iOS Safari — manual only
+    // iOS: show manual instruction card in popup + header button
     if (iosHint) iosHint.style.display = 'block';
+    const hdrBtn = document.getElementById('hdr-install-btn');
+    if (hdrBtn) hdrBtn.style.display = 'inline-block';
   } else if (_deferredInstallPrompt) {
-    // Android Chrome — one-tap button already visible from event handler
-    if (installBtn) installBtn.style.display = 'block';
+    // Android: button already shown by event handler
   } else {
-    // Desktop or unsupported — show generic nudge
+    // Desktop / unsupported
     if (desktopHint) desktopHint.style.display = 'block';
   }
 }
