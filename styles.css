@@ -453,77 +453,119 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   PWA STANDALONE MODE — only applies when installed to home screen
+   PWA STANDALONE MODE — only applies when installed to home screen.
    Browser view is completely untouched by this block.
    ═══════════════════════════════════════════════════════════════════════════ */
 @media (display-mode: standalone) {
 
-    /* Hide the big desktop header — saves ~80px on mobile */
+    /* ── Layout ── */
     .hdr { display: none !important; }
 
-    /* Move the tab bar to the BOTTOM like a native app */
+    .page {
+        padding-top: env(safe-area-inset-top) !important;
+        padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important;
+    }
+
+    /* ── Bottom Nav Bar ── */
     .view-tabs {
         position: fixed !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
+        bottom: 0 !important; left: 0 !important; right: 0 !important;
         top: auto !important;
-        z-index: 200 !important;
+        z-index: 500 !important;
         background: var(--bg) !important;
         border-top: .5px solid var(--bd) !important;
         border-bottom: none !important;
         margin: 0 !important;
-        padding: 6px 4px !important;
-        padding-bottom: calc(6px + env(safe-area-inset-bottom)) !important; /* iPhone home bar */
+        padding: 8px 6px !important;
+        padding-bottom: calc(8px + env(safe-area-inset-bottom)) !important;
         display: flex !important;
         justify-content: space-around !important;
-        overflow-x: hidden !important;
+        align-items: flex-start !important;
+        overflow: visible !important;
         gap: 0 !important;
-        backdrop-filter: blur(12px) !important;
-        -webkit-backdrop-filter: blur(12px) !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
     }
 
-    /* Each tab becomes a vertical icon+label column */
+    /* ── Each Tab Item ── */
     .view-tab {
         flex: 1 !important;
+        display: flex !important;
         flex-direction: column !important;
-        gap: 3px !important;
-        padding: 6px 4px !important;
-        font-size: 9px !important;
-        border-radius: 10px !important;
-        border: none !important;
-        background: transparent !important;
-        opacity: 0.55 !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-        min-width: 0 !important;
         align-items: center !important;
         justify-content: center !important;
-        line-height: 1.2 !important;
-        border-bottom: none !important;
-    }
-
-    /* Strip the emoji down slightly, let the label carry it */
-    .view-tab.on {
-        opacity: 1 !important;
-        color: var(--tx-info) !important;
-        background: var(--bg-info) !important;
+        gap: 4px !important;
+        padding: 4px 2px 2px !important;
         border: none !important;
+        border-bottom: none !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        color: var(--tx3) !important;
+        cursor: pointer !important;
+        -webkit-tap-highlight-color: transparent !important;
+        min-width: 0 !important;
+        transition: opacity 0.1s !important;
     }
 
-    /* Push page content up so it doesn't hide behind the bottom nav */
-    .page {
-        padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important;
-        padding-top: env(safe-area-inset-top) !important;
+    .view-tab:active { opacity: 0.5 !important; }
+
+    /* ── Icon ── */
+    .tab-icon {
+        font-size: 22px !important;
+        line-height: 1 !important;
+        display: block !important;
     }
 
-    /* Push theme toggle button up so it's not behind the nav bar */
+    /* ── Label ── */
+    .tab-label {
+        font-size: 10px !important;
+        font-weight: 500 !important;
+        line-height: 1 !important;
+        display: block !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        max-width: 52px !important;
+        color: var(--tx3) !important;
+    }
+
+    /* ── Active State — blue dot indicator above icon ── */
+    .view-tab.on {
+        color: var(--tx-info) !important;
+        background: transparent !important;
+        border: none !important;
+        position: relative !important;
+    }
+
+    .view-tab.on::before {
+        content: '' !important;
+        display: block !important;
+        width: 20px !important;
+        height: 3px !important;
+        background: #185fa5 !important;
+        border-radius: 2px !important;
+        position: absolute !important;
+        top: -8px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+    }
+
+    .view-tab.on .tab-icon { filter: none !important; }
+
+    .view-tab.on .tab-label {
+        color: #185fa5 !important;
+        font-weight: 700 !important;
+    }
+
+    /* ── Theme toggle — above the nav bar ── */
     #theme-toggle {
-        bottom: calc(80px + env(safe-area-inset-bottom)) !important;
+        bottom: calc(90px + env(safe-area-inset-bottom)) !important;
+        right: 14px !important;
+        width: 42px !important;
+        height: 42px !important;
+        font-size: 18px !important;
     }
 
-    /* Install button in header is hidden anyway (hdr is hidden),
-       but guard it explicitly */
+    /* ── Install button lives in header (hidden) — guard ── */
     #hdr-install-btn { display: none !important; }
 }
