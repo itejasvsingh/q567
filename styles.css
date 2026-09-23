@@ -500,6 +500,10 @@ body {
   opacity: 0;
 }
 .capsule.has-class .dot-indicator { opacity: 1; }
+.capsule.has-cancelled:not(.has-class) .dot-indicator {
+  opacity: 1;
+  background: var(--tx-danger);
+}
 .capsule.selected {
   background: var(--tx-info) !important;
   border-color: var(--tx-info) !important;
@@ -690,6 +694,20 @@ body {
 }
 .timeline-event.lunch .event-node::after {
   background: var(--tx-warn);
+}
+.timeline-event.cancelled .event-node {
+  border-color: var(--tx-danger);
+  background: var(--bg-danger);
+}
+.timeline-event.cancelled .event-node::after {
+  content: '✕';
+  color: var(--tx-danger);
+  font-size: 9px;
+  font-weight: 800;
+  width: auto;
+  height: auto;
+  background: none;
+  line-height: 1;
 }
 
 .event-card {

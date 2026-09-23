@@ -1802,6 +1802,7 @@ function renderDailySchedule() {
               }
               dayClasses[t] = { type: 'icrc', cancelled: icrcCancelled };
               hasCls = true;
+              if (!icrcCancelled) hasActiveCls = true;
               continue;
           }
 
@@ -1828,11 +1829,12 @@ function renderDailySchedule() {
                   }
                   dayClasses[t] = { type: 'class', subject: s, cancelled: subjCancelled, rawStr: classStr };
                   hasCls = true;
+                  if (!subjCancelled) hasActiveCls = true;
                   break;
               }
           }
       }
-      return { dayClasses, hasCls };
+      return { dayClasses, hasCls, hasActiveCls };
   };
 
   // Build Interactive Day Capsules Carousel
@@ -1842,12 +1844,12 @@ function renderDailySchedule() {
       const shortDay = dayName ? dayName.substring(0,3) : '';
       const dd = ymd ? ymd.split('-')[2] : '';
       const isToday = ymd === todayYmd;
-      const { hasCls } = parseDayClasses(liveDailyCache[dateString]);
+      const { hasCls, hasActiveCls } = parseDayClasses(liveDailyCache[dateString]);
       const cardTargetId = `card-${dateString.replace(/\s/g, '-')}`;
       
       capsulesHtml += `
       <div id="capsule-${dateString.replace(/\s/g, '-')}" 
-           class="capsule ${isToday ? 'selected' : ''} ${hasCls ? 'has-class' : ''}" 
+           class="capsule ${isToday ? 'selected' : ''} ${hasActiveCls ? 'has-class' : (hasCls ? 'has-cancelled' : '')}" 
            onclick="document.querySelectorAll('.capsule').forEach(c => c.classList.remove('selected')); this.classList.add('selected'); document.getElementById('${cardTargetId}')?.scrollIntoView({behavior:'smooth', block:'start'});">
           <span class="dow">${shortDay}</span>
           <span class="num">${dd}</span>
@@ -1999,15 +2001,17 @@ function renderDailySchedule() {
                   }
 
                   let eventClass = 'timeline-event';
-                  if (isHappeningNow) eventClass += ' ongoing';
-                  else if (isDone && !cancelled) eventClass += ' done';
+                  if (cancelled) eventClass += ' cancelled';
+                  else if (isHappeningNow) eventClass += ' ongoing';
+                  else if (isDone) eventClass += ' done';
 
                   const strikeStyle = cancelled ? 'text-decoration: line-through; opacity: 0.6;' : '';
+                  const cardBorderColor = cancelled ? 'var(--bd-danger)' : domainColor;
 
                   timelineEventsHtml += `
                   <div class="${eventClass}">
                       <div class="event-node"></div>
-                      <div class="event-card" style="border-left: 3px solid ${domainColor};">
+                      <div class="event-card" style="border-left: 3px solid ${cardBorderColor};">
                           <div class="event-meta-row">
                               <span class="event-time" ${isHappeningNow ? 'style="color:var(--tx-info); font-weight:800;"' : ''}>${b.t}</span>
                               <span class="domain-pill" style="background: var(--bg); color: ${domainColor}; border: .5px solid var(--bd);">
@@ -2019,7 +2023,7 @@ function renderDailySchedule() {
                           </div>
                           <div class="event-footer">
                               ${room && !cancelled ? `<span class="room-badge">📍 Room ${room}</span>` : ''}
-                              ${cancelled ? `<span style="font-size:10px; font-weight:700; color:var(--tx-danger); background:var(--bg-danger); padding:2px 6px; border-radius:4px;">Cancelled</span>` : ''}
+                              ${cancelled ? `<span style="font-size:11px; font-weight:800; color:var(--tx-danger); background:var(--bg-danger); border: .5px solid var(--bd-danger); padding:3px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:3px;">🚫 Class Cancelled</span>` : ''}
                               ${isHappeningNow ? `<span style="font-size:11px; font-weight:800; color:var(--tx-info);">● Happening Now</span>` : ''}
                           </div>
                       </div>
