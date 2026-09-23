@@ -1613,14 +1613,14 @@ function scheduleClassNotifications(todaysClasses, ymdStr) {
         
         const classStartUTC = istToUTC(utcMidnight, timeInfo.sh, timeInfo.sm);
         const timeUntilClassMs = classStartUTC.getTime() - Date.now();
-        const notifyLeadTimeMs = 10 * 60 * 1000; // 10 mins
+        const notifyLeadTimeMs = 30 * 60 * 1000; // 30 mins
         
         if (timeUntilClassMs > notifyLeadTimeMs) {
             const delayMs = timeUntilClassMs - notifyLeadTimeMs;
             const timeoutId = setTimeout(() => {
                 if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
                     navigator.serviceWorker.ready.then(reg => {
-                        const title = `${data.subject ? data.subject.name : 'ICRC'} starts in 10 min`;
+                        const title = `${data.subject ? data.subject.name : 'ICRC'} starts in 30 min`;
                         const roomText = data.subject && data.subject.room ? ` · Room ${data.subject.room}` : '';
                         reg.showNotification(title + roomText, {
                             icon: '/favicon.ico',
@@ -1727,14 +1727,10 @@ function renderDailySchedule() {
 
   if (!liveDailyCache) {
       area.innerHTML = `
-      <div style="border-radius:12px; padding:14px; margin-bottom:14px; background:var(--bg); border:.5px solid var(--bd);">
+      <div style="border-radius:16px; padding:16px; margin-bottom:14px; background:var(--bg); border:1px solid var(--bd);">
           <div style="height:20px; width:140px; background:var(--bg2); border-radius:6px; margin-bottom:12px;" class="skeleton-shimmer"></div>
-          <div style="height:64px; background:var(--bg2); border-radius:8px; margin-bottom:8px;" class="skeleton-shimmer"></div>
-          <div style="height:64px; background:var(--bg2); border-radius:8px; margin-bottom:8px;" class="skeleton-shimmer"></div>
-      </div>
-      <div style="border-radius:12px; padding:14px; margin-bottom:14px; background:var(--bg); border:.5px solid var(--bd);">
-          <div style="height:20px; width:100px; background:var(--bg2); border-radius:6px; margin-bottom:12px;" class="skeleton-shimmer"></div>
-          <div style="height:64px; background:var(--bg2); border-radius:8px; margin-bottom:8px;" class="skeleton-shimmer"></div>
+          <div style="height:64px; background:var(--bg2); border-radius:12px; margin-bottom:10px;" class="skeleton-shimmer"></div>
+          <div style="height:64px; background:var(--bg2); border-radius:12px; margin-bottom:10px;" class="skeleton-shimmer"></div>
       </div>`;
       return;
   }
@@ -1744,10 +1740,12 @@ function renderDailySchedule() {
       'MS6230': 'SS', 'MS5613': 'CHS', 'MS5770': 'SM', 'MS6030': 'ADAM', 'MS5750': 'BM',
       'MS6600': 'GCG', 'MS6022': 'AIM', 'MS6210': 'Bs.Models', 'CORE-LAW': 'LAW'
   };
+  const DOMAIN_ICONS = {
+      Finance: '📈', Marketing: '🎯', Strategy: '♟️', Ops: '⚙️', HR: '🤝', IS: '💻', Integrative: '🌐', Placement: '🏢'
+  };
   const timeOrder = ['8am-10am', '10am-12pm', '12pm-1pm', '1pm-3pm', '3pm-5pm', '5pm-7pm'];
   
   // IST Date logic
-  const now = new Date();
   const nowIST = new Date(new Date().toLocaleString('en-US', {timeZone: 'Asia/Kolkata'}));
   const todayYmd = `${nowIST.getFullYear()}-${String(nowIST.getMonth()+1).padStart(2,'0')}-${String(nowIST.getDate()).padStart(2,'0')}`;
   const tmrw = new Date(nowIST); tmrw.setDate(tmrw.getDate() + 1);
@@ -1762,105 +1760,12 @@ function renderDailySchedule() {
   else if (currentHour >= 15 && currentHour < 17) currentSlot = '3pm-5pm';
   else if (currentHour >= 17 && currentHour < 19) currentSlot = '5pm-7pm';
 
-  // Build Pager
-  let pagerHtml = `<div class="day-pager" style="display:flex; gap:8px; overflow-x:auto; margin-bottom:15px; padding-bottom:8px; scrollbar-width:none; -webkit-overflow-scrolling:touch;">`;
-  for (const dateString of Object.keys(liveDailyCache)) {
-      const [ymd, dayName] = dateString.split(' ');
-      const shortDay = dayName ? dayName.substring(0,3) : '';
-      const dd = ymd ? ymd.split('-')[2] : '';
-      const chipId = `chip-${dateString.replace(/\s/g, '-')}`;
-      const isToday = ymd === todayYmd;
-      const activeStyle = isToday ? 'background:var(--bg-info); color:var(--tx-info); border-color:var(--bd-info);' : 'background:var(--bg2); color:var(--tx2);';
-      pagerHtml += `<div id="${chipId}" onclick="document.querySelectorAll('.day-chip').forEach(c => { c.style.background='var(--bg2)'; c.style.color='var(--tx2)'; c.style.borderColor='var(--bd2)'; }); this.style.background='var(--bg-info)'; this.style.color='var(--tx-info)'; this.style.borderColor='var(--bd-info)'; document.getElementById('card-${dateString.replace(/\s/g, '-')}').scrollIntoView({behavior:'smooth', block:'start'})" class="day-chip" style="flex-shrink:0; padding:6px 12px; border-radius:16px; border:.5px solid var(--bd2); cursor:pointer; font-size:12px; font-weight:700; ${activeStyle}">${shortDay} ${dd}</div>`;
-  }
-  pagerHtml += `</div>`;
-
-
-
-  let notifyBtnHtml = '';
-  if ('Notification' in window && 'serviceWorker' in navigator) {
-      if (Notification.permission === 'default') {
-          notifyBtnHtml = `<div onclick="requestNotificationPermission()" style="background:var(--bg-info); color:var(--tx-info); padding:6px 10px; border-radius:6px; font-size:10px; font-weight:700; cursor:pointer; border:.5px solid var(--bd-info);">🔔 Notify me before class</div>`;
-      } else if (Notification.permission === 'granted') {
-          notifyBtnHtml = `<div style="color:var(--tx-success); background:var(--bg-success); padding:6px 10px; border-radius:6px; border:.5px solid var(--bd-success); font-size:10px; font-weight:700;">🔔 Notifications active</div>`;
-      }
-  }
-
-  let fullHtml = `
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        ${pagerHtml}
-    </div>
-    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
-        ${notifyBtnHtml}
-        
-    </div>
-    <div style="margin-bottom: 20px; border-radius: 8px; border: .5px solid var(--bd-info); background: var(--bg-info); padding: 15px; display: flex; align-items: center; gap: 15px;">
-        <div style="font-size: 24px;">🎉</div>
-        <div>
-            <div style="font-size: 13px; font-weight: 700; color: var(--tx-info);">Q6 Term Begins Sept 24th</div>
-            <div style="font-size: 11px; color: var(--tx-info); opacity: 0.85; margin-top: 2px;">Your daily schedule will commence on Thursday, September 24, 2026.</div>
-        </div>
-    </div>
-  `;
-
-  // Clear existing notifications
-  if (window._activeNotifications) {
-      window._activeNotifications.forEach(id => clearTimeout(id));
-      window._activeNotifications = [];
-  }
-
-  let nextClassFound = null; // Sticky bar tracker
-
-  for (const [dateString, dailySlots] of Object.entries(liveDailyCache)) {
-      let dailyHtml = '';
-      let comment = dailySlots['Comments'] || '';
-      const birthdays = dailySlots['Birthdays'];
-      
-      let isExam = false;
-      let examText = '';
-      
-      if (comment) {
-          isExam = comment.toLowerCase().includes('end term') || comment.toLowerCase().includes('exam') || comment.toLowerCase().includes('quiz');
-      } else {
-          // Only consult time-slot text when there's no real Comments value —
-          // otherwise a class name elsewhere that day (e.g. "Exam Prep Workshop")
-          // could flip isExam to true while displaying unrelated Comments text.
-          for (const t of timeOrder) {
-              const sData = dailySlots[t];
-              if (sData) {
-                  const text = typeof sData === 'object' ? sData.text : String(sData);
-                  if (text.toLowerCase().includes('end term') || text.toLowerCase().includes('exam') || text.toLowerCase().includes('quiz')) {
-                      isExam = true;
-                      examText = text;
-                      break;
-                  }
-              }
-          }
-          if (isExam) comment = examText;
-      }
-      
-      if (comment) {
-          const badgeBg = isExam ? 'var(--bg-danger)' : 'var(--bg-warn)';
-          const badgeBorder = isExam ? 'var(--bd-danger)' : 'var(--bd-warn)';
-          const badgeColor = isExam ? 'var(--tx-danger)' : 'var(--tx-warn)';
-          const icon = isExam ? '📝' : '⚠️';
-
-          dailyHtml += `<div style="font-size:12px; font-weight:700; color:${badgeColor}; margin-bottom:8px; background:${badgeBg}; padding:8px 12px; border-radius:6px; border:.5px solid ${badgeBorder}; display:flex; align-items:center; gap:8px;">
-              <span style="font-size:16px;">${icon}</span>
-              <span style="flex:1;">${comment}</span>
-          </div>`;
-      }
-
-      if (birthdays) {
-          dailyHtml += `<div style="font-size:12px; font-weight:700; color:var(--tx-pink); margin-bottom:8px; background:var(--bg-pink); border:.5px solid var(--bd-pink); padding:6px 10px; border-radius:6px;">🎉 Happy Birthday: ${birthdays}!</div>`;
-      }
-
-      let todaysClasses = {};
-      let hasClasses = false;
-
+  // Helper to parse day's classes
+  const parseDayClasses = (dailySlots) => {
+      const dayClasses = {};
+      let hasCls = false;
       for (const t of timeOrder) {
           if (t === '12pm-1pm') continue;
-          
           const slotData = dailySlots[t];
           if (!slotData) continue;
 
@@ -1882,12 +1787,10 @@ function renderDailySchedule() {
               let icrcCancelled = cancelled;
               if (Array.isArray(slotData)) {
                   const icrcObj = slotData.find(e => typeof e === 'object' && e && e.text && e.text.toUpperCase().includes('ICRC'));
-                  if (icrcObj) {
-                      icrcCancelled = icrcObj.strike || icrcObj.text.includes('~') || icrcObj.text.toLowerCase().includes('cancel');
-                  }
+                  if (icrcObj) icrcCancelled = icrcObj.strike || icrcObj.text.includes('~') || icrcObj.text.toLowerCase().includes('cancel');
               }
-              todaysClasses[t] = { type: 'icrc', cancelled: icrcCancelled };
-              hasClasses = true;
+              dayClasses[t] = { type: 'icrc', cancelled: icrcCancelled };
+              hasCls = true;
               continue;
           }
 
@@ -1898,33 +1801,108 @@ function renderDailySchedule() {
                   let subjCancelled = cancelled;
                   if (Array.isArray(slotData)) {
                       const subjObj = slotData.find(e => typeof e === 'object' && e && e.text && (e.text.includes(s.code) || (acronym && e.text.includes(acronym)) || e.text.includes(s.name)));
-                      if (subjObj) {
-                          subjCancelled = subjObj.strike || subjObj.text.includes('~') || subjObj.text.toLowerCase().includes('cancel');
-                      }
+                      if (subjObj) subjCancelled = subjObj.strike || subjObj.text.includes('~') || subjObj.text.toLowerCase().includes('cancel');
                   }
-                  todaysClasses[t] = { type: 'class', subject: s, cancelled: subjCancelled, rawStr: classStr };
-                  hasClasses = true;
+                  dayClasses[t] = { type: 'class', subject: s, cancelled: subjCancelled, rawStr: classStr };
+                  hasCls = true;
                   break;
               }
           }
       }
+      return { dayClasses, hasCls };
+  };
+
+  // Build Interactive Day Capsules Carousel
+  let capsulesHtml = `<div class="date-capsules">`;
+  for (const dateString of Object.keys(liveDailyCache)) {
+      const [ymd, dayName] = dateString.split(' ');
+      const shortDay = dayName ? dayName.substring(0,3) : '';
+      const dd = ymd ? ymd.split('-')[2] : '';
+      const isToday = ymd === todayYmd;
+      const { hasCls } = parseDayClasses(liveDailyCache[dateString]);
+      const cardTargetId = `card-${dateString.replace(/\s/g, '-')}`;
       
+      capsulesHtml += `
+      <div id="capsule-${dateString.replace(/\s/g, '-')}" 
+           class="capsule ${isToday ? 'selected' : ''} ${hasCls ? 'has-class' : ''}" 
+           onclick="document.querySelectorAll('.capsule').forEach(c => c.classList.remove('selected')); this.classList.add('selected'); document.getElementById('${cardTargetId}')?.scrollIntoView({behavior:'smooth', block:'start'});">
+          <span class="dow">${shortDay}</span>
+          <span class="num">${dd}</span>
+          <span class="dot-indicator"></span>
+      </div>`;
+  }
+  capsulesHtml += `</div>`;
+
+  // Build 30-Min Reminder Bar
+  let reminderBarHtml = '';
+  if ('Notification' in window) {
+      const isGranted = Notification.permission === 'granted';
+      reminderBarHtml = `
+      <div class="agenda-reminder-bar">
+        <div class="agenda-reminder-info">
+          <span style="font-size: 18px;">🔔</span>
+          <div>
+            <div class="agenda-reminder-title">30-Min Class Reminder</div>
+            <div class="agenda-reminder-sub">${isGranted ? 'Active · Alerts 30 mins before each class starts' : 'Get alerted 30 mins before each class starts'}</div>
+          </div>
+        </div>
+        <button class="agenda-reminder-badge ${isGranted ? '' : 'enable-btn'}" onclick="${isGranted ? '' : 'requestNotificationPermission()'}">
+          ${isGranted ? 'Active · 30m' : 'Enable · 30m'}
+        </button>
+      </div>`;
+  }
+
+  // Clear existing notifications
+  if (window._activeNotifications) {
+      window._activeNotifications.forEach(id => clearTimeout(id));
+      window._activeNotifications = [];
+  }
+
+  let nextClassFound = null;
+  let ongoingClassFound = null;
+  let fullCardsHtml = '';
+
+  for (const [dateString, dailySlots] of Object.entries(liveDailyCache)) {
+      let comment = dailySlots['Comments'] || '';
+      const birthdays = dailySlots['Birthdays'];
+      
+      let isExam = false;
+      let examText = '';
+      if (comment) {
+          isExam = comment.toLowerCase().includes('end term') || comment.toLowerCase().includes('exam') || comment.toLowerCase().includes('quiz');
+      } else {
+          for (const t of timeOrder) {
+              const sData = dailySlots[t];
+              if (sData) {
+                  const text = typeof sData === 'object' ? sData.text : String(sData);
+                  if (text.toLowerCase().includes('end term') || text.toLowerCase().includes('exam') || text.toLowerCase().includes('quiz')) {
+                      isExam = true;
+                      examText = text;
+                      break;
+                  }
+              }
+          }
+          if (isExam) comment = examText;
+      }
+
+      const { dayClasses, hasCls } = parseDayClasses(dailySlots);
       const [ymd, dayName] = dateString.split(' ');
       const isToday = ymd === todayYmd;
-      
-      if (isToday && hasClasses) {
-          scheduleClassNotifications(todaysClasses, ymd);
+      const isTomorrow = ymd === tomorrowYmd;
+
+      if (isToday && hasCls) {
+          scheduleClassNotifications(dayClasses, ymd);
       }
 
       const finalBlocks = [];
-      if (hasClasses) {
+      if (hasCls) {
           for (const t of timeOrder) {
               if (t === '12pm-1pm') {
                   finalBlocks.push({ type: 'lunch', t });
                   continue;
               }
-              if (todaysClasses[t]) {
-                  finalBlocks.push({ type: 'class', t, data: todaysClasses[t] });
+              if (dayClasses[t]) {
+                  finalBlocks.push({ type: 'class', t, data: dayClasses[t] });
               } else {
                   const last = finalBlocks[finalBlocks.length - 1];
                   if (last && last.type === 'free') {
@@ -1936,71 +1914,97 @@ function renderDailySchedule() {
           }
       }
 
-      const isTomorrow = ymd === tomorrowYmd;
-      
-      if (hasClasses) {
+      let timelineEventsHtml = '';
+      if (hasCls) {
+          timelineEventsHtml += `<div class="agenda-timeline">`;
           for (const b of finalBlocks) {
               const isHappeningNow = isToday && currentSlot === b.t;
               
-              // Next Class Logic (Sticky bar)
-              if (isToday && b.type === 'class' && !b.data.cancelled && !nextClassFound && !isHappeningNow) {
-                  const timeInfo = ICS_TIME_MAP[b.t];
-                  if (timeInfo) {
-                      const utcMidnight = new Date(Date.UTC(parseInt(ymd.split('-')[0]), parseInt(ymd.split('-')[1])-1, parseInt(ymd.split('-')[2])));
-                      const classStartUTC = istToUTC(utcMidnight, timeInfo.sh, timeInfo.sm);
-                      if (classStartUTC.getTime() > Date.now()) {
-                          nextClassFound = {
-                              name: b.data.subject ? b.data.subject.name : 'ICRC',
-                              room: b.data.subject ? b.data.subject.room : null,
-                              timeMs: classStartUTC.getTime()
-                          };
-                      }
-                  }
-              }
-
               if (b.type === 'lunch') {
-                  dailyHtml += `<div class="lc" style="min-height:30px; margin-bottom:6px; font-weight:600; color:var(--tx3); text-align:center; font-size:11px;">🍽 Lunch Break (12pm - 1pm)</div>`;
+                  timelineEventsHtml += `
+                  <div class="timeline-event lunch">
+                      <div class="event-node"></div>
+                      <div class="lunch-card">
+                          <span>🍽 Campus Lunch Break</span>
+                          <span>12:00 – 1:00 PM</span>
+                      </div>
+                  </div>`;
+              } else if (b.type === 'free') {
+                  timelineEventsHtml += `
+                  <div class="free-gap">
+                      <span>☕ ${b.start} – ${b.end} Free</span>
+                  </div>`;
               } else if (b.type === 'class') {
                   const data = b.data;
+                  const isIcrc = data.type === 'icrc';
                   const cancelled = data.cancelled;
-                  const strikeStyle = cancelled ? 'text-decoration: line-through; opacity: 0.7;' : '';
-                  let bgStyle = cancelled ? 'background:var(--bg-warn); border:.5px solid var(--bd-warn);' : 'background:var(--bg-info); border:.5px solid var(--bd-info);';
-                  const txColor = cancelled ? 'var(--tx-warn)' : 'var(--tx-info)';
-                  
-                  if (isHappeningNow) {
-                      bgStyle = 'background:var(--tx-info); border:.5px solid var(--bd-info); color:var(--bg);';
+                  const subjectName = isIcrc ? 'ICRC Placement Prep' : data.subject.name;
+                  const room = isIcrc ? null : data.subject.room;
+                  const domain = isIcrc ? 'Placement' : (data.subject.domain || 'Core');
+                  const domainIcon = DOMAIN_ICONS[domain] || '📚';
+                  const domainColor = DCOL[domain] || 'var(--tx-info)';
+
+                  // Track Ongoing and Next Class for Live Pulse
+                  if (isToday && !cancelled) {
+                      if (isHappeningNow) {
+                          ongoingClassFound = { name: subjectName, room, timeSlot: b.t };
+                      } else if (!nextClassFound) {
+                          const timeInfo = ICS_TIME_MAP[b.t];
+                          if (timeInfo) {
+                              const utcMidnight = new Date(Date.UTC(parseInt(ymd.split('-')[0]), parseInt(ymd.split('-')[1])-1, parseInt(ymd.split('-')[2])));
+                              const classStartUTC = istToUTC(utcMidnight, timeInfo.sh, timeInfo.sm);
+                              if (classStartUTC.getTime() > Date.now()) {
+                                  nextClassFound = { name: subjectName, room, timeMs: classStartUTC.getTime() };
+                              }
+                          }
+                      }
                   }
 
-                  if (data.type === 'icrc') {
-                      dailyHtml += `
-                      <div style="display:flex; justify-content:flex-start; align-items:center; padding:10px; ${bgStyle} border-radius:8px; margin-bottom:6px;">
-                          <div style="width: 75px; font-size:11px; font-weight:700; color:${isHappeningNow ? 'var(--bg)' : txColor};">${b.t}</div>
-                          <div style="font-size:13px; font-weight:700; color:${isHappeningNow ? 'var(--bg)' : txColor}; ${strikeStyle}">🏢 ICRC</div>
-                      </div>`;
-                  } else {
-                      const subjectDetails = data.subject;
-                      dailyHtml += `
-                      <div style="display:flex; justify-content:flex-start; align-items:center; padding:10px; ${bgStyle} border-radius:8px; margin-bottom:6px;">
-                          <div style="width: 75px; font-size:11px; font-weight:700; color:${isHappeningNow ? 'var(--bg)' : txColor}; opacity: 0.8;">${b.t}</div>
-                          <div style="flex:1;">
-                              <div style="font-size:13px; font-weight:700; color:${isHappeningNow ? 'var(--bg)' : txColor}; ${strikeStyle}">${subjectDetails.name}</div>
-                          </div>
-                          ${subjectDetails.room && !cancelled ? `<div style="font-size:10px; font-weight:700; color:var(--tx-warn); background:var(--bg-warn); padding:3px 6px; border-radius:6px; border:.5px solid var(--bd-warn);">📍 ${subjectDetails.room}</div>` : ''}
-                      </div>`;
+                  // Check if class has already finished earlier today
+                  let isDone = false;
+                  if (isToday && !isHappeningNow) {
+                      const timeInfo = ICS_TIME_MAP[b.t];
+                      if (timeInfo) {
+                          const utcMidnight = new Date(Date.UTC(parseInt(ymd.split('-')[0]), parseInt(ymd.split('-')[1])-1, parseInt(ymd.split('-')[2])));
+                          const classEndUTC = istToUTC(utcMidnight, timeInfo.eh, timeInfo.em);
+                          if (Date.now() > classEndUTC.getTime()) isDone = true;
+                      }
                   }
-              } else if (b.type === 'free') {
-                  const tStr = `${b.start.replace(/[a-z]/g, '')}-${b.end}`;
-                  dailyHtml += `
-                  <div style="display:flex; justify-content:flex-start; align-items:center; padding:6px 10px; border:.5px dashed var(--bd); background:var(--bg2); border-radius:8px; margin-bottom:6px; opacity: 0.4; min-height: 20px;">
-                      <div style="width: 75px; font-size:10px; font-weight:600; color:var(--tx3);">${b.start}-${b.end}</div>
-                      <div style="font-size:11px; font-weight:600; color:var(--tx3);">☕ Free</div>
+
+                  let eventClass = 'timeline-event';
+                  if (isHappeningNow) eventClass += ' ongoing';
+                  else if (isDone && !cancelled) eventClass += ' done';
+
+                  const strikeStyle = cancelled ? 'text-decoration: line-through; opacity: 0.6;' : '';
+
+                  timelineEventsHtml += `
+                  <div class="${eventClass}">
+                      <div class="event-node"></div>
+                      <div class="event-card" style="border-left: 3px solid ${domainColor};">
+                          <div class="event-meta-row">
+                              <span class="event-time" ${isHappeningNow ? 'style="color:var(--tx-info); font-weight:800;"' : ''}>${b.t}</span>
+                              <span class="domain-pill" style="background: var(--bg); color: ${domainColor}; border: .5px solid var(--bd);">
+                                  ${domainIcon} ${domain}
+                              </span>
+                          </div>
+                          <div class="event-name" style="${strikeStyle}">
+                              ${subjectName}
+                          </div>
+                          <div class="event-footer">
+                              ${room && !cancelled ? `<span class="room-badge">📍 Room ${room}</span>` : ''}
+                              ${cancelled ? `<span style="font-size:10px; font-weight:700; color:var(--tx-danger); background:var(--bg-danger); padding:2px 6px; border-radius:4px;">Cancelled</span>` : ''}
+                              ${isHappeningNow ? `<span style="font-size:11px; font-weight:800; color:var(--tx-info);">● Happening Now</span>` : ''}
+                          </div>
+                      </div>
                   </div>`;
               }
           }
+          timelineEventsHtml += `</div>`;
       } else {
-          dailyHtml += `<div style="font-size:12px; color:var(--tx3); padding: 12px 0; text-align:center; border: .5px dashed var(--bd); border-radius: 8px; background: var(--bg2);">☕ No classes today.</div>`;
+          timelineEventsHtml += `<div style="font-size:12.5px; color:var(--tx3); padding: 18px 0; text-align:center; border: 1px dashed var(--bd); border-radius: 14px; background: var(--bg2);">☕ No classes scheduled. Enjoy your day!</div>`;
       }
 
+      // Format date title
       let cleanDate = dateString;
       try {
           const [yyyy, mm, dd] = ymd.split('-');
@@ -2010,47 +2014,94 @@ function renderDailySchedule() {
           cleanDate = dateString.replace(/-/g, ' '); 
       }
       
-      if (isToday) {
-          cleanDate = `Today · ${cleanDate}`;
-      } else if (isTomorrow) {
-          cleanDate = `Tomorrow · ${cleanDate}`;
+      let badgeLabel = '';
+      if (isToday) badgeLabel = `<span style="background:var(--bg-info); color:var(--tx-info); font-size:10px; font-weight:800; padding:2px 8px; border-radius:10px; text-transform:uppercase; letter-spacing:0.4px;">Today</span>`;
+      else if (isTomorrow) badgeLabel = `<span style="background:var(--bg2); color:var(--tx2); font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px;">Tomorrow</span>`;
+
+      // Exam Banner
+      let commentHtml = '';
+      if (comment) {
+          const badgeBg = isExam ? 'var(--bg-danger)' : 'var(--bg-warn)';
+          const badgeBorder = isExam ? 'var(--bd-danger)' : 'var(--bd-warn)';
+          const badgeColor = isExam ? 'var(--tx-danger)' : 'var(--tx-warn)';
+          const icon = isExam ? '📝' : '⚠️';
+          commentHtml = `<div style="font-size:12px; font-weight:700; color:${badgeColor}; margin-bottom:10px; background:${badgeBg}; padding:8px 12px; border-radius:10px; border:.5px solid ${badgeBorder}; display:flex; align-items:center; gap:8px;">
+              <span style="font-size:16px;">${icon}</span>
+              <span style="flex:1;">${comment}</span>
+          </div>`;
       }
 
-      const cardStyle = isToday ? 'background:var(--bg2); border:1px solid var(--bd-info); box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 30px;' : 'background:var(--bg); border:1px solid var(--bd2); box-shadow: 0 4px 10px rgba(0,0,0,0.04); margin-bottom: 30px;';
-      const hdrStyle = isToday ? 'color:var(--tx-info);' : 'color:var(--tx);';
+      // Birthday Banner
+      let birthdayHtml = '';
+      if (birthdays) {
+          birthdayHtml = `<div class="agenda-birthday-card">
+              <span style="font-size:16px;">🎉</span>
+              <span>Happy Birthday: <strong>${birthdays}</strong>!</span>
+          </div>`;
+      }
+
+      const cardStyle = isToday 
+        ? 'background:var(--bg); border:1.5px solid var(--bd-info); box-shadow: 0 4px 16px rgba(0,0,0,0.06); margin-bottom: 24px;' 
+        : 'background:var(--bg); border:1px solid var(--bd); box-shadow: 0 2px 8px rgba(0,0,0,0.03); margin-bottom: 24px;';
       
-      fullHtml += `
-      <div id="card-${dateString.replace(/\s/g, '-')}" data-is-today="${isToday ? 'true' : 'false'}" style="border-radius:12px; padding:14px; scroll-margin-top: 80px; ${cardStyle}">
-          <div style="font-size:15px; font-weight:800; border-bottom:1px solid var(--bd); padding-bottom:8px; margin-bottom:10px; ${hdrStyle}">📅 ${cleanDate}</div>
-          ${dailyHtml}
+      fullCardsHtml += `
+      <div id="card-${dateString.replace(/\s/g, '-')}" data-is-today="${isToday ? 'true' : 'false'}" style="border-radius:18px; padding:16px; scroll-margin-top: 70px; ${cardStyle}">
+          <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; margin-bottom:12px; border-bottom:1px solid var(--bd);">
+              <div style="font-size:15px; font-weight:800; color:var(--tx); display:flex; align-items:center; gap:8px;">
+                  📅 ${cleanDate}
+              </div>
+              ${badgeLabel}
+          </div>
+          ${commentHtml}
+          ${birthdayHtml}
+          ${timelineEventsHtml}
       </div>`;
   }
-  
-  // Sticky Mini Bar Injection
-  let stickyHtml = '';
-  if (nextClassFound) {
-      stickyHtml = `
-      <div id="sticky-next-class" style="position:sticky; top:60px; z-index:90; background:var(--bg-info); border:.5px solid var(--bd-info); color:var(--tx-info); padding:8px 14px; border-radius:12px; margin-bottom:14px; font-weight:700; font-size:12px; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); backdrop-filter:blur(8px);">
-          <div style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">🔜 ${nextClassFound.name} ${nextClassFound.room ? `· Room ${nextClassFound.room}` : ''}</div>
-          <div id="sticky-next-countdown" style="font-variant-numeric: tabular-nums; flex-shrink:0; padding-left:10px; background:var(--bg); color:var(--tx); padding:3px 8px; border-radius:6px; margin-left:8px; border:.5px solid var(--bd2);"></div>
+
+  // Live Pulse Hero Widget
+  let livePulseHtml = '';
+  if (ongoingClassFound) {
+      livePulseHtml = `
+      <div class="live-pulse-widget">
+          <div class="pulse-header">
+              <span class="pulse-badge"><span class="pulse-node"></span> Happening Now</span>
+              <span class="pulse-countdown">${ongoingClassFound.timeSlot}</span>
+          </div>
+          <div class="pulse-title">${ongoingClassFound.name}</div>
+          <div class="pulse-location">📍 ${ongoingClassFound.room ? `Room ${ongoingClassFound.room} · ` : ''}${ongoingClassFound.timeSlot}</div>
+      </div>`;
+  } else if (nextClassFound) {
+      livePulseHtml = `
+      <div class="live-pulse-widget" style="background:var(--bg-info);">
+          <div class="pulse-header">
+              <span class="pulse-badge"><span class="pulse-node" style="background:var(--tx-info); box-shadow:none;"></span> Up Next</span>
+              <span id="pulse-next-countdown" class="pulse-countdown">in ...</span>
+          </div>
+          <div class="pulse-title">${nextClassFound.name}</div>
+          <div class="pulse-location">📍 ${nextClassFound.room ? `Room ${nextClassFound.room} · ` : ''}Next scheduled session</div>
       </div>`;
   } else if (todayYmd in liveDailyCache) {
-      // If we parsed today and there's no next class found
-      stickyHtml = `
-      <div id="sticky-next-class" style="position:sticky; top:60px; z-index:90; background:var(--bg2); border:.5px solid var(--bd); color:var(--tx3); padding:8px 14px; border-radius:12px; margin-bottom:14px; font-weight:700; font-size:12px; text-align:center; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+      livePulseHtml = `
+      <div style="background:var(--bg2); border:1px solid var(--bd); border-radius:14px; padding:10px 14px; margin-bottom:16px; text-align:center; font-size:12px; font-weight:700; color:var(--tx2);">
           No more classes today! 🎉
       </div>`;
   }
-  
-  area.innerHTML = stickyHtml + (fullHtml || '<div class="empty-tt">No upcoming schedule found.</div>');
-  
+
+  area.innerHTML = `
+    ${capsulesHtml}
+    ${reminderBarHtml}
+    ${livePulseHtml}
+    ${fullCardsHtml || '<div class="empty-tt">No upcoming schedule found.</div>'}
+  `;
+
+  // Countdown timer for next class
   if (nextClassFound) {
       const updateCountdown = () => {
-          const cd = document.getElementById('sticky-next-countdown');
+          const cd = document.getElementById('pulse-next-countdown');
           if (!cd) return;
           const diffMin = Math.ceil((nextClassFound.timeMs - Date.now()) / 60000);
           if (diffMin <= 0) {
-              document.getElementById('sticky-next-class').style.display = 'none';
+              renderDailySchedule();
           } else if (diffMin > 60) {
               cd.textContent = `in ${Math.floor(diffMin/60)}h ${diffMin%60}m`;
           } else {
@@ -2064,6 +2115,7 @@ function renderDailySchedule() {
       if (window._nextClassInterval) clearInterval(window._nextClassInterval);
   }
 
+  // Smooth scroll to today on first load
   if (window._isFirstDailyRender === undefined) {
       window._isFirstDailyRender = true;
       setTimeout(() => {
@@ -2072,4 +2124,5 @@ function renderDailySchedule() {
       }, 300);
   }
 }
+
 
