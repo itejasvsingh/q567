@@ -1,13 +1,24 @@
 // Bump this version string every time you deploy a new index.html so
 // returning visitors actually get the update instead of a stale cache.
-const CACHE_NAME = 'mba-planner-v1';
+const CACHE_NAME = 'mba-planner-v2';
 
 const SHELL_FILES = [
   './',
   './index.html',
   './manifest.json',
+  './styles.css',
+  './app.js',
+  './data.js',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './views/plan.html',
+  './views/daily.html',
+  './views/master.html',
+  './views/att.html',
+  './views/compare.html',
+  './views/mess.html',
+  './components/alert-modal.html',
+  './components/export-modal.html',
 ];
 
 self.addEventListener('install', event => {

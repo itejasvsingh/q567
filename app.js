@@ -1477,7 +1477,36 @@ window.refreshLiveSchedule = function(btnElement) {
     }
 };
 
-// Initial fetch
+// ── PWA INSTANT BOOT FROM CACHE ─────────────────────────────────────────────
+// In standalone PWA mode: preload the last-known schedule from localStorage
+// immediately so the Daily Agenda renders without waiting for Firebase.
+// Firebase fetch still runs in parallel and silently updates the view.
+(function pwaInstantBoot() {
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    if (!isPWA) return;
+
+    const cached = localStorage.getItem('mbaplanner_daily_cache');
+    if (!cached) return;
+
+    try {
+        const parsed = JSON.parse(cached);
+        if (!parsed || !parsed.data) return;
+
+        // Populate the cache variables immediately
+        liveDailyCache = parsed.data;
+        window.lastSyncedTime = parsed.time ? new Date(parsed.time) : null;
+        window._isOfflineFallback = false; // not offline, just pre-loaded
+
+        // Switch to Daily Agenda and render instantly from cache
+        switchView('daily');
+        renderDailySchedule();
+
+    } catch(e) {
+        console.warn('PWA instant boot: could not parse cached schedule.', e);
+    }
+})();
+
+// Initial Firebase fetch — runs in background, updates view when done
 refreshLiveSchedule();
 
 // Pull-to-refresh logic
