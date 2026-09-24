@@ -2016,6 +2016,14 @@ function renderDailySchedule() {
       Finance: '📈', Marketing: '🎯', Strategy: '♟️', Ops: '⚙️', HR: '🤝', IS: '💻', Integrative: '🌐', Placement: '🏢'
   };
   const timeOrder = ['8am-10am', '10am-12pm', '12pm-1pm', '1pm-3pm', '3pm-5pm', '5pm-7pm'];
+  const SLOT_LABELS = {
+      '8am-10am': '8:00 AM – 10:00 AM',
+      '10am-12pm': '10:00 AM – 12:00 PM',
+      '12pm-1pm': '12:00 PM – 1:00 PM',
+      '1pm-3pm': '1:00 PM – 3:00 PM',
+      '3pm-5pm': '3:00 PM – 5:00 PM',
+      '5pm-7pm': '5:00 PM – 7:00 PM'
+  };
   
   // IST Date logic
   const nowIST = new Date(new Date().toLocaleString('en-US', {timeZone: 'Asia/Kolkata'}));
@@ -2023,14 +2031,14 @@ function renderDailySchedule() {
   const tmrw = new Date(nowIST); tmrw.setDate(tmrw.getDate() + 1);
   const tomorrowYmd = `${tmrw.getFullYear()}-${String(tmrw.getMonth()+1).padStart(2,'0')}-${String(tmrw.getDate()).padStart(2,'0')}`;
   
+  const currentMins = nowIST.getHours() * 60 + nowIST.getMinutes();
   let currentSlot = null;
-  const currentHour = nowIST.getHours();
-  if (currentHour >= 8 && currentHour < 10) currentSlot = '8am-10am';
-  else if (currentHour >= 10 && currentHour < 12) currentSlot = '10am-12pm';
-  else if (currentHour >= 12 && currentHour < 13) currentSlot = '12pm-1pm';
-  else if (currentHour >= 13 && currentHour < 15) currentSlot = '1pm-3pm';
-  else if (currentHour >= 15 && currentHour < 17) currentSlot = '3pm-5pm';
-  else if (currentHour >= 17 && currentHour < 19) currentSlot = '5pm-7pm';
+  if (currentMins >= 8*60 && currentMins < 10*60) currentSlot = '8am-10am';
+  else if (currentMins >= 10*60 && currentMins < 12*60) currentSlot = '10am-12pm';
+  else if (currentMins >= 12*60 && currentMins < 13*60) currentSlot = '12pm-1pm';
+  else if (currentMins >= 13*60 && currentMins < 15*60) currentSlot = '1pm-3pm';
+  else if (currentMins >= 15*60 && currentMins < 17*60) currentSlot = '3pm-5pm';
+  else if (currentMins >= 17*60 && currentMins < 19*60) currentSlot = '5pm-7pm';
 
   // Helper to parse day's classes
   const parseDayClasses = (dailySlots) => {
@@ -2205,6 +2213,7 @@ function renderDailySchedule() {
 
   let liveIslandHtml = '';
   if (ongoingClassFound) {
+      const activeSlotLabel = SLOT_LABELS[ongoingClassFound.timeSlot] || ongoingClassFound.timeSlot;
       liveIslandHtml = `
       <div class="ios-live-island">
           <div class="ios-island-left">
@@ -2212,7 +2221,7 @@ function renderDailySchedule() {
               <span class="ios-island-badge">Now</span>
               <span class="ios-island-title">${ongoingClassFound.name}</span>
           </div>
-          <span class="ios-island-loc">📍 ${ongoingClassFound.room ? `Rm ${ongoingClassFound.room} · ` : ''}${ongoingClassFound.timeSlot}</span>
+          <span class="ios-island-loc">📍 ${ongoingClassFound.room ? `Rm ${ongoingClassFound.room} · ` : ''}<strong>${activeSlotLabel}</strong></span>
       </div>`;
   } else if (nextClassFound) {
       liveIslandHtml = `
@@ -2295,13 +2304,15 @@ function renderDailySchedule() {
               timelineEventsHtml += `
               <div class="ios-divider-break">
                   <span>🍽</span>
-                  <span>Campus Lunch Break · 12:00 – 1:00 PM</span>
+                  <span>Campus Lunch Break · <strong style="color:var(--tx); font-weight:700;">12:00 PM – 1:00 PM</strong></span>
               </div>`;
           } else if (b.type === 'free') {
+              const freeStart = (b.start||'').replace('am', ':00 AM').replace('pm', ':00 PM');
+              const freeEnd = (b.end||'').replace('am', ':00 AM').replace('pm', ':00 PM');
               timelineEventsHtml += `
               <div class="ios-divider-break">
                   <span>☕</span>
-                  <span>Free Time · ${b.start} – ${b.end}</span>
+                  <span>Free Time · <strong style="color:var(--tx); font-weight:700;">${freeStart} – ${freeEnd}</strong></span>
               </div>`;
           } else if (b.type === 'class') {
               const data = b.data;
@@ -2360,11 +2371,25 @@ function renderDailySchedule() {
                   </div>`;
               }
 
+              const formattedSlot = SLOT_LABELS[b.t] || b.t.replace('-', ' – ');
+              const timeBadgeHtml = `<span class="ios-time-badge">🕒 ${formattedSlot}</span>`;
+              let statusPillHtml = '';
+              if (isHappeningNow) {
+                  statusPillHtml = `<span class="ios-now-pill"><span class="ios-island-dot"></span> LIVE NOW</span>`;
+              } else if (isDone) {
+                  statusPillHtml = `<span class="ios-done-pill">Finished</span>`;
+              }
+
+              let itemClass = 'ios-class-item';
+              if (cancelled) itemClass += ' cancelled';
+              if (isHappeningNow && !cancelled) itemClass += ' ongoing';
+
               timelineEventsHtml += `
-              <div class="ios-class-item ${cancelled ? 'cancelled' : ''}">
+              <div class="${itemClass}">
                   <div class="ios-class-top">
-                      <div class="ios-class-time" ${isHappeningNow ? 'style="color:#007AFF; font-weight:800;"' : ''}>
-                          ${b.t}${isHappeningNow ? ' · <span style="color:#34C759; font-size:11px; font-weight:700;">● Active Now</span>' : (isDone ? ' · <span style="color:var(--tx3); font-size:11px; font-weight:600;">Finished</span>' : '')}
+                      <div class="ios-class-time">
+                          ${timeBadgeHtml}
+                          ${statusPillHtml}
                       </div>
                       <div class="ios-class-meta">
                           ${cancelled 

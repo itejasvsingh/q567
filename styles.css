@@ -711,24 +711,111 @@ body {
   padding: 12px 14px;
   margin-bottom: 10px;
   position: relative;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .ios-class-item.cancelled {
   opacity: 0.65;
   border-color: rgba(255, 59, 48, 0.25);
   background: rgba(255, 59, 48, 0.04);
 }
+.ios-class-item.ongoing {
+  border: 1.5px solid #007AFF;
+  border-left: 5px solid #007AFF;
+  background: rgba(0, 122, 255, 0.06);
+  box-shadow: 0 4px 20px rgba(0, 122, 255, 0.16);
+}
+[data-theme="dark"] .ios-class-item.ongoing {
+  border-color: #0A84FF;
+  border-left-color: #0A84FF;
+  background: rgba(10, 132, 255, 0.12);
+  box-shadow: 0 4px 24px rgba(10, 132, 255, 0.25);
+}
+.ios-class-item.ongoing .ios-class-title {
+  font-weight: 800;
+  color: var(--tx);
+}
+
 .ios-class-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  gap: 8px;
 }
 .ios-class-time {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--tx);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.ios-time-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #007AFF;
+  background: rgba(0, 122, 255, 0.08);
+  border: 1px solid rgba(0, 122, 255, 0.22);
+  padding: 3.5px 9px;
+  border-radius: 8px;
   letter-spacing: -0.2px;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 3px rgba(0, 122, 255, 0.06);
+}
+[data-theme="dark"] .ios-time-badge {
+  color: #64D2FF;
+  background: rgba(10, 132, 255, 0.16);
+  border-color: rgba(10, 132, 255, 0.35);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+.ios-class-item.ongoing .ios-time-badge {
+  background: #007AFF !important;
+  border-color: #007AFF !important;
+  color: #ffffff !important;
+  font-size: 13.5px;
+  font-weight: 800;
+  padding: 4.5px 11px;
+  box-shadow: 0 3px 10px rgba(0, 122, 255, 0.4);
+}
+[data-theme="dark"] .ios-class-item.ongoing .ios-time-badge {
+  background: #0A84FF !important;
+  border-color: #0A84FF !important;
+  color: #ffffff !important;
+  box-shadow: 0 3px 12px rgba(10, 132, 255, 0.5);
+}
+.ios-class-item.cancelled .ios-time-badge {
+  color: #FF3B30;
+  background: rgba(255, 59, 48, 0.08);
+  border-color: rgba(255, 59, 48, 0.25);
+  box-shadow: none;
+}
+.ios-now-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #34C759;
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 3.5px 8px;
+  border-radius: 7px;
+  box-shadow: 0 2px 8px rgba(52, 199, 89, 0.35);
+}
+.ios-now-pill .ios-island-dot {
+  background: #ffffff;
+  box-shadow: 0 0 6px #ffffff;
+}
+.ios-done-pill {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--tx3);
+  background: var(--bg3);
+  padding: 2.5px 7px;
+  border-radius: 6px;
+  border: 0.5px solid var(--bd);
 }
 .ios-class-meta {
   display: flex;
