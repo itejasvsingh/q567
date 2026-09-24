@@ -28,6 +28,9 @@
       document.getElementById('meta-theme-color').setAttribute('content', '#000000');
       localStorage.setItem('mbaplanner_theme', 'dark');
     }
+    if (typeof savePreferencesForRoll === 'function') {
+      savePreferencesForRoll();
+    }
   }
 </script>
 <link rel="icon" href="icon-192.png">

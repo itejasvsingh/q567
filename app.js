@@ -8,16 +8,45 @@ const VC={Finance:'vF',HR:'vH',Marketing:'vM',IS:'vI',Ops:'vO',Strategy:'vS',Int
 
 let cQ='Q6';
 let sel={Q5:{},Q6:{},Q7:{}};
+let goals={minor:false,major:false,dual:false};
+let goalMinorDom='';
+let goalMajorDom='';
+let goalDualD1='';
+let goalDualD2='';
+let fDom='All';
+let fFromTracker='';
+let searchQuery='';
+let exportQ='Q5';
+let q6AlertShown=false;
 let liveDailyCache = null;
 let liveWeeklyCache = null;
+var fbApp=null, fbDb=null, groupRef=null;
 
 // ── ROLL NUMBER & PREFERENCES HELPERS ──────────────────────────────
 function getActiveRollNo() {
   return (localStorage.getItem('mbaplanner_roll_no') || '').trim().toUpperCase();
 }
 
+function triggerAutoSavePulse() {
+  const badges = document.querySelectorAll('.plan-student-badge, .agenda-autosave-badge');
+  badges.forEach(b => {
+    b.dataset.origText = b.dataset.origText || b.textContent;
+    b.textContent = '✓ Saved';
+    b.style.transition = 'all 0.2s ease';
+    b.style.opacity = '1';
+  });
+  if (window._autoSaveTimer) clearTimeout(window._autoSaveTimer);
+  window._autoSaveTimer = setTimeout(() => {
+    badges.forEach(b => {
+      b.textContent = b.dataset.origText || '✓ Auto-Saved';
+    });
+  }, 1200);
+}
+
 function applyPreferences(prefObj) {
   if (!prefObj) return;
+
+  // 1. Elective Selections
   if (prefObj.selections) {
     ['Q5', 'Q6', 'Q7'].forEach(q => {
       sel[q] = {};
@@ -29,51 +58,123 @@ function applyPreferences(prefObj) {
         });
       }
     });
+    try {
+      localStorage.setItem('mbaplanner_selections', JSON.stringify(sel));
+    } catch(e) {}
   }
+
+  // 2. Academic Goals
   if (prefObj.goals) Object.assign(goals, prefObj.goals);
   if (prefObj.goalMinorDom !== undefined) goalMinorDom = prefObj.goalMinorDom;
   if (prefObj.goalMajorDom !== undefined) goalMajorDom = prefObj.goalMajorDom;
   if (prefObj.goalDualD1 !== undefined) goalDualD1 = prefObj.goalDualD1;
   if (prefObj.goalDualD2 !== undefined) goalDualD2 = prefObj.goalDualD2;
+
+  // 3. Personal Attendance Counters (attData)
+  if (prefObj.attData && typeof prefObj.attData === 'object') {
+    try {
+      if (typeof attData !== 'undefined') {
+        Object.assign(attData, prefObj.attData);
+        localStorage.setItem('mbaplanner_attendance', JSON.stringify(attData));
+      }
+    } catch(e) {}
+  }
+
+  // 4. Class-by-Class Attendance (Session Present / Absent)
+  if (prefObj.classAttendance && typeof prefObj.classAttendance === 'object') {
+    try {
+      localStorage.setItem('mbaplanner_class_attendance', JSON.stringify(prefObj.classAttendance));
+      const cleanRoll = getActiveRollNo();
+      if (cleanRoll) {
+        const rollAtt = JSON.parse(localStorage.getItem('mbaplanner_roll_attendance')) || {};
+        rollAtt[cleanRoll] = Object.assign({}, prefObj.classAttendance);
+        localStorage.setItem('mbaplanner_roll_attendance', JSON.stringify(rollAtt));
+      }
+      if (typeof window.syncClassAttendanceToAttData === 'function') {
+        window.syncClassAttendanceToAttData();
+      }
+    } catch(e) {}
+  }
+
+  // 5. 30-Min Alert Reminder Preference
+  if (prefObj.reminder30m) {
+    try {
+      localStorage.setItem('mbaplanner_reminder_30m', prefObj.reminder30m);
+      if (typeof window.updateDrawerSettingsUI === 'function') {
+        window.updateDrawerSettingsUI();
+      }
+    } catch(e) {}
+  }
+
+  // 6. Student Name Sync
+  if (prefObj.studentName) {
+    try {
+      localStorage.setItem('mbaplanner_myname', prefObj.studentName);
+      localStorage.setItem('mbaplanner_att_username', prefObj.studentName);
+      const attInput = document.getElementById('att-sync-username');
+      if (attInput) attInput.value = prefObj.studentName;
+    } catch(e) {}
+  }
 }
 
 function savePreferencesForRoll(roll) {
   const cleanRoll = (roll || getActiveRollNo()).trim().toUpperCase();
   if (!cleanRoll) return;
 
+  let classAtt = {};
+  try {
+    classAtt = JSON.parse(localStorage.getItem('mbaplanner_class_attendance')) || {};
+  } catch(e) {}
+
+  let sName = '';
+  if (typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB[cleanRoll]) {
+    sName = CLASS_ATTENDANCE_DB[cleanRoll].name || '';
+  }
+  if (!sName) {
+    sName = localStorage.getItem('mbaplanner_myname') || '';
+  }
+
+  const payload = {
+    selections: sel,
+    goals: goals,
+    goalMinorDom: goalMinorDom,
+    goalMajorDom: goalMajorDom,
+    goalDualD1: goalDualD1,
+    goalDualD2: goalDualD2,
+    attData: (typeof attData !== 'undefined' && attData) ? attData : {},
+    classAttendance: classAtt,
+    reminder30m: localStorage.getItem('mbaplanner_reminder_30m') || 'on',
+    theme: localStorage.getItem('mbaplanner_theme') || 'light',
+    studentName: sName,
+    updatedAt: Date.now()
+  };
+
   try {
     const allPrefs = JSON.parse(localStorage.getItem('mbaplanner_roll_preferences')) || {};
-    allPrefs[cleanRoll] = {
-      selections: sel,
-      goals: goals,
-      goalMinorDom: goalMinorDom,
-      goalMajorDom: goalMajorDom,
-      goalDualD1: goalDualD1,
-      goalDualD2: goalDualD2,
-      updatedAt: Date.now()
-    };
+    allPrefs[cleanRoll] = payload;
     localStorage.setItem('mbaplanner_roll_preferences', JSON.stringify(allPrefs));
+    localStorage.setItem('mbaplanner_selections', JSON.stringify(sel));
+
+    // Keep session-by-session roll attendance synced
+    const allRollAtt = JSON.parse(localStorage.getItem('mbaplanner_roll_attendance')) || {};
+    allRollAtt[cleanRoll] = Object.assign({}, classAtt);
+    localStorage.setItem('mbaplanner_roll_attendance', JSON.stringify(allRollAtt));
   } catch(e) {
     console.warn("Could not save roll preferences locally", e);
   }
 
-  // Backup to Firebase
-  if (typeof fbDb !== 'undefined' && fbDb) {
+  // Backup to Firebase Realtime Database
+  if (fbDb) {
     try {
       const safeRoll = cleanRoll.replace(/[.#$[\]]/g, '_');
-      fbDb.ref(`roll_preferences/${safeRoll}`).set({
-        selections: sel,
-        goals: goals,
-        goalMinorDom: goalMinorDom,
-        goalMajorDom: goalMajorDom,
-        goalDualD1: goalDualD1,
-        goalDualD2: goalDualD2,
-        updatedAt: Date.now()
-      });
+      fbDb.ref(`roll_preferences/${safeRoll}`).set(payload);
     } catch(err) {
       console.warn('Firebase roll_preferences set error:', err);
     }
   }
+
+  // Provide visual save confirmation
+  triggerAutoSavePulse();
 }
 
 function loadPreferencesForRoll(roll) {
@@ -89,45 +190,77 @@ function loadPreferencesForRoll(roll) {
     }
   } catch(e) {}
 
+  // Restore class attendance for this roll if available locally
+  try {
+    const allRollAtt = JSON.parse(localStorage.getItem('mbaplanner_roll_attendance')) || {};
+    if (allRollAtt[cleanRoll]) {
+      localStorage.setItem('mbaplanner_class_attendance', JSON.stringify(allRollAtt[cleanRoll]));
+      if (typeof window.syncClassAttendanceToAttData === 'function') {
+        window.syncClassAttendanceToAttData();
+      }
+    }
+  } catch(e) {}
+
   if (!loaded && window._cloudRollPreferences && window._cloudRollPreferences[cleanRoll]) {
     applyPreferences(window._cloudRollPreferences[cleanRoll]);
     loaded = true;
   }
 
-  if (typeof fbDb !== 'undefined' && fbDb) {
-    const safeRoll = cleanRoll.replace(/[.#$[\]]/g, '_');
-    fbDb.ref(`roll_preferences/${safeRoll}`).once('value').then(snap => {
-      const data = snap.val();
-      if (data && data.selections) {
-        applyPreferences(data);
-        try {
-          const allPrefs = JSON.parse(localStorage.getItem('mbaplanner_roll_preferences')) || {};
-          allPrefs[cleanRoll] = data;
-          localStorage.setItem('mbaplanner_roll_preferences', JSON.stringify(allPrefs));
-          localStorage.setItem('mbaplanner_selections', JSON.stringify(sel));
-        } catch(e) {}
-        render();
-        if (typeof renderDailySchedule === 'function') renderDailySchedule();
-        if (typeof searchCohortAttendance === 'function' && document.getElementById('cohort-search-input')) {
-          searchCohortAttendance();
+  if (fbDb) {
+    try {
+      const safeRoll = cleanRoll.replace(/[.#$[\]]/g, '_');
+      fbDb.ref(`roll_preferences/${safeRoll}`).once('value').then(snap => {
+        const data = snap.val();
+        if (data && data.selections) {
+          applyPreferences(data);
+          try {
+            const allPrefs = JSON.parse(localStorage.getItem('mbaplanner_roll_preferences')) || {};
+            allPrefs[cleanRoll] = data;
+            localStorage.setItem('mbaplanner_roll_preferences', JSON.stringify(allPrefs));
+          } catch(e) {}
+          render();
+          if (typeof renderDailySchedule === 'function') renderDailySchedule();
+          if (typeof renderAttendance === 'function' && document.getElementById('att-grid')) renderAttendance();
+          if (typeof searchCohortAttendance === 'function' && document.getElementById('cohort-search-input')) {
+            searchCohortAttendance();
+          }
         }
-      }
-    });
+      });
+
+      // Also pull q6_attendance sessions from Firebase
+      fbDb.ref(`q6_attendance/${safeRoll}`).once('value').then(snap => {
+        const q6Data = snap.val();
+        if (q6Data && typeof q6Data === 'object') {
+          let classAtt = {};
+          try {
+            classAtt = JSON.parse(localStorage.getItem('mbaplanner_class_attendance')) || {};
+          } catch(e) {}
+          Object.assign(classAtt, q6Data);
+          localStorage.setItem('mbaplanner_class_attendance', JSON.stringify(classAtt));
+
+          const allRollAtt = JSON.parse(localStorage.getItem('mbaplanner_roll_attendance')) || {};
+          allRollAtt[cleanRoll] = Object.assign(allRollAtt[cleanRoll] || {}, q6Data);
+          localStorage.setItem('mbaplanner_roll_attendance', JSON.stringify(allRollAtt));
+
+          if (typeof window.syncClassAttendanceToAttData === 'function') {
+            window.syncClassAttendanceToAttData();
+          }
+          if (typeof renderDailySchedule === 'function' && typeof currentView !== 'undefined' && currentView === 'daily') {
+            renderDailySchedule();
+          }
+          if (typeof renderAttendance === 'function' && document.getElementById('att-grid')) {
+            renderAttendance();
+          }
+          if (typeof searchCohortAttendance === 'function' && document.getElementById('cohort-att-table-container')) {
+            searchCohortAttendance();
+          }
+        }
+      });
+    } catch(err) {}
   }
 
   return loaded;
 }
-
-let fDom='All';
-let fFromTracker='';
-let searchQuery='';
-let goals={minor:false,major:false,dual:false};
-let goalMinorDom='';
-let goalMajorDom='';
-let goalDualD1='';
-let goalDualD2='';
-let exportQ='Q5';
-let q6AlertShown=false;
 
 try {
   const activeRoll = getActiveRollNo();
@@ -147,9 +280,6 @@ try {
           });
         }
       });
-      if (activeRoll) {
-        savePreferencesForRoll(activeRoll);
-      }
     }
   }
 } catch (e) {
@@ -553,10 +683,10 @@ window.renderPlannerRollBanner = function() {
           <div class="plan-student-title">
             <span>${savedRoll}</span>
             ${studentName ? `<span style="font-weight:600; color:var(--tx2);">· ${studentName}</span>` : ''}
-            <span class="plan-student-badge">✓ Linked</span>
+            <span class="plan-student-badge">✓ Auto-Saving</span>
           </div>
           <div class="plan-student-sub">
-            Preferences linked with Daily Agenda & Attendance · ${q6Count}/4 Q6 electives chosen
+            All electives, goals & attendance auto-saved to ${savedRoll} · ${q6Count}/4 Q6 electives chosen
           </div>
         </div>
       </div>
@@ -565,7 +695,7 @@ window.renderPlannerRollBanner = function() {
           📅 Daily Agenda
         </button>
         <button class="ios-seg-btn" onclick="changePlannerRollNo()" style="padding:4px 10px; font-size:11px; color:#007AFF;">
-          Edit Roll No
+          Change Roll No
         </button>
       </div>
     </div>`;
@@ -575,16 +705,16 @@ window.renderPlannerRollBanner = function() {
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
         <div style="display:flex; align-items:center; gap:8px;">
           <span style="font-size:16px;">🎓</span>
-          <span style="font-size:13px; font-weight:700; color:var(--tx);">Link Planner to your Roll Number</span>
+          <span style="font-size:13px; font-weight:700; color:var(--tx);">Auto-Save to your Roll Number</span>
         </div>
         <span style="font-size:10.5px; font-weight:700; color:#007AFF; background:rgba(0,122,255,0.1); padding:2px 7px; border-radius:6px;">Auto-Sync</span>
       </div>
       <div style="font-size:11.5px; color:var(--tx2); margin-bottom:10px; line-height:1.4;">
-        Enter your Roll No (e.g. <code>MS25A071</code>) so your chosen electives automatically power your <strong>Daily Agenda</strong> and <strong>Attendance tracking</strong>.
+        Enter your Roll No (e.g. <code>MS25A071</code>) so all your chosen electives, goals, daily schedule and attendance automatically save to your profile.
       </div>
       <div style="display:flex; gap:8px;">
         <input type="text" id="planner-roll-input" class="cmp-input" placeholder="e.g. MS25A071" style="flex:1; text-transform:uppercase; font-weight:700; font-size:12px; padding:6px 10px; border-radius:8px;" onkeydown="if(event.key==='Enter') savePlannerRollNo()">
-        <button class="cmp-btn" onclick="savePlannerRollNo()" style="padding:6px 14px; border-radius:8px; font-size:12px; white-space:nowrap;">Link & Save</button>
+        <button class="cmp-btn" onclick="savePlannerRollNo()" style="padding:6px 14px; border-radius:8px; font-size:12px; white-space:nowrap;">Link & Auto-Save</button>
       </div>
     </div>`;
   }
@@ -592,20 +722,62 @@ window.renderPlannerRollBanner = function() {
 
 window.setRollNumber = function(val) {
   const clean = (val || '').trim().toUpperCase();
+  const prevRoll = getActiveRollNo();
+  if (prevRoll && prevRoll !== clean) {
+    savePreferencesForRoll(prevRoll);
+  }
+
   if (!clean) {
     localStorage.removeItem('mbaplanner_roll_no');
+    if (window._activeRollPrefRef) {
+      window._activeRollPrefRef.off();
+      window._activeRollPrefRef = null;
+    }
   } else {
     localStorage.setItem('mbaplanner_roll_no', clean);
+    let sName = '';
     if (typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB[clean]) {
-      const sName = CLASS_ATTENDANCE_DB[clean].name;
-      if (sName) {
-        localStorage.setItem('mbaplanner_myname', sName);
-        localStorage.setItem('mbaplanner_att_username', sName);
-      }
+      sName = CLASS_ATTENDANCE_DB[clean].name || '';
+    }
+    const finalName = sName || clean;
+    localStorage.setItem('mbaplanner_myname', finalName);
+    localStorage.setItem('mbaplanner_att_username', finalName);
+    myName = finalName;
+    const cmpNameInp = document.getElementById('cmp-name-input');
+    if (cmpNameInp) cmpNameInp.value = finalName;
+    if (typeof groupRef !== 'undefined' && groupRef && typeof publishMyPlan === 'function') {
+      publishMyPlan(finalName);
     }
     const loaded = loadPreferencesForRoll(clean);
     if (!loaded) {
       savePreferencesForRoll(clean);
+    }
+
+    // Set up continuous live Firebase listener on this student's profile
+    if (fbDb) {
+      try {
+        const safeRoll = clean.replace(/[.#$[\]]/g, '_');
+        if (window._activeRollPrefRef) {
+          window._activeRollPrefRef.off();
+        }
+        window._activeRollPrefRef = fbDb.ref(`roll_preferences/${safeRoll}`);
+        window._activeRollPrefRef.on('value', snap => {
+          const val = snap.val();
+          if (val && val.updatedAt) {
+            const allPrefs = JSON.parse(localStorage.getItem('mbaplanner_roll_preferences')) || {};
+            const local = allPrefs[clean];
+            if (!local || (val.updatedAt > (local.updatedAt || 0))) {
+              applyPreferences(val);
+              allPrefs[clean] = val;
+              localStorage.setItem('mbaplanner_roll_preferences', JSON.stringify(allPrefs));
+              render();
+              if (typeof renderDailySchedule === 'function') renderDailySchedule();
+              if (typeof renderAttendance === 'function' && document.getElementById('att-grid')) renderAttendance();
+              if (typeof searchCohortAttendance === 'function' && document.getElementById('cohort-search-input')) searchCohortAttendance();
+            }
+          }
+        });
+      } catch(e) {}
     }
   }
 
@@ -613,6 +785,7 @@ window.setRollNumber = function(val) {
   render();
   if (typeof renderDailySchedule === 'function') renderDailySchedule();
   if (typeof updatePwaDrawerStudent === 'function') updatePwaDrawerStudent();
+  if (typeof renderAttendance === 'function' && document.getElementById('att-grid')) renderAttendance();
   if (typeof searchCohortAttendance === 'function') {
     const cohortInput = document.getElementById('cohort-search-input');
     if (cohortInput) cohortInput.value = clean;
@@ -991,7 +1164,6 @@ let roster={};
 let compareQ='Q6';
 let compareFilter='all'; 
 let currentView='plan';
-let fbApp=null, fbDb=null, groupRef=null;
 
 const CMP_PALETTE=['#185fa5','#0f6e56','#993556','#854f0b','#534ab7','#993c1d','#1a6b3c','#a32d2d','#0c6478','#6b4f9e'];
 function cmpColorFor(key){
@@ -1026,17 +1198,17 @@ function dismissCompareHint(){
 
 function switchView(v){
   currentView=v;
-  document.getElementById('vtab-plan').classList.toggle('on', v==='plan');
+  document.getElementById('vtab-plan')?.classList.toggle('on', v==='plan');
   document.getElementById('vtab-att')?.classList.toggle('on', v==='att');
-  document.getElementById('vtab-compare').classList.toggle('on', v==='compare');
-  document.getElementById('vtab-mess').classList.toggle('on', v==='mess');
+  document.getElementById('vtab-compare')?.classList.toggle('on', v==='compare');
+  document.getElementById('vtab-mess')?.classList.toggle('on', v==='mess');
   document.getElementById('vtab-daily')?.classList.toggle('on', v==='daily');
   document.getElementById('vtab-master')?.classList.toggle('on', v==='master');
   
-  document.getElementById('view-plan').style.display = v==='plan' ? '' : 'none';
+  if(document.getElementById('view-plan')) document.getElementById('view-plan').style.display = v==='plan' ? '' : 'none';
   if(document.getElementById('view-att')) document.getElementById('view-att').style.display = v==='att' ? '' : 'none';
-  document.getElementById('view-compare').style.display = v==='compare' ? '' : 'none';
-  document.getElementById('view-mess').style.display = v==='mess' ? '' : 'none';
+  if(document.getElementById('view-compare')) document.getElementById('view-compare').style.display = v==='compare' ? '' : 'none';
+  if(document.getElementById('view-mess')) document.getElementById('view-mess').style.display = v==='mess' ? '' : 'none';
   if(document.getElementById('view-daily')) document.getElementById('view-daily').style.display = v==='daily' ? '' : 'none';
   if(document.getElementById('view-master')) document.getElementById('view-master').style.display = v==='master' ? '' : 'none';
   if (v !== 'daily' && window._nextClassInterval) {
@@ -1048,17 +1220,39 @@ function switchView(v){
   if (v === 'daily') renderDailySchedule();
   
   if(v==='compare'){
-    renderCompareView();
+    const nameInp = document.getElementById('cmp-name-input');
+    const codeInp = document.getElementById('cmp-code-input');
+    let currentSavedName = (nameInp && nameInp.value ? nameInp.value.trim() : '') || localStorage.getItem('mbaplanner_myname') || '';
+    if (!currentSavedName) {
+      const activeRoll = getActiveRollNo();
+      if (activeRoll && typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB[activeRoll] && CLASS_ATTENDANCE_DB[activeRoll].name) {
+        currentSavedName = CLASS_ATTENDANCE_DB[activeRoll].name;
+      } else if (activeRoll) {
+        currentSavedName = activeRoll;
+      }
+    }
+    const currentSavedCode = (codeInp && codeInp.value ? codeInp.value.trim() : '') || localStorage.getItem('mbaplanner_groupcode') || 'doms-mba-2026';
+    if (nameInp && !nameInp.value) nameInp.value = currentSavedName;
+    if (codeInp && !codeInp.value) codeInp.value = currentSavedCode;
+
+    if (!myName && currentSavedName) myName = currentSavedName;
+    if (!myGroupCode && currentSavedCode) {
+      cmpConnect();
+    } else {
+      if (currentSavedName && groupRef) publishMyPlan(currentSavedName);
+      renderCompareView();
+    }
     if(!localStorage.getItem('mbaplanner_seen_compare_hint')){
-      document.getElementById('compare-onboard-hint').classList.add('show');
+      document.getElementById('compare-onboard-hint')?.classList.add('show');
     }
   }
   if(v==='mess'){
     const f=document.getElementById('mess-iframe');
-    if(!f.src) f.src='https://mess-menu-iitm.vercel.app/';
+    if(f && !f.src) f.src='https://mess-menu-iitm.vercel.app/';
   }
   if(v==='plan'){
     renderPlannerRollBanner();
+    render();
   }
   if(v==='att'){
     setAttQ(cQ);
@@ -1091,41 +1285,49 @@ function switchView(v){
 
 function cmpConnect(){
   const statusEl=document.getElementById('cmp-status');
-  if(!fbDb){ statusEl.textContent='⚠️ Could not reach the live database — check your internet connection and reload.'; return; }
+  if(!fbDb){
+    if(!initFirebase()){
+      if (statusEl) statusEl.textContent='⚠️ Could not reach the live database — check your internet connection and reload.';
+      renderCompareView();
+      return;
+    }
+  }
   const nameInput=document.getElementById('cmp-name-input');
   const codeInput=document.getElementById('cmp-code-input');
-  const name=nameInput.value.trim();
-  const codeRaw=codeInput.value.trim();
+  let currentSavedName = (nameInput && nameInput.value ? nameInput.value.trim() : '') || localStorage.getItem('mbaplanner_myname') || '';
+  if (!currentSavedName) {
+    const activeRoll = getActiveRollNo();
+    if (activeRoll && typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB[activeRoll] && CLASS_ATTENDANCE_DB[activeRoll].name) {
+      currentSavedName = CLASS_ATTENDANCE_DB[activeRoll].name;
+    } else if (activeRoll) {
+      currentSavedName = activeRoll;
+    }
+  }
+  const currentSavedCode = (codeInput && codeInput.value ? codeInput.value.trim() : '') || localStorage.getItem('mbaplanner_groupcode') || 'doms-mba-2026';
+  const name = (nameInput && nameInput.value ? nameInput.value.trim() : '') || currentSavedName;
+  const codeRaw = (codeInput && codeInput.value ? codeInput.value.trim() : '') || currentSavedCode;
 
-  const code=sanitizeGroupCode(codeRaw);
-  if(!code){ flashError(codeInput); return; }
+  const code = sanitizeGroupCode(codeRaw);
+  if(!code){ if(codeInput) flashError(codeInput); return; }
 
+  if (nameInput && !nameInput.value && name) nameInput.value = name;
+  if (codeInput && !codeInput.value) codeInput.value = code;
+
+  myName = name;
+  if (name) localStorage.setItem('mbaplanner_myname', name);
   joinGroup(code);
 
   if(!name){
     myName='';
-    statusEl.innerHTML=`📍 Viewing group <b>"${myGroupCode}"</b> anonymously. Add a name above and tap Compare again to publish your own schedule.`;
-    statusEl.classList.add('connected');
+    if (statusEl) {
+      statusEl.innerHTML=`📍 Viewing group <b>"${myGroupCode}"</b> anonymously. Add a name above and tap Compare again to publish your own schedule.`;
+      statusEl.classList.add('connected');
+    }
+    renderCompareView();
     return;
   }
 
-  const totalLocal=Object.values(sel).reduce((a,q)=>a+Object.values(q).filter(s=>!s.isCore).length,0);
-  if(totalLocal===0){
-    fbDb.ref('groups/'+code+'/members/'+sanitizeKey(name)).once('value').then(snap=>{
-      const saved=snap.val();
-      if(saved){
-        ['Q5','Q6','Q7'].forEach(q=>{
-          sel[q]={};
-          Object.entries(saved[q]||{}).forEach(([c,s])=>{ sel[q][c]=resolveSubj(q,s); });
-        });
-        localStorage.setItem('mbaplanner_selections', JSON.stringify(sel));
-        render();
-      }
-      publishMyPlan(name);
-    });
-  } else {
-    publishMyPlan(name);
-  }
+  publishMyPlan(name);
 }
 
 function joinGroup(code){
@@ -1133,7 +1335,8 @@ function joinGroup(code){
   myGroupCode=code;
   compareFilter='all';
   localStorage.setItem('mbaplanner_groupcode', code);
-  document.getElementById('cmp-code-input').value=code;
+  const codeInp = document.getElementById('cmp-code-input');
+  if (codeInp) codeInp.value=code;
 
   if(groupRef) groupRef.off(); 
   groupRef=fbDb.ref('groups/'+code+'/members');
@@ -1142,7 +1345,8 @@ function joinGroup(code){
     renderCompareView();
   }, err=>{
     console.error('Firebase read error',err);
-    document.getElementById('cmp-status').textContent='⚠️ Could not connect — check your internet connection.';
+    const statusEl = document.getElementById('cmp-status');
+    if (statusEl) statusEl.textContent='⚠️ Could not connect — check your internet connection.';
   });
 }
 
@@ -1153,13 +1357,31 @@ function resolveSubj(q, storedSubj){
 
 function getMyEncodedPlan(){
   const r={};
-  ['Q5','Q6','Q7'].forEach(q=>{ r[q]={}; Object.values(sel[q]).forEach(s=>{ r[q][s.code]=resolveSubj(q,s); }); });
+  ['Q5','Q6','Q7'].forEach(q=>{
+    r[q]={};
+    if (typeof DATA !== 'undefined' && DATA[q] && DATA[q].subjects) {
+      DATA[q].subjects.filter(s => s.isCore).forEach(s => {
+        r[q][s.code] = resolveSubj(q, s);
+      });
+    }
+    Object.values(sel[q]||{}).forEach(s=>{
+      r[q][s.code] = resolveSubj(q, s);
+    });
+  });
   return r;
 }
 
 function publishMyPlan(name){
   if(!groupRef){ return; }
   name=(name||myName||'').trim();
+  if(!name) {
+    const activeRoll = getActiveRollNo();
+    if (activeRoll && typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB[activeRoll] && CLASS_ATTENDANCE_DB[activeRoll].name) {
+      name = CLASS_ATTENDANCE_DB[activeRoll].name;
+    } else {
+      name = localStorage.getItem('mbaplanner_myname') || activeRoll || '';
+    }
+  }
   if(!name) return;
 
   const oldName=myName;
@@ -1168,25 +1390,20 @@ function publishMyPlan(name){
   const key=sanitizeKey(name);
   const statusEl=document.getElementById('cmp-status');
 
-  const total=Object.values(sel).reduce((a,q)=>a+Object.values(q).filter(s=>!s.isCore).length,0);
-  if(total===0){
-    groupRef.child(key).remove();
-    if(oldName && sanitizeKey(oldName)!==key) groupRef.child(sanitizeKey(oldName)).remove();
-    statusEl.innerHTML=`📍 Connected to <b>"${myGroupCode}"</b> as <b>${name}</b>. Pick some electives in My Planner so friends can see your schedule!`;
-    statusEl.classList.add('connected');
-    renderCompareView();
-    return;
-  }
-
   const plan=getMyEncodedPlan();
   groupRef.child(key).set(plan).then(()=>{
     if(oldName && sanitizeKey(oldName)!==key) groupRef.child(sanitizeKey(oldName)).remove();
-    statusEl.innerHTML=`📍 Connected to <b>"${myGroupCode}"</b> as <b>${name}</b> — share the group code so friends can join.`;
-    statusEl.classList.add('connected');
+    if (statusEl) {
+      statusEl.innerHTML=`📍 Connected to <b>"${myGroupCode}"</b> as <b>${name}</b> — share the group code so friends can join.`;
+      statusEl.classList.add('connected');
+    }
+    renderCompareView();
   }).catch(e=>{
-    statusEl.textContent='⚠️ Could not publish — check your internet connection.';
+    if (statusEl) statusEl.textContent='⚠️ Could not publish — check your internet connection.';
     console.error(e);
   });
+
+  renderCompareView();
 }
 
 function flashError(el){
@@ -1201,7 +1418,8 @@ function removeFromRoster(key){
   groupRef.child(key).remove();
   if(key===sanitizeKey(myName)){
     myName='';
-    document.getElementById('cmp-name-input').value='';
+    const nameInp = document.getElementById('cmp-name-input');
+    if (nameInp) nameInp.value='';
   }
   if(compareFilter===key) compareFilter='all';
 }
@@ -1224,9 +1442,49 @@ function cmpParticipants(){
     });
     parts[k]={label:k, plan};
   });
-  if(myName){
-    const key=sanitizeKey(myName);
-    parts[key]={label:myName, plan:getMyEncodedPlan()};
+
+  // Also include classmates from cloud roll preferences in default batch group 'doms-mba-2026'
+  if ((myGroupCode === 'doms-mba-2026' || !myGroupCode) && window._cloudRollPreferences) {
+    Object.entries(window._cloudRollPreferences).forEach(([roll, pref]) => {
+      if (pref && pref.selections) {
+        let label = pref.studentName || roll;
+        if (typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB[roll] && CLASS_ATTENDANCE_DB[roll].name) {
+          label = CLASS_ATTENDANCE_DB[roll].name;
+        }
+        const key = sanitizeKey(label);
+        if (!parts[key]) {
+          const plan = {};
+          ['Q5', 'Q6', 'Q7'].forEach(q => {
+            plan[q] = {};
+            if (DATA[q] && DATA[q].subjects) {
+              DATA[q].subjects.filter(s => s.isCore).forEach(s => {
+                plan[q][s.code] = resolveSubj(q, s);
+              });
+            }
+            if (pref.selections[q]) {
+              Object.values(pref.selections[q]).forEach(s => {
+                plan[q][s.code] = resolveSubj(q, s);
+              });
+            }
+          });
+          parts[key] = { label, plan };
+        }
+      }
+    });
+  }
+
+  let currentName = (myName || localStorage.getItem('mbaplanner_myname') || '').trim();
+  if (!currentName) {
+    const activeRoll = getActiveRollNo();
+    if (activeRoll && typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB[activeRoll] && CLASS_ATTENDANCE_DB[activeRoll].name) {
+      currentName = CLASS_ATTENDANCE_DB[activeRoll].name;
+    } else if (activeRoll) {
+      currentName = activeRoll;
+    }
+  }
+  if(currentName){
+    const key=sanitizeKey(currentName);
+    parts[key]={label:currentName, plan:getMyEncodedPlan()};
   }
   return parts;
 }
@@ -1235,7 +1493,16 @@ function cmpFilteredParticipants(){
   const all=cmpParticipants();
   if(compareFilter!=='all' && !all[compareFilter]) compareFilter='all';
   if(compareFilter==='all') return all;
-  const myKey=sanitizeKey(myName);
+  let currentName = (myName || localStorage.getItem('mbaplanner_myname') || '').trim();
+  if (!currentName) {
+    const activeRoll = getActiveRollNo();
+    if (activeRoll && typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB[activeRoll] && CLASS_ATTENDANCE_DB[activeRoll].name) {
+      currentName = CLASS_ATTENDANCE_DB[activeRoll].name;
+    } else if (activeRoll) {
+      currentName = activeRoll;
+    }
+  }
+  const myKey=sanitizeKey(currentName);
   const out={};
   if(all[myKey]) out[myKey]=all[myKey];
   out[compareFilter]=all[compareFilter];
@@ -1255,14 +1522,24 @@ function renderCmpFriends(){
   const keys=Object.keys(parts);
   const row=document.getElementById('cmp-friends-row');
   const empty=document.getElementById('cmp-empty');
-  if(!keys.length){ row.innerHTML=''; empty.style.display='block'; return; }
-  empty.style.display='none';
+  if(!row) return;
+  if(!keys.length){ row.innerHTML=''; if (empty) empty.style.display='block'; return; }
+  if (empty) empty.style.display='none';
 
-  const myKey=sanitizeKey(myName);
+  let currentName = (myName || localStorage.getItem('mbaplanner_myname') || '').trim();
+  if (!currentName) {
+    const activeRoll = getActiveRollNo();
+    if (activeRoll && typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB[activeRoll] && CLASS_ATTENDANCE_DB[activeRoll].name) {
+      currentName = CLASS_ATTENDANCE_DB[activeRoll].name;
+    } else if (activeRoll) {
+      currentName = activeRoll;
+    }
+  }
+  const myKey=sanitizeKey(currentName);
   const others=keys.filter(k=>k!==myKey);
 
   let html='';
-  if(others.length>1){
+  if(others.length>0){
     html+=`<div class="cmp-chip cmp-allchip${compareFilter==='all'?' active':''}" onclick="cmpSetFilter('all')">👥 Everyone</div>`;
   }
   html+=keys.map(k=>{
@@ -1276,10 +1553,17 @@ function renderCmpFriends(){
     return `<div class="cmp-chip${isMe?' me':''}${isActive?' active':''}"${isMe?'':` onclick="cmpSetFilter('${keyEsc}')" style="cursor:pointer"`}>
       <div class="cmp-avatar" style="background:${color}">${initial}</div>
       <span class="cmp-chip-name">${parts[k].label}${isMe?' (you)':''}</span>
-      <span class="cmp-chip-count">${count}/12</span>
+      <span class="cmp-chip-count">${count} electives</span>
       <span class="cmp-chip-x" onclick="event.stopPropagation();removeFromRoster('${keyEsc}')" title="Remove from group">✕</span>
     </div>`;
   }).join('');
+
+  if (others.length === 0) {
+    html += `<div style="font-size:12px; color:var(--tx2); padding:6px 12px; background:var(--bg2); border-radius:8px; border:0.5px dashed var(--bd); margin-left:4px; display:inline-flex; align-items:center; gap:6px;">
+      <span>📣</span> <span>Share code <b>"${myGroupCode || 'doms-mba-2026'}"</b> with friends to compare!</span>
+    </div>`;
+  }
+
   row.innerHTML=html;
 }
 
@@ -1292,8 +1576,18 @@ function renderCmpQtabs(){
 function renderCmpLegend(){
   const parts=cmpFilteredParticipants();
   const keys=Object.keys(parts);
+  let currentName = (myName || localStorage.getItem('mbaplanner_myname') || '').trim();
+  if (!currentName) {
+    const activeRoll = getActiveRollNo();
+    if (activeRoll && typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB[activeRoll] && CLASS_ATTENDANCE_DB[activeRoll].name) {
+      currentName = CLASS_ATTENDANCE_DB[activeRoll].name;
+    } else if (activeRoll) {
+      currentName = activeRoll;
+    }
+  }
+  const myKey = sanitizeKey(currentName);
   document.getElementById('cmp-legend').innerHTML=keys.map(k=>{
-    const isMe=k===sanitizeKey(myName);
+    const isMe=k===myKey;
     return `<div class="cmp-leg"><div class="cmp-leg-dot" style="background:${cmpColorFor(k)}"></div>${parts[k].label}${isMe?' (you)':''}</div>`;
   }).join('');
 }
@@ -1351,7 +1645,16 @@ function renderCmpTogether(){
   const keys=Object.keys(parts);
   if(!keys.length){ area.innerHTML=''; return; }
 
-  const myKey=sanitizeKey(myName);
+  let currentName = (myName || localStorage.getItem('mbaplanner_myname') || '').trim();
+  if (!currentName) {
+    const activeRoll = getActiveRollNo();
+    if (activeRoll && typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB[activeRoll] && CLASS_ATTENDANCE_DB[activeRoll].name) {
+      currentName = CLASS_ATTENDANCE_DB[activeRoll].name;
+    } else if (activeRoll) {
+      currentName = activeRoll;
+    }
+  }
+  const myKey=sanitizeKey(currentName);
   const focusKey=keys.find(k=>k!==myKey);
   const headerLabel = (compareFilter!=='all' && focusKey)
     ? `🎉 Classes with ${parts[focusKey].label} — ${q}`
@@ -1423,8 +1726,15 @@ function updateAtt(code, type, delta) {
   localStorage.setItem('mbaplanner_attendance', JSON.stringify(attData));
   renderAttendance();
   
-  if(document.getElementById('att-sync-username').value.trim()) {
+  // Auto-save to active roll number
+  savePreferencesForRoll();
+
+  const syncUserEl = document.getElementById('att-sync-username');
+  if(syncUserEl && typeof syncUserEl.value === 'string' && syncUserEl.value.trim()) {
     saveAttendanceCloud(false); 
+  }
+  if (typeof searchCohortAttendance === 'function' && document.getElementById('cohort-att-table-container')) {
+    searchCohortAttendance();
   }
 }
 
@@ -1499,11 +1809,14 @@ function renderAttendance() {
 
 // ── ATTENDANCE CLOUD SYNC ────────────────────────────────────────────────────
 function getAttUsername() {
-  const u = document.getElementById('att-sync-username').value.trim();
+  const el = document.getElementById('att-sync-username');
+  const u = (el && typeof el.value === 'string' ? el.value.trim() : '') || getActiveRollNo();
   const statusEl = document.getElementById('att-sync-status');
   if (!u) {
-    statusEl.textContent = '⚠️ Please enter a username first.';
-    statusEl.style.color = 'var(--tx-danger)';
+    if (statusEl) {
+      statusEl.textContent = '⚠️ Please enter a roll number or username first.';
+      statusEl.style.color = 'var(--tx-danger)';
+    }
     return null;
   }
   const key = sanitizeKey(u);
@@ -1638,20 +1951,23 @@ window.getQ6AttendanceForRoll = function(query) {
 
   // 2. Gather all attendance sessions recorded for this roll
   let rollAttMap = {};
+  if (window._cloudQ6Attendance) {
+    const safeRoll = foundRoll.replace(/[.#$[\]]/g, '_');
+    if (window._cloudQ6Attendance[foundRoll]) Object.assign(rollAttMap, window._cloudQ6Attendance[foundRoll]);
+    if (window._cloudQ6Attendance[safeRoll]) Object.assign(rollAttMap, window._cloudQ6Attendance[safeRoll]);
+  }
   try {
     const allRolls = JSON.parse(localStorage.getItem('mbaplanner_roll_attendance')) || {};
-    if (allRolls[foundRoll]) Object.assign(rollAttMap, allRolls[foundRoll]);
+    if (allRolls[foundRoll]) {
+      rollAttMap = Object.assign({}, allRolls[foundRoll]);
+    }
   } catch(e) {}
 
   if (isCurrentStudent) {
     try {
       const activeSessions = JSON.parse(localStorage.getItem('mbaplanner_class_attendance')) || {};
-      Object.assign(rollAttMap, activeSessions);
+      rollAttMap = Object.assign({}, activeSessions);
     } catch(e) {}
-  }
-
-  if (window._cloudQ6Attendance && window._cloudQ6Attendance[foundRoll]) {
-    Object.assign(rollAttMap, window._cloudQ6Attendance[foundRoll]);
   }
 
   // 3. Count Present (P) and Absent (A) per subject code
@@ -1666,11 +1982,12 @@ window.getQ6AttendanceForRoll = function(query) {
     }
   }
 
+  // Only fallback to attData for courses that have no session records at all
   if (isCurrentStudent && attData && attData['Q6']) {
     for (const [code, c] of Object.entries(attData['Q6'])) {
-      if (!counts[code]) counts[code] = { p: 0, a: 0 };
-      counts[code].p = Math.max(counts[code].p, c.p || 0);
-      counts[code].a = Math.max(counts[code].a, c.a || 0);
+      if (counts[code] === undefined && (c.p > 0 || c.a > 0)) {
+        counts[code] = { p: c.p || 0, a: c.a || 0 };
+      }
     }
   }
 
@@ -1810,8 +2127,11 @@ function searchCohortAttendance() {
     <div style="background:var(--bg2); border:0.5px solid var(--bd); border-radius:14px; padding:14px; margin-bottom:12px;">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
         <div>
-          <div style="font-size:15px; font-weight:800; color:var(--tx); display:flex; align-items:center; gap:6px;">
+          <div style="font-size:15px; font-weight:800; color:var(--tx); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
             <span>🎓</span> <span>${name ? `${name} · ` : ''}<strong>${roll}</strong></span>
+            ${(roll === getActiveRollNo()) 
+              ? '<span class="agenda-autosave-badge" style="font-size:10.5px; font-weight:700; color:#34C759; background:rgba(52,199,89,0.12); border:0.5px solid rgba(52,199,89,0.3); padding:2px 8px; border-radius:8px;">✓ Auto-Saving</span>' 
+              : `<button class="ios-seg-btn" onclick="setRollNumber('${roll}')" style="padding:2px 8px; font-size:11px; color:#007AFF; font-weight:700;">Set as My Profile</button>`}
           </div>
           <div style="font-size:11px; color:var(--tx2); margin-top:2px;">
             Q6 Active Attendance Record · 14 Classes Planned Per Course
@@ -1918,7 +2238,8 @@ function searchCohortAttendance() {
   let foundStudentId = null;
   let foundStudent = null;
 
-  for (const [roll, data] of Object.entries(CLASS_ATTENDANCE_DB)) {
+  const attDb = (typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB) ? CLASS_ATTENDANCE_DB : {};
+  for (const [roll, data] of Object.entries(attDb)) {
     if (roll.toUpperCase() === query || roll.toUpperCase().includes(query) || (data.name && data.name.toUpperCase().includes(query))) {
       foundStudentId = roll;
       foundStudent = data;
@@ -1998,17 +2319,37 @@ if(!pwaAlertShownStorage && !_isRunningAsPWA) {
 }
 
 roster={};
-document.getElementById('cmp-status').classList.remove('connected');
-document.getElementById('cmp-code-input').value='';
-document.getElementById('cmp-name-input').value='';
-document.getElementById('cmp-status').textContent='Enter your name and a group code, then tap Compare.';
+const cmpStatusEl = document.getElementById('cmp-status');
+const cmpCodeInp = document.getElementById('cmp-code-input');
+const cmpNameInp = document.getElementById('cmp-name-input');
+let initCmpName = localStorage.getItem('mbaplanner_myname') || '';
+if (!initCmpName) {
+  const activeRoll = getActiveRollNo();
+  if (activeRoll && typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB[activeRoll] && CLASS_ATTENDANCE_DB[activeRoll].name) {
+    initCmpName = CLASS_ATTENDANCE_DB[activeRoll].name;
+  } else if (activeRoll) {
+    initCmpName = activeRoll;
+  }
+}
+const initCmpCode = localStorage.getItem('mbaplanner_groupcode') || 'doms-mba-2026';
+if (cmpCodeInp) cmpCodeInp.value = initCmpCode;
+if (cmpNameInp && initCmpName) cmpNameInp.value = initCmpName;
+if (initCmpName) myName = initCmpName;
+if (cmpStatusEl) cmpStatusEl.classList.remove('connected');
+if (cmpStatusEl) cmpStatusEl.textContent = 'Enter your name and a group code, then tap Compare.';
 if(!initFirebase()){
-  document.getElementById('cmp-status').textContent='⚠️ Could not reach the live database — check your internet connection and reload the page.';
+  if (cmpStatusEl) cmpStatusEl.textContent='⚠️ Could not reach the live database — check your internet connection and reload the page.';
+} else if (initCmpCode) {
+  joinGroup(initCmpCode);
+  if (initCmpName) {
+    publishMyPlan(initCmpName);
+  }
 }
 
 const savedAttNameInit = localStorage.getItem('mbaplanner_att_username') || localStorage.getItem('mbaplanner_myname');
-if(savedAttNameInit) {
-  document.getElementById('att-sync-username').value = savedAttNameInit;
+const attSyncUserInp = document.getElementById('att-sync-username');
+if(savedAttNameInit && attSyncUserInp) {
+  attSyncUserInp.value = savedAttNameInit;
 }
 
 if('serviceWorker' in navigator){
@@ -2090,7 +2431,29 @@ window.refreshLiveSchedule = function(btnElement) {
               localStorage.setItem('mbaplanner_selections', JSON.stringify(sel));
               render();
               if (typeof renderDailySchedule === 'function') renderDailySchedule();
+              if (typeof renderAttendance === 'function' && document.getElementById('att-grid')) renderAttendance();
             }
+          }
+          if (activeRoll) {
+            const safeRoll = activeRoll.replace(/[.#$[\]]/g, '_');
+            if (window._activeRollPrefRef) window._activeRollPrefRef.off();
+            window._activeRollPrefRef = fbDb.ref(`roll_preferences/${safeRoll}`);
+            window._activeRollPrefRef.on('value', snap => {
+              const val = snap.val();
+              if (val && val.updatedAt) {
+                const allPrefs = JSON.parse(localStorage.getItem('mbaplanner_roll_preferences')) || {};
+                const local = allPrefs[activeRoll];
+                if (!local || (val.updatedAt > (local.updatedAt || 0))) {
+                  applyPreferences(val);
+                  allPrefs[activeRoll] = val;
+                  localStorage.setItem('mbaplanner_roll_preferences', JSON.stringify(allPrefs));
+                  render();
+                  if (typeof renderDailySchedule === 'function') renderDailySchedule();
+                  if (typeof renderAttendance === 'function' && document.getElementById('att-grid')) renderAttendance();
+                  if (typeof searchCohortAttendance === 'function' && document.getElementById('cohort-search-input')) searchCohortAttendance();
+                }
+              }
+            });
           }
         }
       }).catch(e => console.warn('Could not fetch cloud roll preferences.', e));
@@ -2124,6 +2487,16 @@ if (typeof fbDb !== 'undefined' && fbDb) {
         window._cloudQ6Attendance = cloudAtt;
         if (typeof searchCohortAttendance === 'function' && document.getElementById('cohort-att-table-container')) {
           searchCohortAttendance();
+        }
+      }
+    });
+
+    fbDb.ref('roll_preferences').on('value', snap => {
+      const cloudPrefs = snap.val();
+      if (cloudPrefs) {
+        window._cloudRollPreferences = cloudPrefs;
+        if (typeof renderCompareView === 'function' && typeof currentView !== 'undefined' && currentView === 'compare') {
+          renderCompareView();
         }
       }
     });
@@ -2267,6 +2640,7 @@ window.toggle30mAlertFromDrawer = function(checked) {
         }
         if (Notification.permission === 'granted') {
             localStorage.setItem('mbaplanner_reminder_30m', 'on');
+            savePreferencesForRoll();
             updateDrawerSettingsUI();
             if (typeof currentView !== 'undefined' && currentView === 'daily') renderDailySchedule();
         } else if (Notification.permission === 'denied') {
@@ -2279,12 +2653,14 @@ window.toggle30mAlertFromDrawer = function(checked) {
                 } else {
                     localStorage.setItem('mbaplanner_reminder_30m', 'off');
                 }
+                savePreferencesForRoll();
                 updateDrawerSettingsUI();
                 if (typeof currentView !== 'undefined' && currentView === 'daily') renderDailySchedule();
             });
         }
     } else {
         localStorage.setItem('mbaplanner_reminder_30m', 'off');
+        savePreferencesForRoll();
         if (window._activeNotifications) {
             window._activeNotifications.forEach(id => clearTimeout(id));
             window._activeNotifications = [];
@@ -2356,6 +2732,7 @@ window.toggle30mAlert = function() {
 
     if (isCurrentlyActive) {
         localStorage.setItem('mbaplanner_reminder_30m', 'off');
+        savePreferencesForRoll();
         if (window._activeNotifications) {
             window._activeNotifications.forEach(id => clearTimeout(id));
             window._activeNotifications = [];
@@ -2368,6 +2745,7 @@ window.toggle30mAlert = function() {
         }
         if (Notification.permission === 'granted') {
             localStorage.setItem('mbaplanner_reminder_30m', 'on');
+            savePreferencesForRoll();
             renderDailySchedule();
         } else if (Notification.permission === 'denied') {
             alert('Notifications are blocked in your browser settings. Please allow notifications for this site to receive 30-min reminders.');
@@ -2378,6 +2756,7 @@ window.toggle30mAlert = function() {
                 } else {
                     localStorage.setItem('mbaplanner_reminder_30m', 'off');
                 }
+                savePreferencesForRoll();
                 renderDailySchedule();
             });
         }
@@ -2538,7 +2917,24 @@ window.syncClassAttendanceToAttData = function() {
         }
     }
 
-    // Keep attData in sync for subjects recorded in class attendance
+    // Reset ALL existing keys in attData['Q6'] to live counts so unmarking resets count
+    Object.keys(attData['Q6']).forEach(code => {
+      attData['Q6'][code] = {
+        p: counts[code] ? counts[code].p : 0,
+        a: counts[code] ? counts[code].a : 0
+      };
+    });
+
+    if (typeof DATA !== 'undefined' && DATA.Q6 && DATA.Q6.subjects) {
+      DATA.Q6.subjects.forEach(s => {
+        attData['Q6'][s.code] = {
+          p: counts[s.code] ? counts[s.code].p : 0,
+          a: counts[s.code] ? counts[s.code].a : 0
+        };
+      });
+    }
+
+    // Keep attData in sync for any additional subjects recorded in class attendance
     for (const [code, c] of Object.entries(counts)) {
         attData['Q6'][code] = { p: c.p, a: c.a };
     }
@@ -2583,11 +2979,13 @@ window.markClassAttendance = function(ymd, timeSlot, code, targetStatus) {
     const cleanRoll = roll.trim().toUpperCase();
     try {
         const rollAtt = JSON.parse(localStorage.getItem('mbaplanner_roll_attendance')) || {};
-        if (!rollAtt[cleanRoll]) rollAtt[cleanRoll] = {};
         if (finalStatus) {
+            if (!rollAtt[cleanRoll]) rollAtt[cleanRoll] = {};
             rollAtt[cleanRoll][sessionId] = finalStatus;
         } else {
-            delete rollAtt[cleanRoll][sessionId];
+            if (rollAtt[cleanRoll]) {
+                delete rollAtt[cleanRoll][sessionId];
+            }
         }
         localStorage.setItem('mbaplanner_roll_attendance', JSON.stringify(rollAtt));
     } catch(e) {}
@@ -2607,8 +3005,28 @@ window.markClassAttendance = function(ymd, timeSlot, code, targetStatus) {
         }
     }
 
+    // Keep in-memory cloud attendance synced
+    if (window._cloudQ6Attendance) {
+        const safeRoll = cleanRoll.replace(/[.#$[\]]/g, '_');
+        const safeSessionId = sessionId.replace(/[.#$[\]]/g, '_');
+        [cleanRoll, safeRoll].forEach(r => {
+            if (window._cloudQ6Attendance[r]) {
+                if (finalStatus) {
+                    window._cloudQ6Attendance[r][sessionId] = finalStatus;
+                    window._cloudQ6Attendance[r][safeSessionId] = finalStatus;
+                } else {
+                    delete window._cloudQ6Attendance[r][sessionId];
+                    delete window._cloudQ6Attendance[r][safeSessionId];
+                }
+            }
+        });
+    }
+
     // Sync to attData['Q6']
     window.syncClassAttendanceToAttData();
+
+    // Auto-save EVERYTHING to the roll number profile
+    savePreferencesForRoll(cleanRoll);
 
     // Re-render Daily Agenda & Attendance View (if active)
     renderDailySchedule();

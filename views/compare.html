@@ -14,8 +14,8 @@
 
   <div class="cmp-setup">
     <div class="cmp-row">
-      <input class="cmp-input" id="cmp-name-input" placeholder="Your name (leave blank to view anonymously)" maxlength="24">
-      <input class="cmp-input" id="cmp-code-input" placeholder="Group code (e.g. doms-mba-2026)" maxlength="30">
+      <input class="cmp-input" id="cmp-name-input" placeholder="Your name (leave blank to view anonymously)" maxlength="24" onkeydown="if(event.key==='Enter')cmpConnect()">
+      <input class="cmp-input" id="cmp-code-input" placeholder="Group code (e.g. doms-mba-2026)" maxlength="30" onkeydown="if(event.key==='Enter')cmpConnect()">
       <button class="cmp-btn" onclick="cmpConnect()">👥 Compare</button>
     </div>
     <div class="cmp-status" id="cmp-status">Enter your name and a group code, then tap Compare.</div>
