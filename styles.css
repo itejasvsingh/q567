@@ -1231,3 +1231,55 @@ body {
     }
 
 }
+
+/* ── PLANNER ROLL LINK BANNER ── */
+#plan-roll-banner {
+  margin-bottom: 14px;
+}
+.plan-student-bar {
+  background: var(--bg2);
+  border: 0.5px solid var(--bd);
+  border-radius: 14px;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.plan-student-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.plan-student-icon {
+  font-size: 20px;
+}
+.plan-student-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--tx);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.plan-student-sub {
+  font-size: 11px;
+  color: var(--tx3);
+  margin-top: 2px;
+}
+.plan-student-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: #34C759;
+  background: rgba(52,199,89,0.12);
+  padding: 1.5px 6px;
+  border-radius: 4px;
+}
+.plan-student-prompt {
+  background: rgba(0,122,255,0.05);
+  border: 0.5px solid rgba(0,122,255,0.22);
+  border-radius: 14px;
+  padding: 12px 14px;
+}

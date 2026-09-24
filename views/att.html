@@ -1,9 +1,17 @@
-  <p class="cmp-intro">Log your personal classes manually, or type a Roll No to instantly view official Q5 attendance data.</p>
+  <p class="cmp-intro">Log your personal classes manually, or type a Roll No to view attendance records & percentages.</p>
   
-  <!-- Class-Wide Offline Fetcher Panel -->
-  <div class="panel" style="margin-top: 10px; margin-bottom: 15px; border-color: var(--bd-info); background: #fdfefe;">
-    <div class="panel-title" style="color: var(--tx-info)">📊 Official Class Attendance (Q5)</div>
-    <p style="font-size:11px; color:var(--tx2); margin-bottom:10px;">Type any student's Roll No (e.g. MS25A071) or first name to see their attendance across your selected planner subjects.</p>
+  <!-- Class-Wide Attendance Fetcher Panel -->
+  <div class="panel" style="margin-top: 10px; margin-bottom: 15px; border-color: var(--bd-info); background: var(--bg);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+      <div class="panel-title" style="color: var(--tx-info); margin:0;">📊 Attendance Records & Analytics</div>
+      <div class="ios-segmented" id="cohort-term-selector">
+        <button class="ios-seg-btn active-p" id="cohort-tab-q6" onclick="setCohortTerm('Q6')">🟢 Q6 Live (14 Classes)</button>
+        <button class="ios-seg-btn" id="cohort-tab-q5" onclick="setCohortTerm('Q5')">📁 Q5 Official</button>
+      </div>
+    </div>
+    <p style="font-size:11.5px; color:var(--tx2); margin-bottom:10px; line-height:1.4;">
+      Type your Roll No (e.g. <code>MS25A071</code>) or student name to view live class-by-class records for Q6 (14 classes each, attended, absent & percentage), or view official past Q5 records.
+    </p>
     <div class="cmp-row" style="margin-bottom:0">
       <input type="text" id="cohort-search-input" class="cmp-input" placeholder="Enter Roll No or Name..." oninput="searchCohortAttendance()">
       <button class="cmp-btn" onclick="searchCohortAttendance()">Search</button>

@@ -11,20 +11,111 @@ let sel={Q5:{},Q6:{},Q7:{}};
 let liveDailyCache = null;
 let liveWeeklyCache = null;
 
-try {
-  const savedSel = JSON.parse(localStorage.getItem('mbaplanner_selections'));
-  if (savedSel) {
+// ── ROLL NUMBER & PREFERENCES HELPERS ──────────────────────────────
+function getActiveRollNo() {
+  return (localStorage.getItem('mbaplanner_roll_no') || '').trim().toUpperCase();
+}
+
+function applyPreferences(prefObj) {
+  if (!prefObj) return;
+  if (prefObj.selections) {
     ['Q5', 'Q6', 'Q7'].forEach(q => {
-      if (savedSel[q]) {
-        Object.keys(savedSel[q]).forEach(code => {
+      sel[q] = {};
+      if (prefObj.selections[q] && DATA[q] && DATA[q].subjects) {
+        Object.keys(prefObj.selections[q]).forEach(code => {
           const liveSubj = DATA[q].subjects.find(s => s.code === code);
           if (liveSubj) sel[q][code] = liveSubj;
+          else if (prefObj.selections[q][code]) sel[q][code] = prefObj.selections[q][code];
         });
       }
     });
   }
-} catch (e) {
-  console.warn("Could not parse saved selections from localStorage.", e);
+  if (prefObj.goals) Object.assign(goals, prefObj.goals);
+  if (prefObj.goalMinorDom !== undefined) goalMinorDom = prefObj.goalMinorDom;
+  if (prefObj.goalMajorDom !== undefined) goalMajorDom = prefObj.goalMajorDom;
+  if (prefObj.goalDualD1 !== undefined) goalDualD1 = prefObj.goalDualD1;
+  if (prefObj.goalDualD2 !== undefined) goalDualD2 = prefObj.goalDualD2;
+}
+
+function savePreferencesForRoll(roll) {
+  const cleanRoll = (roll || getActiveRollNo()).trim().toUpperCase();
+  if (!cleanRoll) return;
+
+  try {
+    const allPrefs = JSON.parse(localStorage.getItem('mbaplanner_roll_preferences')) || {};
+    allPrefs[cleanRoll] = {
+      selections: sel,
+      goals: goals,
+      goalMinorDom: goalMinorDom,
+      goalMajorDom: goalMajorDom,
+      goalDualD1: goalDualD1,
+      goalDualD2: goalDualD2,
+      updatedAt: Date.now()
+    };
+    localStorage.setItem('mbaplanner_roll_preferences', JSON.stringify(allPrefs));
+  } catch(e) {
+    console.warn("Could not save roll preferences locally", e);
+  }
+
+  // Backup to Firebase
+  if (typeof fbDb !== 'undefined' && fbDb) {
+    try {
+      const safeRoll = cleanRoll.replace(/[.#$[\]]/g, '_');
+      fbDb.ref(`roll_preferences/${safeRoll}`).set({
+        selections: sel,
+        goals: goals,
+        goalMinorDom: goalMinorDom,
+        goalMajorDom: goalMajorDom,
+        goalDualD1: goalDualD1,
+        goalDualD2: goalDualD2,
+        updatedAt: Date.now()
+      });
+    } catch(err) {
+      console.warn('Firebase roll_preferences set error:', err);
+    }
+  }
+}
+
+function loadPreferencesForRoll(roll) {
+  if (!roll) return false;
+  const cleanRoll = roll.trim().toUpperCase();
+  let loaded = false;
+
+  try {
+    const allPrefs = JSON.parse(localStorage.getItem('mbaplanner_roll_preferences')) || {};
+    if (allPrefs[cleanRoll] && allPrefs[cleanRoll].selections) {
+      applyPreferences(allPrefs[cleanRoll]);
+      loaded = true;
+    }
+  } catch(e) {}
+
+  if (!loaded && window._cloudRollPreferences && window._cloudRollPreferences[cleanRoll]) {
+    applyPreferences(window._cloudRollPreferences[cleanRoll]);
+    loaded = true;
+  }
+
+  if (typeof fbDb !== 'undefined' && fbDb) {
+    const safeRoll = cleanRoll.replace(/[.#$[\]]/g, '_');
+    fbDb.ref(`roll_preferences/${safeRoll}`).once('value').then(snap => {
+      const data = snap.val();
+      if (data && data.selections) {
+        applyPreferences(data);
+        try {
+          const allPrefs = JSON.parse(localStorage.getItem('mbaplanner_roll_preferences')) || {};
+          allPrefs[cleanRoll] = data;
+          localStorage.setItem('mbaplanner_roll_preferences', JSON.stringify(allPrefs));
+          localStorage.setItem('mbaplanner_selections', JSON.stringify(sel));
+        } catch(e) {}
+        render();
+        if (typeof renderDailySchedule === 'function') renderDailySchedule();
+        if (typeof searchCohortAttendance === 'function' && document.getElementById('cohort-search-input')) {
+          searchCohortAttendance();
+        }
+      }
+    });
+  }
+
+  return loaded;
 }
 
 let fDom='All';
@@ -38,6 +129,33 @@ let goalDualD2='';
 let exportQ='Q5';
 let q6AlertShown=false;
 
+try {
+  const activeRoll = getActiveRollNo();
+  let loadedFromRoll = false;
+  if (activeRoll) {
+    loadedFromRoll = loadPreferencesForRoll(activeRoll);
+  }
+  
+  if (!loadedFromRoll) {
+    const savedSel = JSON.parse(localStorage.getItem('mbaplanner_selections'));
+    if (savedSel) {
+      ['Q5', 'Q6', 'Q7'].forEach(q => {
+        if (savedSel[q] && DATA[q] && DATA[q].subjects) {
+          Object.keys(savedSel[q]).forEach(code => {
+            const liveSubj = DATA[q].subjects.find(s => s.code === code);
+            if (liveSubj) sel[q][code] = liveSubj;
+          });
+        }
+      });
+      if (activeRoll) {
+        savePreferencesForRoll(activeRoll);
+      }
+    }
+  }
+} catch (e) {
+  console.warn("Could not parse saved selections from localStorage.", e);
+}
+
 function toggleGoal(g){
   goals[g]=!goals[g];
   document.getElementById('g-'+g).classList.toggle('on',goals[g]);
@@ -47,13 +165,15 @@ function toggleGoal(g){
     if(g==='major')goalMajorDom='';
     if(g==='dual'){goalDualD1='';goalDualD2='';}
   }
-  renderGoalDomChips(); render();
+  renderGoalDomChips(); 
+  render();
+  savePreferencesForRoll();
 }
 
-function setMinorDom(d){goalMinorDom=(goalMinorDom===d?'':d);renderGoalDomChips();render();}
-function setMajorDom(d){goalMajorDom=(goalMajorDom===d?'':d);renderGoalDomChips();render();}
-function setDualD1(d){goalDualD1=(goalDualD1===d?'':d);goalDualD2='';renderGoalDomChips();render();}
-function setDualD2(d){goalDualD2=(goalDualD2===d?'':d);renderGoalDomChips();render();}
+function setMinorDom(d){goalMinorDom=(goalMinorDom===d?'':d);renderGoalDomChips();render();savePreferencesForRoll();}
+function setMajorDom(d){goalMajorDom=(goalMajorDom===d?'':d);renderGoalDomChips();render();savePreferencesForRoll();}
+function setDualD1(d){goalDualD1=(goalDualD1===d?'':d);goalDualD2='';renderGoalDomChips();render();savePreferencesForRoll();}
+function setDualD2(d){goalDualD2=(goalDualD2===d?'':d);renderGoalDomChips();render();savePreferencesForRoll();}
 
 function renderGoalDomChips(){
   const mk=(arr,selDom,fn,excl)=>arr.filter(d=>d!==excl).map(d=>`<button class="chip${selDom===d?' on':''}" onclick="${fn}('${d}')">${d}</button>`).join('');
@@ -189,8 +309,15 @@ function toggleSubject(code){
     sel[q][code]=subj;
   }
   
+  savePreferencesForRoll();
   localStorage.setItem('mbaplanner_selections', JSON.stringify(sel));
   render();
+  if (typeof renderDailySchedule === 'function') {
+    renderDailySchedule();
+  }
+  if (typeof searchCohortAttendance === 'function' && document.getElementById('cohort-att-table-container')) {
+    searchCohortAttendance();
+  }
 }
 
 function closeAlertModal() {
@@ -403,7 +530,129 @@ function render(){
   buildSuggestions();
   renderGoalDomChips();
   renderSupply();
+  renderPlannerRollBanner();
 }
+
+window.renderPlannerRollBanner = function() {
+  const container = document.getElementById('plan-roll-banner');
+  if (!container) return;
+
+  const savedRoll = getActiveRollNo();
+  if (savedRoll) {
+    let studentName = '';
+    if (typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB[savedRoll]) {
+      studentName = CLASS_ATTENDANCE_DB[savedRoll].name;
+    }
+    const q6Count = Object.values(sel['Q6'] || {}).filter(s => !s.isCore).length;
+
+    container.innerHTML = `
+    <div class="plan-student-bar">
+      <div class="plan-student-left">
+        <span class="plan-student-icon">🎓</span>
+        <div>
+          <div class="plan-student-title">
+            <span>${savedRoll}</span>
+            ${studentName ? `<span style="font-weight:600; color:var(--tx2);">· ${studentName}</span>` : ''}
+            <span class="plan-student-badge">✓ Linked</span>
+          </div>
+          <div class="plan-student-sub">
+            Preferences linked with Daily Agenda & Attendance · ${q6Count}/4 Q6 electives chosen
+          </div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <button class="ios-seg-btn active-p" onclick="switchView('daily')" style="padding:4px 10px; font-size:11px;">
+          📅 Daily Agenda
+        </button>
+        <button class="ios-seg-btn" onclick="changePlannerRollNo()" style="padding:4px 10px; font-size:11px; color:#007AFF;">
+          Edit Roll No
+        </button>
+      </div>
+    </div>`;
+  } else {
+    container.innerHTML = `
+    <div class="plan-student-prompt">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:16px;">🎓</span>
+          <span style="font-size:13px; font-weight:700; color:var(--tx);">Link Planner to your Roll Number</span>
+        </div>
+        <span style="font-size:10.5px; font-weight:700; color:#007AFF; background:rgba(0,122,255,0.1); padding:2px 7px; border-radius:6px;">Auto-Sync</span>
+      </div>
+      <div style="font-size:11.5px; color:var(--tx2); margin-bottom:10px; line-height:1.4;">
+        Enter your Roll No (e.g. <code>MS25A071</code>) so your chosen electives automatically power your <strong>Daily Agenda</strong> and <strong>Attendance tracking</strong>.
+      </div>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="planner-roll-input" class="cmp-input" placeholder="e.g. MS25A071" style="flex:1; text-transform:uppercase; font-weight:700; font-size:12px; padding:6px 10px; border-radius:8px;" onkeydown="if(event.key==='Enter') savePlannerRollNo()">
+        <button class="cmp-btn" onclick="savePlannerRollNo()" style="padding:6px 14px; border-radius:8px; font-size:12px; white-space:nowrap;">Link & Save</button>
+      </div>
+    </div>`;
+  }
+};
+
+window.setRollNumber = function(val) {
+  const clean = (val || '').trim().toUpperCase();
+  if (!clean) {
+    localStorage.removeItem('mbaplanner_roll_no');
+  } else {
+    localStorage.setItem('mbaplanner_roll_no', clean);
+    if (typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB[clean]) {
+      const sName = CLASS_ATTENDANCE_DB[clean].name;
+      if (sName) {
+        localStorage.setItem('mbaplanner_myname', sName);
+        localStorage.setItem('mbaplanner_att_username', sName);
+      }
+    }
+    const loaded = loadPreferencesForRoll(clean);
+    if (!loaded) {
+      savePreferencesForRoll(clean);
+    }
+  }
+
+  renderPlannerRollBanner();
+  render();
+  if (typeof renderDailySchedule === 'function') renderDailySchedule();
+  if (typeof updatePwaDrawerStudent === 'function') updatePwaDrawerStudent();
+  if (typeof searchCohortAttendance === 'function') {
+    const cohortInput = document.getElementById('cohort-search-input');
+    if (cohortInput) cohortInput.value = clean;
+    searchCohortAttendance();
+  }
+};
+
+window.savePlannerRollNo = function() {
+  const inp = document.getElementById('planner-roll-input');
+  if (!inp) return;
+  const val = inp.value.trim().toUpperCase();
+  if (!val) {
+    alert('Please enter a valid Roll Number.');
+    return;
+  }
+  setRollNumber(val);
+};
+
+window.changePlannerRollNo = function() {
+  const current = getActiveRollNo();
+  const val = prompt('Enter your Roll Number to link planner preferences & agenda (e.g. MS25A071):', current);
+  if (val !== null) {
+    setRollNumber(val);
+  }
+};
+
+window.updatePwaDrawerStudent = function() {
+  const el = document.getElementById('pwa-drawer-student');
+  if (!el) return;
+  const roll = getActiveRollNo();
+  if (roll) {
+    let name = '';
+    if (typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB[roll]) {
+      name = CLASS_ATTENDANCE_DB[roll].name;
+    }
+    el.innerHTML = `🎓 <strong>${roll}</strong> ${name ? `· ${name}` : ''}`;
+  } else {
+    el.innerHTML = `<span onclick="changePlannerRollNo()" style="color:#007AFF; cursor:pointer;">+ Set Roll Number</span>`;
+  }
+};
 
 function openExport(){
   const qs=['Q6','Q5','Q7'].filter(q=>Object.keys(sel[q]).length>0);
@@ -808,14 +1057,23 @@ function switchView(v){
     const f=document.getElementById('mess-iframe');
     if(!f.src) f.src='https://mess-menu-iitm.vercel.app/';
   }
+  if(v==='plan'){
+    renderPlannerRollBanner();
+  }
   if(v==='att'){
     setAttQ(cQ);
     const savedAttName = localStorage.getItem('mbaplanner_att_username');
     const savedCompareName = localStorage.getItem('mbaplanner_myname');
     const inputEl = document.getElementById('att-sync-username');
-    if(!inputEl.value) {
+    if(inputEl && !inputEl.value) {
       if(savedAttName) inputEl.value = savedAttName;
       else if(savedCompareName) inputEl.value = savedCompareName;
+    }
+    const cohortSearchInp = document.getElementById('cohort-search-input');
+    const savedRoll = getActiveRollNo();
+    if (cohortSearchInp && savedRoll) {
+      if (!cohortSearchInp.value) cohortSearchInp.value = savedRoll;
+      searchCohortAttendance();
     }
   }
 
@@ -1340,21 +1598,328 @@ function loadAttendanceCloud() {
   });
 }
 
-// ── COHORT SEARCH ────────────────────────────────────────────────────────────
+// ── COHORT & LIVE Q6 ATTENDANCE SEARCH ──────────────────────────────────────────
+window.currentCohortTerm = 'Q6';
+window.setCohortTerm = function(term) {
+  window.currentCohortTerm = term;
+  const q6Btn = document.getElementById('cohort-tab-q6');
+  const q5Btn = document.getElementById('cohort-tab-q5');
+  if (q6Btn && q5Btn) {
+    q6Btn.className = 'ios-seg-btn ' + (term === 'Q6' ? 'active-p' : '');
+    q5Btn.className = 'ios-seg-btn ' + (term === 'Q5' ? 'active-p' : '');
+  }
+  searchCohortAttendance();
+};
+
+window.getQ6AttendanceForRoll = function(query) {
+  const cleanQuery = (query || '').trim().toUpperCase();
+  if (!cleanQuery) return null;
+
+  // 1. Identify student and roll number
+  let foundRoll = null;
+  let studentName = '';
+
+  if (typeof CLASS_ATTENDANCE_DB !== 'undefined') {
+    for (const [roll, data] of Object.entries(CLASS_ATTENDANCE_DB)) {
+      if (roll.toUpperCase() === cleanQuery || roll.toUpperCase().includes(cleanQuery) || (data.name && data.name.toUpperCase().includes(cleanQuery))) {
+        foundRoll = roll.toUpperCase();
+        studentName = data.name;
+        break;
+      }
+    }
+  }
+
+  if (!foundRoll) {
+    foundRoll = cleanQuery;
+  }
+
+  const currentSavedRoll = (localStorage.getItem('mbaplanner_roll_no') || '').trim().toUpperCase();
+  const isCurrentStudent = currentSavedRoll && (currentSavedRoll === foundRoll);
+
+  // 2. Gather all attendance sessions recorded for this roll
+  let rollAttMap = {};
+  try {
+    const allRolls = JSON.parse(localStorage.getItem('mbaplanner_roll_attendance')) || {};
+    if (allRolls[foundRoll]) Object.assign(rollAttMap, allRolls[foundRoll]);
+  } catch(e) {}
+
+  if (isCurrentStudent) {
+    try {
+      const activeSessions = JSON.parse(localStorage.getItem('mbaplanner_class_attendance')) || {};
+      Object.assign(rollAttMap, activeSessions);
+    } catch(e) {}
+  }
+
+  if (window._cloudQ6Attendance && window._cloudQ6Attendance[foundRoll]) {
+    Object.assign(rollAttMap, window._cloudQ6Attendance[foundRoll]);
+  }
+
+  // 3. Count Present (P) and Absent (A) per subject code
+  const counts = {};
+  for (const [sessionId, status] of Object.entries(rollAttMap)) {
+    const parts = sessionId.split('_');
+    if (parts.length >= 3) {
+      const code = parts.slice(2).join('_');
+      if (!counts[code]) counts[code] = { p: 0, a: 0 };
+      if (status === 'P') counts[code].p++;
+      else if (status === 'A') counts[code].a++;
+    }
+  }
+
+  if (isCurrentStudent && attData && attData['Q6']) {
+    for (const [code, c] of Object.entries(attData['Q6'])) {
+      if (!counts[code]) counts[code] = { p: 0, a: 0 };
+      counts[code].p = Math.max(counts[code].p, c.p || 0);
+      counts[code].a = Math.max(counts[code].a, c.a || 0);
+    }
+  }
+
+  // 4. Build subject list for Q6
+  // Mandatory Core courses in Q6: MS6210 (Business Models) & MS5529 (Behavioural lab)
+  const q6Subjects = (DATA['Q6'] && DATA['Q6'].subjects) ? DATA['Q6'].subjects : [];
+  const coreCodes = ['MS6210', 'MS5529'];
+
+  const subjectMap = {};
+  q6Subjects.forEach(s => { subjectMap[s.code] = s; });
+
+  const targetCodes = new Set(coreCodes);
+  let studentElectives = null;
+  if (isCurrentStudent && sel && sel['Q6']) {
+    studentElectives = Object.values(sel['Q6']);
+  } else {
+    try {
+      const allPrefs = JSON.parse(localStorage.getItem('mbaplanner_roll_preferences')) || {};
+      if (allPrefs[foundRoll] && allPrefs[foundRoll].selections && allPrefs[foundRoll].selections['Q6']) {
+        studentElectives = Object.values(allPrefs[foundRoll].selections['Q6']);
+      }
+    } catch(e) {}
+    if (!studentElectives && window._cloudRollPreferences && window._cloudRollPreferences[foundRoll] && window._cloudRollPreferences[foundRoll].selections && window._cloudRollPreferences[foundRoll].selections['Q6']) {
+      studentElectives = Object.values(window._cloudRollPreferences[foundRoll].selections['Q6']);
+    }
+  }
+
+  if (studentElectives) {
+    studentElectives.forEach(s => { if (s && s.code) targetCodes.add(s.code); });
+  }
+  Object.keys(counts).forEach(c => targetCodes.add(c));
+
+  const subjectRecords = [];
+  let totalAttended = 0;
+  let totalAbsent = 0;
+  let totalHeld = 0;
+  const totalPlannedPerCourse = 14;
+
+  targetCodes.forEach(code => {
+    const subj = subjectMap[code] || {
+      code,
+      name: code,
+      isCore: coreCodes.includes(code),
+      v: coreCodes.includes(code) ? 'Core' : 'Elective'
+    };
+
+    const p = counts[code] ? counts[code].p : 0;
+    const a = counts[code] ? counts[code].a : 0;
+    const held = p + a;
+    const remaining = Math.max(0, totalPlannedPerCourse - held);
+
+    const pctHeld = held > 0 ? Math.round((p / held) * 100) : 100;
+    const pctTotal = Math.round((p / totalPlannedPerCourse) * 100);
+    const absencesLeft = 2 - a;
+
+    totalAttended += p;
+    totalAbsent += a;
+    totalHeld += held;
+
+    subjectRecords.push({
+      code,
+      name: subj.name,
+      isCore: Boolean(subj.isCore),
+      domain: subj.v || (subj.isCore ? 'Core' : 'Elective'),
+      p,
+      a,
+      held,
+      remaining,
+      totalPlanned: totalPlannedPerCourse,
+      pctHeld,
+      pctTotal,
+      absencesLeft
+    });
+  });
+
+  subjectRecords.sort((x, y) => {
+    if (x.isCore && !y.isCore) return -1;
+    if (!x.isCore && y.isCore) return 1;
+    return x.code.localeCompare(y.code);
+  });
+
+  const totalPlannedAll = subjectRecords.length * totalPlannedPerCourse;
+  const overallPctHeld = totalHeld > 0 ? Math.round((totalAttended / totalHeld) * 100) : 100;
+  const overallPctTotal = totalPlannedAll > 0 ? Math.round((totalAttended / totalPlannedAll) * 100) : 0;
+
+  return {
+    roll: foundRoll,
+    name: studentName,
+    isCurrentStudent,
+    records: subjectRecords,
+    summary: {
+      totalAttended,
+      totalAbsent,
+      totalHeld,
+      totalPlannedAll,
+      overallPctHeld,
+      overallPctTotal
+    }
+  };
+};
+
 function searchCohortAttendance() {
-  const query = document.getElementById('cohort-search-input').value.trim().toUpperCase();
-  const container = document.getElementById('cohort-att-table-container');
+  const inputEl = document.getElementById('cohort-search-input');
+  if (!inputEl) return;
   
+  let query = inputEl.value.trim().toUpperCase();
+  const container = document.getElementById('cohort-att-table-container');
+  if (!container) return;
+
+  if (!query) {
+    const saved = (localStorage.getItem('mbaplanner_roll_no') || '').trim().toUpperCase();
+    if (saved) {
+      query = saved;
+      inputEl.value = saved;
+    }
+  }
+
   if (!query) {
     container.style.display = 'none';
     return;
   }
 
+  const term = window.currentCohortTerm || 'Q6';
+
+  if (term === 'Q6') {
+    const res = getQ6AttendanceForRoll(query);
+    if (!res) {
+      container.style.display = 'block';
+      container.innerHTML = `<div class="cmp-empty" style="border-color: var(--bd-warn)">No student found matching "${query}". Check the Roll No or Name.</div>`;
+      return;
+    }
+
+    const { roll, name, records, summary } = res;
+    const overallColor = summary.overallPctHeld < 85 ? 'var(--tx-danger)' : '#34C759';
+    
+    let html = `
+    <div style="background:var(--bg2); border:0.5px solid var(--bd); border-radius:14px; padding:14px; margin-bottom:12px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+        <div>
+          <div style="font-size:15px; font-weight:800; color:var(--tx); display:flex; align-items:center; gap:6px;">
+            <span>🎓</span> <span>${name ? `${name} · ` : ''}<strong>${roll}</strong></span>
+          </div>
+          <div style="font-size:11px; color:var(--tx2); margin-top:2px;">
+            Q6 Active Attendance Record · 14 Classes Planned Per Course
+          </div>
+        </div>
+        <button class="ios-seg-btn active-p" onclick="switchView('daily')" style="padding:4px 10px; font-size:11px;">
+          📅 Log in Daily Agenda
+        </button>
+      </div>
+
+      <!-- Quick Metrics Summary Grid -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(110px, 1fr)); gap:8px; margin-bottom:14px;">
+        <div style="background:var(--bg); border:0.5px solid var(--bd); border-radius:10px; padding:8px 10px; text-align:center;">
+          <div style="font-size:10px; font-weight:700; color:var(--tx3); text-transform:uppercase;">Attended</div>
+          <div style="font-size:18px; font-weight:800; color:#34C759; margin-top:2px;">${summary.totalAttended}</div>
+        </div>
+        <div style="background:var(--bg); border:0.5px solid var(--bd); border-radius:10px; padding:8px 10px; text-align:center;">
+          <div style="font-size:10px; font-weight:700; color:var(--tx3); text-transform:uppercase;">Absent</div>
+          <div style="font-size:18px; font-weight:800; color:${summary.totalAbsent > 0 ? '#FF3B30' : 'var(--tx2)'}; margin-top:2px;">${summary.totalAbsent}</div>
+        </div>
+        <div style="background:var(--bg); border:0.5px solid var(--bd); border-radius:10px; padding:8px 10px; text-align:center;">
+          <div style="font-size:10px; font-weight:700; color:var(--tx3); text-transform:uppercase;">Held / Total</div>
+          <div style="font-size:18px; font-weight:800; color:var(--tx); margin-top:2px;">${summary.totalHeld} <span style="font-size:12px; font-weight:600; color:var(--tx3);">/ ${summary.totalPlannedAll}</span></div>
+        </div>
+        <div style="background:var(--bg); border:0.5px solid var(--bd); border-radius:10px; padding:8px 10px; text-align:center;">
+          <div style="font-size:10px; font-weight:700; color:var(--tx3); text-transform:uppercase;">Overall %</div>
+          <div style="font-size:18px; font-weight:800; color:${overallColor}; margin-top:2px;">${summary.overallPctHeld}%</div>
+        </div>
+      </div>
+
+      <!-- Subject Breakdown Table -->
+      <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left; background:var(--bg); border-radius:10px; overflow:hidden; border:0.5px solid var(--bd);">
+          <thead>
+            <tr style="border-bottom:1px solid var(--bd); background:var(--bg3);">
+              <th style="padding:9px 10px; font-weight:700;">Subject</th>
+              <th style="padding:9px 8px; text-align:center; font-weight:700;">Attended</th>
+              <th style="padding:9px 8px; text-align:center; font-weight:700;">Absent</th>
+              <th style="padding:9px 8px; text-align:center; font-weight:700;">Held / 14</th>
+              <th style="padding:9px 10px; text-align:center; font-weight:700;">Attendance %</th>
+              <th style="padding:9px 10px; text-align:right; font-weight:700;">Safe Margin</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+    for (const rec of records) {
+      let pctColor = '#34C759';
+      if (rec.pctHeld < 85) pctColor = '#FF3B30';
+      else if (rec.absencesLeft === 0) pctColor = 'var(--tx-warn)';
+
+      let marginBadge = '';
+      if (rec.absencesLeft > 1) {
+        marginBadge = `<span style="font-size:10.5px; font-weight:700; color:#34C759; background:rgba(52,199,89,0.1); padding:2px 7px; border-radius:6px;">${rec.absencesLeft} left</span>`;
+      } else if (rec.absencesLeft === 1) {
+        marginBadge = `<span style="font-size:10.5px; font-weight:700; color:var(--tx-warn); background:rgba(255,149,0,0.1); padding:2px 7px; border-radius:6px;">1 left ⚠️</span>`;
+      } else if (rec.absencesLeft === 0) {
+        marginBadge = `<span style="font-size:10.5px; font-weight:800; color:var(--tx-warn); background:rgba(255,149,0,0.15); padding:2px 7px; border-radius:6px;">0 left (Limit)</span>`;
+      } else {
+        marginBadge = `<span style="font-size:10.5px; font-weight:800; color:#FF3B30; background:rgba(255,59,48,0.12); padding:2px 7px; border-radius:6px;">Exceeded (${rec.a}/2)</span>`;
+      }
+
+      const typeBadge = rec.isCore 
+        ? `<span style="font-size:9.5px; font-weight:800; color:#007AFF; background:rgba(0,122,255,0.1); padding:1.5px 5px; border-radius:4px; margin-left:4px;">CORE</span>`
+        : `<span style="font-size:9.5px; font-weight:600; color:var(--tx3); background:var(--bg3); padding:1.5px 5px; border-radius:4px; margin-left:4px;">ELECTIVE</span>`;
+
+      html += `
+            <tr style="border-bottom:0.5px solid var(--bd);">
+              <td style="padding:9px 10px; line-height:1.35;">
+                <div style="font-weight:700; color:var(--tx); display:flex; align-items:center;">
+                  <span>${rec.code}</span> ${typeBadge}
+                </div>
+                <div style="font-size:11px; color:var(--tx2); margin-top:2px;">${rec.name}</div>
+              </td>
+              <td style="padding:9px 8px; text-align:center; font-weight:800; color:#34C759;">${rec.p}</td>
+              <td style="padding:9px 8px; text-align:center; font-weight:800; color:${rec.a > 0 ? '#FF3B30' : 'var(--tx3)'};">${rec.a}</td>
+              <td style="padding:9px 8px; text-align:center; font-weight:600; color:var(--tx2);">
+                ${rec.held} <span style="color:var(--tx3); font-size:10.5px;">/ 14</span>
+              </td>
+              <td style="padding:9px 10px; text-align:center;">
+                <div style="font-weight:800; color:${pctColor};">${rec.pctHeld}%</div>
+                <div style="font-size:9.5px; color:var(--tx3); margin-top:1px;">${rec.pctTotal}% of term</div>
+              </td>
+              <td style="padding:9px 10px; text-align:right;">
+                ${marginBadge}
+              </td>
+            </tr>`;
+    }
+
+    html += `
+          </tbody>
+        </table>
+      </div>
+      <div style="font-size:10.5px; color:var(--tx3); margin-top:10px; line-height:1.4;">
+        ℹ️ IITM Policy: Attendance must stay at or above 85% (at most 2 absences out of 14 total classes per course). As you log attendance in Daily Agenda, your records update here instantly.
+      </div>
+    </div>`;
+
+    container.style.display = 'block';
+    container.innerHTML = html;
+    return;
+  }
+
+  // Q5 Official cohort search
   let foundStudentId = null;
   let foundStudent = null;
 
   for (const [roll, data] of Object.entries(CLASS_ATTENDANCE_DB)) {
-    if (roll.includes(query) || data.name.toUpperCase().includes(query)) {
+    if (roll.toUpperCase() === query || roll.toUpperCase().includes(query) || (data.name && data.name.toUpperCase().includes(query))) {
       foundStudentId = roll;
       foundStudent = data;
       break;
@@ -1367,8 +1932,8 @@ function searchCohortAttendance() {
     return;
   }
 
-  let html = `<div style="font-size: 13px; font-weight: 700; color: var(--tx-info); margin-bottom: 8px;">👤 ${foundStudent.name} (${foundStudentId})</div>`;
-  html += '<table style="width:100%; border-collapse: collapse; font-size: 12px; text-align: left; background: var(--bg); border: .5px solid var(--bd);">';
+  let html = `<div style="font-size: 13px; font-weight: 700; color: var(--tx-info); margin-bottom: 8px;">👤 ${foundStudent.name} (${foundStudentId}) · Official Q5 Record</div>`;
+  html += '<table style="width:100%; border-collapse: collapse; font-size: 12px; text-align: left; background: var(--bg); border: .5px solid var(--bd); border-radius:10px; overflow:hidden;">';
   html += '<thead><tr style="border-bottom: 1px solid var(--bd); background: var(--bg2);">';
   html += '<th style="padding: 8px 10px;">Subject</th>';
   html += '<th style="padding: 8px 10px; text-align: center;">Present</th>';
@@ -1463,6 +2028,7 @@ window.refreshLiveSchedule = function(btnElement) {
     if (ptrEl && !btnElement) ptrEl.style.height = '40px';
     
     if(typeof fbDb !== 'undefined' && fbDb) {
+      // 1. Live Excel Timetable
       fbDb.ref('schedule').once('value').then(snap => {
         const data = snap.val();
         if(data) {
@@ -1483,18 +2049,86 @@ window.refreshLiveSchedule = function(btnElement) {
             }
         }
         if (ptrEl) ptrEl.style.height = '0px';
+        if (btnElement) btnElement.innerText = "✓ Synced";
       }).catch(e => {
           console.warn('Could not fetch live cloud schedule.', e);
           if(btnElement) btnElement.innerText = "❌ Sync failed";
           if (ptrEl) ptrEl.style.height = '0px';
           
           if (!liveDailyCache) {
-             // Let renderDailySchedule handle the fallback UI
-             if (currentView === 'daily') renderDailySchedule();
+             if (typeof currentView !== 'undefined' && currentView === 'daily') renderDailySchedule();
           }
       });
+
+      // 2. Q6 Attendance Sync
+      fbDb.ref('q6_attendance').once('value').then(snap => {
+        const cloudAtt = snap.val();
+        if (cloudAtt) {
+            window._cloudQ6Attendance = cloudAtt;
+            if (typeof searchCohortAttendance === 'function' && document.getElementById('cohort-att-table-container')) {
+                searchCohortAttendance();
+            }
+            if (typeof renderDailySchedule === 'function' && typeof currentView !== 'undefined' && currentView === 'daily') {
+                renderDailySchedule();
+            }
+        }
+      }).catch(e => console.warn('Could not fetch cloud q6 attendance.', e));
+
+      // 3. Roll Preferences Sync
+      fbDb.ref('roll_preferences').once('value').then(snap => {
+        const cloudPrefs = snap.val();
+        if (cloudPrefs) {
+          window._cloudRollPreferences = cloudPrefs;
+          const activeRoll = getActiveRollNo();
+          if (activeRoll && cloudPrefs[activeRoll]) {
+            const allLocal = JSON.parse(localStorage.getItem('mbaplanner_roll_preferences')) || {};
+            const localPref = allLocal[activeRoll];
+            if (!localPref || (cloudPrefs[activeRoll].updatedAt && cloudPrefs[activeRoll].updatedAt > (localPref.updatedAt || 0))) {
+              applyPreferences(cloudPrefs[activeRoll]);
+              allLocal[activeRoll] = cloudPrefs[activeRoll];
+              localStorage.setItem('mbaplanner_roll_preferences', JSON.stringify(allLocal));
+              localStorage.setItem('mbaplanner_selections', JSON.stringify(sel));
+              render();
+              if (typeof renderDailySchedule === 'function') renderDailySchedule();
+            }
+          }
+        }
+      }).catch(e => console.warn('Could not fetch cloud roll preferences.', e));
     }
 };
+
+// Continuous Real-Time Listener on Schedule (Excel updates)
+if (typeof fbDb !== 'undefined' && fbDb) {
+  try {
+    fbDb.ref('schedule').on('value', snap => {
+      const data = snap.val();
+      if (data && data.daily) {
+        liveDailyCache = data.daily;
+        liveWeeklyCache = data.weekly;
+        window.lastSyncedTime = new Date();
+        window._isOfflineFallback = false;
+        localStorage.setItem('mbaplanner_daily_cache', JSON.stringify({
+          data: liveDailyCache,
+          time: window.lastSyncedTime.getTime()
+        }));
+        if (typeof currentView !== 'undefined') {
+          if (currentView === 'daily') renderDailySchedule();
+          if (currentView === 'master') renderMasterSchedule();
+        }
+      }
+    });
+
+    fbDb.ref('q6_attendance').on('value', snap => {
+      const cloudAtt = snap.val();
+      if (cloudAtt) {
+        window._cloudQ6Attendance = cloudAtt;
+        if (typeof searchCohortAttendance === 'function' && document.getElementById('cohort-att-table-container')) {
+          searchCohortAttendance();
+        }
+      }
+    });
+  } catch(e) {}
+}
 
 // ── PWA INSTANT BOOT FROM CACHE + SIDE DRAWER INJECTION ─────────────────────
 // ── PWA STANDALONE BOOT + DRAWER (ONLY FOR PWA) ─────────────────────────────
@@ -1874,21 +2508,14 @@ window.saveAgendaRollNo = function() {
         alert('Please enter a valid Roll Number.');
         return;
     }
-    localStorage.setItem('mbaplanner_roll_no', val);
-    renderDailySchedule();
+    setRollNumber(val);
 };
 
 window.changeAgendaRollNo = function() {
-    const current = localStorage.getItem('mbaplanner_roll_no') || '';
-    const val = prompt('Enter Roll Number to track attendance (e.g. MS25A071):', current);
+    const current = getActiveRollNo();
+    const val = prompt('Enter Roll Number to track attendance & preferences (e.g. MS25A071):', current);
     if (val !== null) {
-        const clean = val.trim().toUpperCase();
-        if (clean) {
-            localStorage.setItem('mbaplanner_roll_no', clean);
-        } else {
-            localStorage.removeItem('mbaplanner_roll_no');
-        }
-        renderDailySchedule();
+        setRollNumber(val);
     }
 };
 
@@ -1920,11 +2547,11 @@ window.syncClassAttendanceToAttData = function() {
 };
 
 window.markClassAttendance = function(ymd, timeSlot, code, targetStatus) {
-    let roll = localStorage.getItem('mbaplanner_roll_no');
+    let roll = getActiveRollNo();
     if (!roll) {
         const entered = prompt('Please enter your Roll Number to log attendance (e.g. MS25A071):');
         if (!entered || !entered.trim()) {
-            const inp = document.getElementById('agenda-roll-input');
+            const inp = document.getElementById('agenda-roll-input') || document.getElementById('planner-roll-input');
             if (inp) {
                 inp.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 inp.focus();
@@ -1932,7 +2559,7 @@ window.markClassAttendance = function(ymd, timeSlot, code, targetStatus) {
             return;
         }
         roll = entered.trim().toUpperCase();
-        localStorage.setItem('mbaplanner_roll_no', roll);
+        setRollNumber(roll);
     }
 
     let classAtt = {};
@@ -1942,14 +2569,43 @@ window.markClassAttendance = function(ymd, timeSlot, code, targetStatus) {
 
     const sessionId = `${ymd}_${timeSlot}_${code}`;
 
-    // Toggle off if already marked with targetStatus
+    let finalStatus = targetStatus;
     if (classAtt[sessionId] === targetStatus) {
         delete classAtt[sessionId];
+        finalStatus = null;
     } else {
         classAtt[sessionId] = targetStatus;
     }
 
     localStorage.setItem('mbaplanner_class_attendance', JSON.stringify(classAtt));
+
+    // Save into mbaplanner_roll_attendance for this roll
+    const cleanRoll = roll.trim().toUpperCase();
+    try {
+        const rollAtt = JSON.parse(localStorage.getItem('mbaplanner_roll_attendance')) || {};
+        if (!rollAtt[cleanRoll]) rollAtt[cleanRoll] = {};
+        if (finalStatus) {
+            rollAtt[cleanRoll][sessionId] = finalStatus;
+        } else {
+            delete rollAtt[cleanRoll][sessionId];
+        }
+        localStorage.setItem('mbaplanner_roll_attendance', JSON.stringify(rollAtt));
+    } catch(e) {}
+
+    // Realtime sync to Firebase q6_attendance
+    if (typeof fbDb !== 'undefined' && fbDb) {
+        try {
+            const safeRoll = cleanRoll.replace(/[.#$[\]]/g, '_');
+            const safeSessionId = sessionId.replace(/[.#$[\]]/g, '_');
+            if (finalStatus) {
+                fbDb.ref(`q6_attendance/${safeRoll}/${safeSessionId}`).set(finalStatus);
+            } else {
+                fbDb.ref(`q6_attendance/${safeRoll}/${safeSessionId}`).remove();
+            }
+        } catch(err) {
+            console.warn('Firebase q6_attendance write error:', err);
+        }
+    }
 
     // Sync to attData['Q6']
     window.syncClassAttendanceToAttData();
@@ -1958,6 +2614,9 @@ window.markClassAttendance = function(ymd, timeSlot, code, targetStatus) {
     renderDailySchedule();
     if (typeof renderAttendance === 'function' && document.getElementById('att-grid')) {
         renderAttendance();
+    }
+    if (typeof searchCohortAttendance === 'function' && document.getElementById('cohort-att-table-container')) {
+        searchCohortAttendance();
     }
 };
 
