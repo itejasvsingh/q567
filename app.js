@@ -1172,7 +1172,15 @@ function updateAtt(code, type, delta) {
 
 function renderAttendance() {
   const area = document.getElementById('att-grid');
-  const subjects = Object.values(sel[attQ] || {});
+  if (!area) return;
+  const coreCourses = (DATA[attQ] && DATA[attQ].subjects) 
+      ? DATA[attQ].subjects.filter(s => s.isCore) 
+      : [];
+  const chosenElectives = Object.values(sel[attQ] || {});
+  const activeMap = {};
+  coreCourses.forEach(s => { activeMap[s.code] = s; });
+  chosenElectives.forEach(s => { activeMap[s.code] = s; });
+  const subjects = Object.values(activeMap);
 
   let html = '';
   subjects.forEach(s => {
@@ -1589,19 +1597,57 @@ window.addEventListener('touchend', e => {
     }
 }, {passive: true});
 
-// Notification Request
-window.requestNotificationPermission = function() {
-    if ('Notification' in window) {
-        Notification.requestPermission().then(perm => {
-            renderDailySchedule(); // re-render to update btn
-        });
+// 30-Min Notification Toggle & Scheduling
+window.toggle30mAlert = function() {
+    const isGranted = ('Notification' in window) && Notification.permission === 'granted';
+    const reminderPref = localStorage.getItem('mbaplanner_reminder_30m');
+    const isCurrentlyActive = isGranted && reminderPref !== 'off';
+
+    if (isCurrentlyActive) {
+        localStorage.setItem('mbaplanner_reminder_30m', 'off');
+        if (window._activeNotifications) {
+            window._activeNotifications.forEach(id => clearTimeout(id));
+            window._activeNotifications = [];
+        }
+        renderDailySchedule();
+    } else {
+        if (!('Notification' in window)) {
+            alert('Push notifications are not supported in this browser.');
+            return;
+        }
+        if (Notification.permission === 'granted') {
+            localStorage.setItem('mbaplanner_reminder_30m', 'on');
+            renderDailySchedule();
+        } else if (Notification.permission === 'denied') {
+            alert('Notifications are blocked in your browser settings. Please allow notifications for this site to receive 30-min reminders.');
+        } else {
+            Notification.requestPermission().then(perm => {
+                if (perm === 'granted') {
+                    localStorage.setItem('mbaplanner_reminder_30m', 'on');
+                } else {
+                    localStorage.setItem('mbaplanner_reminder_30m', 'off');
+                }
+                renderDailySchedule();
+            });
+        }
     }
+};
+
+window.requestNotificationPermission = function() {
+    window.toggle30mAlert();
 };
 
 window._activeNotifications = window._activeNotifications || [];
 function scheduleClassNotifications(todaysClasses, ymdStr) {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    if (localStorage.getItem('mbaplanner_reminder_30m') === 'off') return;
     
+    // Clear pending timeouts
+    if (window._activeNotifications) {
+        window._activeNotifications.forEach(id => clearTimeout(id));
+        window._activeNotifications = [];
+    }
+
     const [y, m, d] = ymdStr.split('-');
     const utcMidnight = new Date(Date.UTC(y, m - 1, d));
     
@@ -1702,6 +1748,107 @@ function renderMasterSchedule() {
 }
 
 
+// ── AGENDA ATTENDANCE & ROLL NO HELPERS ──────────────────────────────
+window.saveAgendaRollNo = function() {
+    const inp = document.getElementById('agenda-roll-input');
+    if (!inp) return;
+    const val = inp.value.trim().toUpperCase();
+    if (!val) {
+        alert('Please enter a valid Roll Number.');
+        return;
+    }
+    localStorage.setItem('mbaplanner_roll_no', val);
+    renderDailySchedule();
+};
+
+window.changeAgendaRollNo = function() {
+    const current = localStorage.getItem('mbaplanner_roll_no') || '';
+    const val = prompt('Enter Roll Number to track attendance (e.g. MS25A071):', current);
+    if (val !== null) {
+        const clean = val.trim().toUpperCase();
+        if (clean) {
+            localStorage.setItem('mbaplanner_roll_no', clean);
+        } else {
+            localStorage.removeItem('mbaplanner_roll_no');
+        }
+        renderDailySchedule();
+    }
+};
+
+window.syncClassAttendanceToAttData = function() {
+    let classAtt = {};
+    try {
+        classAtt = JSON.parse(localStorage.getItem('mbaplanner_class_attendance')) || {};
+    } catch(e) {}
+
+    if (!attData['Q6']) attData['Q6'] = {};
+
+    const counts = {};
+    for (const [sId, status] of Object.entries(classAtt)) {
+        const parts = sId.split('_');
+        if (parts.length >= 3) {
+            const code = parts.slice(2).join('_');
+            if (!counts[code]) counts[code] = { p: 0, a: 0 };
+            if (status === 'P') counts[code].p++;
+            else if (status === 'A') counts[code].a++;
+        }
+    }
+
+    // Keep attData in sync for subjects recorded in class attendance
+    for (const [code, c] of Object.entries(counts)) {
+        attData['Q6'][code] = { p: c.p, a: c.a };
+    }
+
+    localStorage.setItem('mbaplanner_attendance', JSON.stringify(attData));
+};
+
+window.markClassAttendance = function(ymd, timeSlot, code, targetStatus) {
+    let roll = localStorage.getItem('mbaplanner_roll_no');
+    if (!roll) {
+        const entered = prompt('Please enter your Roll Number to log attendance (e.g. MS25A071):');
+        if (!entered || !entered.trim()) {
+            const inp = document.getElementById('agenda-roll-input');
+            if (inp) {
+                inp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                inp.focus();
+            }
+            return;
+        }
+        roll = entered.trim().toUpperCase();
+        localStorage.setItem('mbaplanner_roll_no', roll);
+    }
+
+    let classAtt = {};
+    try {
+        classAtt = JSON.parse(localStorage.getItem('mbaplanner_class_attendance')) || {};
+    } catch(e) {}
+
+    const sessionId = `${ymd}_${timeSlot}_${code}`;
+
+    // Toggle off if already marked with targetStatus
+    if (classAtt[sessionId] === targetStatus) {
+        delete classAtt[sessionId];
+    } else {
+        classAtt[sessionId] = targetStatus;
+    }
+
+    localStorage.setItem('mbaplanner_class_attendance', JSON.stringify(classAtt));
+
+    // Sync to attData['Q6']
+    window.syncClassAttendanceToAttData();
+
+    // Re-render Daily Agenda & Attendance View (if active)
+    renderDailySchedule();
+    if (typeof renderAttendance === 'function' && document.getElementById('att-grid')) {
+        renderAttendance();
+    }
+};
+
+window.selectAgendaDate = function(dateKey) {
+    window._selectedAgendaDate = dateKey;
+    renderDailySchedule();
+};
+
 // --- DAILY AGENDA LOGIC ---
 function renderDailySchedule() {
   const area = document.getElementById('daily-render');
@@ -1719,7 +1866,7 @@ function renderDailySchedule() {
   chosenElectives.forEach(s => { activeMap[s.code] = s; });
   const activeSubjects = Object.values(activeMap);
 
-  if(activeSubjects.length === 0) {
+  if (activeSubjects.length === 0) {
       area.innerHTML = '<div class="empty-tt">Select electives in My Planner to see your live schedule.</div>';
       return;
   }
@@ -1775,6 +1922,9 @@ function renderDailySchedule() {
   const parseDayClasses = (dailySlots) => {
       const dayClasses = {};
       let hasCls = false;
+      let hasActiveCls = false;
+      if (!dailySlots) return { dayClasses, hasCls, hasActiveCls };
+
       for (const t of timeOrder) {
           if (t === '12pm-1pm') continue;
           const slotData = dailySlots[t];
@@ -1837,20 +1987,31 @@ function renderDailySchedule() {
       return { dayClasses, hasCls, hasActiveCls };
   };
 
+  const dateKeys = Object.keys(liveDailyCache);
+  if (!window._selectedAgendaDate || !liveDailyCache[window._selectedAgendaDate]) {
+      const todayMatch = dateKeys.find(k => k.startsWith(todayYmd));
+      if (todayMatch) {
+          window._selectedAgendaDate = todayMatch;
+      } else {
+          const sep24Match = dateKeys.find(k => k.startsWith('2026-09-24'));
+          window._selectedAgendaDate = sep24Match || dateKeys[0];
+      }
+  }
+  const currentDateKey = window._selectedAgendaDate;
+
   // Build Interactive Day Capsules Carousel
   let capsulesHtml = `<div class="date-capsules">`;
-  for (const dateString of Object.keys(liveDailyCache)) {
+  for (const dateString of dateKeys) {
       const [ymd, dayName] = dateString.split(' ');
       const shortDay = dayName ? dayName.substring(0,3) : '';
       const dd = ymd ? ymd.split('-')[2] : '';
-      const isToday = ymd === todayYmd;
+      const isSelected = dateString === currentDateKey;
       const { hasCls, hasActiveCls } = parseDayClasses(liveDailyCache[dateString]);
-      const cardTargetId = `card-${dateString.replace(/\s/g, '-')}`;
       
       capsulesHtml += `
       <div id="capsule-${dateString.replace(/\s/g, '-')}" 
-           class="capsule ${isToday ? 'selected' : ''} ${hasActiveCls ? 'has-class' : (hasCls ? 'has-cancelled' : '')}" 
-           onclick="document.querySelectorAll('.capsule').forEach(c => c.classList.remove('selected')); this.classList.add('selected'); document.getElementById('${cardTargetId}')?.scrollIntoView({behavior:'smooth', block:'start'});">
+           class="capsule ${isSelected ? 'selected' : ''} ${hasActiveCls ? 'has-class' : (hasCls ? 'has-cancelled' : '')}" 
+           onclick="selectAgendaDate('${dateString}')">
           <span class="dow">${shortDay}</span>
           <span class="num">${dd}</span>
           <span class="dot-indicator"></span>
@@ -1858,238 +2019,96 @@ function renderDailySchedule() {
   }
   capsulesHtml += `</div>`;
 
-  // Build 30-Min Reminder Bar
+  // Build 30-Min Reminder Bar with ON/OFF Toggle
+  const reminderPref = localStorage.getItem('mbaplanner_reminder_30m');
+  const isGranted = ('Notification' in window) && Notification.permission === 'granted';
+  const isAlertActive = isGranted && reminderPref !== 'off';
+
   let reminderBarHtml = '';
   if ('Notification' in window) {
-      const isGranted = Notification.permission === 'granted';
       reminderBarHtml = `
       <div class="agenda-reminder-bar">
         <div class="agenda-reminder-info">
           <span style="font-size: 18px;">🔔</span>
           <div>
             <div class="agenda-reminder-title">30-Min Class Reminder</div>
-            <div class="agenda-reminder-sub">${isGranted ? 'Active · Alerts 30 mins before each class starts' : 'Get alerted 30 mins before each class starts'}</div>
+            <div class="agenda-reminder-sub">${isAlertActive ? 'Active · Alerts 30 mins before each class starts' : 'Get alerted 30 mins before each class starts'}</div>
           </div>
         </div>
-        <button class="agenda-reminder-badge ${isGranted ? '' : 'enable-btn'}" onclick="${isGranted ? '' : 'requestNotificationPermission()'}">
-          ${isGranted ? 'Active · 30m' : 'Enable · 30m'}
+        <button class="agenda-toggle-btn ${isAlertActive ? 'on' : 'off'}" onclick="toggle30mAlert()">
+          ${isAlertActive ? '🔔 Alerts ON' : '🔕 Alerts OFF'}
         </button>
       </div>`;
   }
 
-  // Clear existing notifications
-  if (window._activeNotifications) {
-      window._activeNotifications.forEach(id => clearTimeout(id));
-      window._activeNotifications = [];
-  }
-
-  let nextClassFound = null;
-  let ongoingClassFound = null;
-  let fullCardsHtml = '';
-
-  for (const [dateString, dailySlots] of Object.entries(liveDailyCache)) {
-      let comment = dailySlots['Comments'] || '';
-      const birthdays = dailySlots['Birthdays'];
-      
-      let isExam = false;
-      let examText = '';
-      if (comment) {
-          isExam = comment.toLowerCase().includes('end term') || comment.toLowerCase().includes('exam') || comment.toLowerCase().includes('quiz');
-      } else {
-          for (const t of timeOrder) {
-              const sData = dailySlots[t];
-              if (sData) {
-                  const text = typeof sData === 'object' ? sData.text : String(sData);
-                  if (text.toLowerCase().includes('end term') || text.toLowerCase().includes('exam') || text.toLowerCase().includes('quiz')) {
-                      isExam = true;
-                      examText = text;
-                      break;
-                  }
-              }
-          }
-          if (isExam) comment = examText;
+  // Roll Number Banner / Prompt for Attendance
+  const savedRoll = (localStorage.getItem('mbaplanner_roll_no') || '').trim();
+  let rollBannerHtml = '';
+  if (savedRoll) {
+      let studentName = '';
+      if (typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB[savedRoll]) {
+          studentName = CLASS_ATTENDANCE_DB[savedRoll].name;
       }
-
-      const { dayClasses, hasCls } = parseDayClasses(dailySlots);
-      const [ymd, dayName] = dateString.split(' ');
-      const isToday = ymd === todayYmd;
-      const isTomorrow = ymd === tomorrowYmd;
-
-      if (isToday && hasCls) {
-          scheduleClassNotifications(dayClasses, ymd);
-      }
-
-      const finalBlocks = [];
-      if (hasCls) {
-          for (const t of timeOrder) {
-              if (t === '12pm-1pm') {
-                  finalBlocks.push({ type: 'lunch', t });
-                  continue;
-              }
-              if (dayClasses[t]) {
-                  finalBlocks.push({ type: 'class', t, data: dayClasses[t] });
-              } else {
-                  const last = finalBlocks[finalBlocks.length - 1];
-                  if (last && last.type === 'free') {
-                      last.end = t.split('-')[1];
-                  } else {
-                      finalBlocks.push({ type: 'free', start: t.split('-')[0], end: t.split('-')[1] });
-                  }
-              }
-          }
-      }
-
-      let timelineEventsHtml = '';
-      if (hasCls) {
-          timelineEventsHtml += `<div class="agenda-timeline">`;
-          for (const b of finalBlocks) {
-              const isHappeningNow = isToday && currentSlot === b.t;
-              
-              if (b.type === 'lunch') {
-                  timelineEventsHtml += `
-                  <div class="timeline-event lunch">
-                      <div class="event-node"></div>
-                      <div class="lunch-card">
-                          <span>🍽 Campus Lunch Break</span>
-                          <span>12:00 – 1:00 PM</span>
-                      </div>
-                  </div>`;
-              } else if (b.type === 'free') {
-                  timelineEventsHtml += `
-                  <div class="free-gap">
-                      <span>☕ ${b.start} – ${b.end} Free</span>
-                  </div>`;
-              } else if (b.type === 'class') {
-                  const data = b.data;
-                  const isIcrc = data.type === 'icrc';
-                  const cancelled = data.cancelled;
-                  const subjectName = isIcrc ? 'ICRC Placement Prep' : data.subject.name;
-                  const room = isIcrc ? null : data.subject.room;
-                  
-                  // In Q6: Behavioural lab & Business Models are the 2 Mandatory Core courses; everything else is an Elective
-                  const isCore = !isIcrc && Boolean(data.subject && data.subject.isCore);
-                  const domain = isIcrc ? 'Placement' : (data.subject.v || (isCore ? 'Core' : 'Elective'));
-                  const domainIcon = isCore ? '🔒' : (DOMAIN_ICONS[domain] || '📚');
-                  const domainColor = isCore ? 'var(--tx-info)' : (DCOL[domain] || 'var(--tx-info)');
-                  const domainLabel = isCore ? 'Core Course' : domain;
-
-                  // Track Ongoing and Next Class for Live Pulse
-                  if (isToday && !cancelled) {
-                      if (isHappeningNow) {
-                          ongoingClassFound = { name: subjectName, room, timeSlot: b.t };
-                      } else if (!nextClassFound) {
-                          const timeInfo = ICS_TIME_MAP[b.t];
-                          if (timeInfo) {
-                              const utcMidnight = new Date(Date.UTC(parseInt(ymd.split('-')[0]), parseInt(ymd.split('-')[1])-1, parseInt(ymd.split('-')[2])));
-                              const classStartUTC = istToUTC(utcMidnight, timeInfo.sh, timeInfo.sm);
-                              if (classStartUTC.getTime() > Date.now()) {
-                                  nextClassFound = { name: subjectName, room, timeMs: classStartUTC.getTime() };
-                              }
-                          }
-                      }
-                  }
-
-                  // Check if class has already finished earlier today
-                  let isDone = false;
-                  if (isToday && !isHappeningNow) {
-                      const timeInfo = ICS_TIME_MAP[b.t];
-                      if (timeInfo) {
-                          const utcMidnight = new Date(Date.UTC(parseInt(ymd.split('-')[0]), parseInt(ymd.split('-')[1])-1, parseInt(ymd.split('-')[2])));
-                          const classEndUTC = istToUTC(utcMidnight, timeInfo.eh, timeInfo.em);
-                          if (Date.now() > classEndUTC.getTime()) isDone = true;
-                      }
-                  }
-
-                  let eventClass = 'timeline-event';
-                  if (cancelled) eventClass += ' cancelled';
-                  else if (isHappeningNow) eventClass += ' ongoing';
-                  else if (isDone) eventClass += ' done';
-
-                  const strikeStyle = cancelled ? 'text-decoration: line-through; opacity: 0.6;' : '';
-                  const cardBorderColor = cancelled ? 'var(--bd-danger)' : domainColor;
-
-                  timelineEventsHtml += `
-                  <div class="${eventClass}">
-                      <div class="event-node"></div>
-                      <div class="event-card" style="border-left: 3px solid ${cardBorderColor};">
-                          <div class="event-meta-row">
-                              <span class="event-time" ${isHappeningNow ? 'style="color:var(--tx-info); font-weight:800;"' : ''}>${b.t}</span>
-                              <span class="domain-pill" style="background: var(--bg); color: ${domainColor}; border: .5px solid var(--bd);">
-                                  ${domainIcon} ${domainLabel}
-                              </span>
-                          </div>
-                          <div class="event-name" style="${strikeStyle}">
-                              ${subjectName}
-                          </div>
-                          <div class="event-footer">
-                              ${room && !cancelled ? `<span class="room-badge">📍 Room ${room}</span>` : ''}
-                              ${cancelled ? `<span style="font-size:11px; font-weight:800; color:var(--tx-danger); background:var(--bg-danger); border: .5px solid var(--bd-danger); padding:3px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:3px;">🚫 Class Cancelled</span>` : ''}
-                              ${isHappeningNow ? `<span style="font-size:11px; font-weight:800; color:var(--tx-info);">● Happening Now</span>` : ''}
-                          </div>
-                      </div>
-                  </div>`;
-              }
-          }
-          timelineEventsHtml += `</div>`;
-      } else {
-          timelineEventsHtml += `<div style="font-size:12.5px; color:var(--tx3); padding: 18px 0; text-align:center; border: 1px dashed var(--bd); border-radius: 14px; background: var(--bg2);">☕ No classes scheduled. Enjoy your day!</div>`;
-      }
-
-      // Format date title
-      let cleanDate = dateString;
-      try {
-          const [yyyy, mm, dd] = ymd.split('-');
-          const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-          cleanDate = `${dayName}, ${monthNames[parseInt(mm, 10)-1]} ${parseInt(dd, 10)}`;
-      } catch (e) {
-          cleanDate = dateString.replace(/-/g, ' '); 
-      }
-      
-      let badgeLabel = '';
-      if (isToday) badgeLabel = `<span style="background:var(--bg-info); color:var(--tx-info); font-size:10px; font-weight:800; padding:2px 8px; border-radius:10px; text-transform:uppercase; letter-spacing:0.4px;">Today</span>`;
-      else if (isTomorrow) badgeLabel = `<span style="background:var(--bg2); color:var(--tx2); font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px;">Tomorrow</span>`;
-
-      // Exam Banner
-      let commentHtml = '';
-      if (comment) {
-          const badgeBg = isExam ? 'var(--bg-danger)' : 'var(--bg-warn)';
-          const badgeBorder = isExam ? 'var(--bd-danger)' : 'var(--bd-warn)';
-          const badgeColor = isExam ? 'var(--tx-danger)' : 'var(--tx-warn)';
-          const icon = isExam ? '📝' : '⚠️';
-          commentHtml = `<div style="font-size:12px; font-weight:700; color:${badgeColor}; margin-bottom:10px; background:${badgeBg}; padding:8px 12px; border-radius:10px; border:.5px solid ${badgeBorder}; display:flex; align-items:center; gap:8px;">
-              <span style="font-size:16px;">${icon}</span>
-              <span style="flex:1;">${comment}</span>
-          </div>`;
-      }
-
-      // Birthday Banner
-      let birthdayHtml = '';
-      if (birthdays) {
-          birthdayHtml = `<div class="agenda-birthday-card">
-              <span style="font-size:16px;">🎉</span>
-              <span>Happy Birthday: <strong>${birthdays}</strong>!</span>
-          </div>`;
-      }
-
-      const cardStyle = isToday 
-        ? 'background:var(--bg); border:1.5px solid var(--bd-info); box-shadow: 0 4px 16px rgba(0,0,0,0.06); margin-bottom: 24px;' 
-        : 'background:var(--bg); border:1px solid var(--bd); box-shadow: 0 2px 8px rgba(0,0,0,0.03); margin-bottom: 24px;';
-      
-      fullCardsHtml += `
-      <div id="card-${dateString.replace(/\s/g, '-')}" data-is-today="${isToday ? 'true' : 'false'}" style="border-radius:18px; padding:16px; scroll-margin-top: 70px; ${cardStyle}">
-          <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; margin-bottom:12px; border-bottom:1px solid var(--bd);">
-              <div style="font-size:15px; font-weight:800; color:var(--tx); display:flex; align-items:center; gap:8px;">
-                  📅 ${cleanDate}
-              </div>
-              ${badgeLabel}
+      rollBannerHtml = `
+      <div class="agenda-roll-banner">
+          <div style="display:flex; align-items:center; gap:6px;">
+              <span>🎓</span>
+              <span>Roll No: <strong style="color:var(--tx);">${savedRoll}</strong>${studentName ? ` · <span style="color:var(--tx2);">${studentName}</span>` : ''}</span>
           </div>
-          ${commentHtml}
-          ${birthdayHtml}
-          ${timelineEventsHtml}
+          <button class="att-action-btn" onclick="changeAgendaRollNo()" style="font-size:10.5px; padding:3px 8px;">Change</button>
+      </div>`;
+  } else {
+      rollBannerHtml = `
+      <div class="agenda-roll-prompt">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+              <span style="font-size:16px;">🎓</span>
+              <span style="font-size:13px; font-weight:800; color:var(--tx);">Set Roll Number for Attendance</span>
+          </div>
+          <div style="font-size:11.5px; color:var(--tx2); margin-bottom:10px; line-height:1.4;">
+              Enter your Roll No (e.g. <code>MS25A071</code>) to start logging class-by-class attendance.
+          </div>
+          <div style="display:flex; gap:8px;">
+              <input type="text" id="agenda-roll-input" class="cmp-input" placeholder="e.g. MS25A071" style="flex:1; text-transform:uppercase; font-weight:700;" onkeydown="if(event.key==='Enter') saveAgendaRollNo()">
+              <button class="cmp-btn" onclick="saveAgendaRollNo()" style="white-space:nowrap; padding:6px 14px;">Save</button>
+          </div>
       </div>`;
   }
 
-  // Live Pulse Hero Widget
+  // Live Pulse Hero Widget (tracks today's real-time classes)
+  let ongoingClassFound = null;
+  let nextClassFound = null;
+  const todayKey = dateKeys.find(k => k.startsWith(todayYmd));
+  if (todayKey && liveDailyCache[todayKey]) {
+      const todaySlots = liveDailyCache[todayKey];
+      const { dayClasses: todayDayClasses } = parseDayClasses(todaySlots);
+      
+      scheduleClassNotifications(todayDayClasses, todayYmd);
+
+      for (const t of timeOrder) {
+          if (t === '12pm-1pm' || !todayDayClasses[t]) continue;
+          const bData = todayDayClasses[t];
+          if (bData.cancelled) continue;
+
+          const isHappeningNow = currentSlot === t;
+          const subjectName = bData.type === 'icrc' ? 'ICRC Placement Prep' : bData.subject.name;
+          const room = bData.type === 'icrc' ? null : bData.subject.room;
+
+          if (isHappeningNow) {
+              ongoingClassFound = { name: subjectName, room, timeSlot: t };
+          } else if (!nextClassFound) {
+              const timeInfo = ICS_TIME_MAP[t];
+              if (timeInfo) {
+                  const [y, m, d] = todayYmd.split('-');
+                  const utcMidnight = new Date(Date.UTC(parseInt(y), parseInt(m)-1, parseInt(d)));
+                  const classStartUTC = istToUTC(utcMidnight, timeInfo.sh, timeInfo.sm);
+                  if (classStartUTC.getTime() > Date.now()) {
+                      nextClassFound = { name: subjectName, room, timeMs: classStartUTC.getTime() };
+                  }
+              }
+          }
+      }
+  }
+
   let livePulseHtml = '';
   if (ongoingClassFound) {
       livePulseHtml = `
@@ -2111,18 +2130,256 @@ function renderDailySchedule() {
           <div class="pulse-title">${nextClassFound.name}</div>
           <div class="pulse-location">📍 ${nextClassFound.room ? `Room ${nextClassFound.room} · ` : ''}Next scheduled session</div>
       </div>`;
-  } else if (todayYmd in liveDailyCache) {
+  } else if (todayKey) {
       livePulseHtml = `
       <div style="background:var(--bg2); border:1px solid var(--bd); border-radius:14px; padding:10px 14px; margin-bottom:16px; text-align:center; font-size:12px; font-weight:700; color:var(--tx2);">
           No more classes today! 🎉
       </div>`;
   }
 
+  // Render ONLY the Selected Day's Card
+  const dailySlots = liveDailyCache[currentDateKey] || {};
+  let comment = dailySlots['Comments'] || '';
+  const birthdays = dailySlots['Birthdays'];
+
+  let isExam = false;
+  let examText = '';
+  if (comment) {
+      isExam = comment.toLowerCase().includes('end term') || comment.toLowerCase().includes('exam') || comment.toLowerCase().includes('quiz');
+  } else {
+      for (const t of timeOrder) {
+          const sData = dailySlots[t];
+          if (sData) {
+              const text = typeof sData === 'object' ? sData.text : String(sData);
+              if (text.toLowerCase().includes('end term') || text.toLowerCase().includes('exam') || text.toLowerCase().includes('quiz')) {
+                  isExam = true;
+                  examText = text;
+                  break;
+              }
+          }
+      }
+      if (isExam) comment = examText;
+  }
+
+  const { dayClasses, hasCls } = parseDayClasses(dailySlots);
+  const [ymd, dayName] = currentDateKey.split(' ');
+  const isToday = ymd === todayYmd;
+  const isTomorrow = ymd === tomorrowYmd;
+
+  const finalBlocks = [];
+  if (hasCls) {
+      for (const t of timeOrder) {
+          if (t === '12pm-1pm') {
+              finalBlocks.push({ type: 'lunch', t });
+              continue;
+          }
+          if (dayClasses[t]) {
+              finalBlocks.push({ type: 'class', t, data: dayClasses[t] });
+          } else {
+              const last = finalBlocks[finalBlocks.length - 1];
+              if (last && last.type === 'free') {
+                  last.end = t.split('-')[1];
+              } else {
+                  finalBlocks.push({ type: 'free', start: t.split('-')[0], end: t.split('-')[1] });
+              }
+          }
+      }
+  }
+
+  let classAttMap = {};
+  try {
+      classAttMap = JSON.parse(localStorage.getItem('mbaplanner_class_attendance')) || {};
+  } catch(e) {}
+
+  let timelineEventsHtml = '';
+  if (hasCls) {
+      timelineEventsHtml += `<div class="agenda-timeline">`;
+      for (const b of finalBlocks) {
+          const isHappeningNow = isToday && currentSlot === b.t;
+          
+          if (b.type === 'lunch') {
+              timelineEventsHtml += `
+              <div class="timeline-event lunch">
+                  <div class="event-node"></div>
+                  <div class="lunch-card">
+                      <span>🍽 Campus Lunch Break</span>
+                      <span>12:00 – 1:00 PM</span>
+                  </div>
+              </div>`;
+          } else if (b.type === 'free') {
+              timelineEventsHtml += `
+              <div class="free-gap">
+                  <span>☕ ${b.start} – ${b.end} Free</span>
+              </div>`;
+          } else if (b.type === 'class') {
+              const data = b.data;
+              const isIcrc = data.type === 'icrc';
+              const cancelled = data.cancelled;
+              const subjectName = isIcrc ? 'ICRC Placement Prep' : data.subject.name;
+              const room = isIcrc ? null : data.subject.room;
+              
+              // In Q6: Behavioural lab & Business Models are the 2 Mandatory Core courses; everything else is an Elective
+              const isCore = !isIcrc && Boolean(data.subject && data.subject.isCore);
+              const domain = isIcrc ? 'Placement' : (data.subject.v || (isCore ? 'Core' : 'Elective'));
+              const domainIcon = isCore ? '🔒' : (DOMAIN_ICONS[domain] || '📚');
+              const domainColor = isCore ? 'var(--tx-info)' : (DCOL[domain] || 'var(--tx-info)');
+              const domainLabel = isCore ? 'Core Course' : domain;
+
+              // Check if class has already finished earlier today
+              let isDone = false;
+              if (isToday && !isHappeningNow) {
+                  const timeInfo = ICS_TIME_MAP[b.t];
+                  if (timeInfo) {
+                      const [cy, cm, cd] = ymd.split('-');
+                      const utcMidnight = new Date(Date.UTC(parseInt(cy), parseInt(cm)-1, parseInt(cd)));
+                      const classEndUTC = istToUTC(utcMidnight, timeInfo.eh, timeInfo.em);
+                      if (Date.now() > classEndUTC.getTime()) isDone = true;
+                  }
+              }
+
+              let eventClass = 'timeline-event';
+              if (cancelled) eventClass += ' cancelled';
+              else if (isHappeningNow) eventClass += ' ongoing';
+              else if (isDone) eventClass += ' done';
+
+              const strikeStyle = cancelled ? 'text-decoration: line-through; opacity: 0.6;' : '';
+              const cardBorderColor = cancelled ? 'var(--bd-danger)' : domainColor;
+
+              // Attendance Row (only when class is not cancelled and has a valid academic subject)
+              let attRowHtml = '';
+              if (!cancelled && data.subject) {
+                  const sessionId = `${ymd}_${b.t}_${data.subject.code}`;
+                  const currentStatus = classAttMap[sessionId]; // 'P', 'A', or undefined
+                  
+                  attRowHtml = `
+                  <div class="class-att-row">
+                      <div style="font-size:11px; font-weight:700; color:var(--tx2); display:flex; align-items:center; gap:4px;">
+                          Attendance: 
+                          <span style="font-weight:800; color:${currentStatus === 'P' ? 'var(--tx-success)' : (currentStatus === 'A' ? 'var(--tx-danger)' : 'var(--tx3)')};">
+                              ${currentStatus === 'P' ? '✓ Present' : (currentStatus === 'A' ? '✕ Absent' : 'Not marked')}
+                          </span>
+                      </div>
+                      <div class="att-btn-group">
+                          <button class="att-action-btn ${currentStatus === 'P' ? 'p-active' : ''}" 
+                                  onclick="markClassAttendance('${ymd}', '${b.t}', '${data.subject.code}', 'P')" 
+                                  title="Mark Present">
+                              ✓ Present
+                          </button>
+                          <button class="att-action-btn ${currentStatus === 'A' ? 'a-active' : ''}" 
+                                  onclick="markClassAttendance('${ymd}', '${b.t}', '${data.subject.code}', 'A')" 
+                                  title="Mark Absent">
+                              ✕ Absent
+                          </button>
+                      </div>
+                  </div>`;
+              }
+
+              timelineEventsHtml += `
+              <div class="${eventClass}">
+                  <div class="event-node"></div>
+                  <div class="event-card" style="border-left: 3px solid ${cardBorderColor};">
+                      <div class="event-meta-row">
+                          <span class="event-time" ${isHappeningNow ? 'style="color:var(--tx-info); font-weight:800;"' : ''}>${b.t}</span>
+                          <span class="domain-pill" style="background: var(--bg); color: ${domainColor}; border: .5px solid var(--bd);">
+                              ${domainIcon} ${domainLabel}
+                          </span>
+                      </div>
+                      <div class="event-name" style="${strikeStyle}">
+                          ${subjectName}
+                      </div>
+                      <div class="event-footer">
+                          ${room && !cancelled ? `<span class="room-badge">📍 Room ${room}</span>` : ''}
+                          ${cancelled ? `<span style="font-size:11px; font-weight:800; color:var(--tx-danger); background:var(--bg-danger); border: .5px solid var(--bd-danger); padding:3px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:3px;">🚫 Class Cancelled</span>` : ''}
+                          ${isHappeningNow ? `<span style="font-size:11px; font-weight:800; color:var(--tx-info);">● Happening Now</span>` : ''}
+                      </div>
+                      ${attRowHtml}
+                  </div>
+              </div>`;
+          }
+      }
+      timelineEventsHtml += `</div>`;
+  } else {
+      timelineEventsHtml += `<div style="font-size:12.5px; color:var(--tx3); padding: 24px 0; text-align:center; border: 1px dashed var(--bd); border-radius: 14px; background: var(--bg2);">☕ No classes scheduled for this day. Enjoy your break!</div>`;
+  }
+
+  // Format Date Title
+  let cleanDate = currentDateKey;
+  try {
+      const [yyyy, mm, dd] = ymd.split('-');
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      cleanDate = `${dayName}, ${monthNames[parseInt(mm, 10)-1]} ${parseInt(dd, 10)}`;
+  } catch (e) {
+      cleanDate = currentDateKey.replace(/-/g, ' '); 
+  }
+  
+  let badgeLabel = '';
+  if (isToday) badgeLabel = `<span style="background:var(--bg-info); color:var(--tx-info); font-size:10px; font-weight:800; padding:2px 8px; border-radius:10px; text-transform:uppercase; letter-spacing:0.4px;">Today</span>`;
+  else if (isTomorrow) badgeLabel = `<span style="background:var(--bg2); color:var(--tx2); font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px;">Tomorrow</span>`;
+
+  // Exam Banner
+  let commentHtml = '';
+  if (comment) {
+      const badgeBg = isExam ? 'var(--bg-danger)' : 'var(--bg-warn)';
+      const badgeBorder = isExam ? 'var(--bd-danger)' : 'var(--bd-warn)';
+      const badgeColor = isExam ? 'var(--tx-danger)' : 'var(--tx-warn)';
+      const icon = isExam ? '📝' : '⚠️';
+      commentHtml = `<div style="font-size:12px; font-weight:700; color:${badgeColor}; margin-bottom:10px; background:${badgeBg}; padding:8px 12px; border-radius:10px; border:.5px solid ${badgeBorder}; display:flex; align-items:center; gap:8px;">
+          <span style="font-size:16px;">${icon}</span>
+          <span style="flex:1;">${comment}</span>
+      </div>`;
+  }
+
+  // Birthday Banner
+  let birthdayHtml = '';
+  if (birthdays) {
+      birthdayHtml = `<div class="agenda-birthday-card">
+          <span style="font-size:16px;">🎉</span>
+          <span>Happy Birthday: <strong>${birthdays}</strong>!</span>
+      </div>`;
+  }
+
+  // Day Navigation Row (Prev Day / Next Day)
+  const currentIndex = dateKeys.indexOf(currentDateKey);
+  const prevDateKey = currentIndex > 0 ? dateKeys[currentIndex - 1] : null;
+  const nextDateKey = currentIndex < dateKeys.length - 1 ? dateKeys[currentIndex + 1] : null;
+
+  const dayNavHtml = `
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:8px;">
+      <button class="att-action-btn" ${prevDateKey ? `onclick="selectAgendaDate('${prevDateKey}')"` : 'disabled style="opacity:0.35;cursor:default;"'}>
+          ← Prev Day
+      </button>
+      <div style="font-size:11.5px; font-weight:700; color:var(--tx2);">
+          ${currentIndex >= 0 ? `Day ${currentIndex + 1} of ${dateKeys.length}` : ''}
+      </div>
+      <button class="att-action-btn" ${nextDateKey ? `onclick="selectAgendaDate('${nextDateKey}')"` : 'disabled style="opacity:0.35;cursor:default;"'}>
+          Next Day →
+      </button>
+  </div>`;
+
+  const cardStyle = isToday 
+    ? 'background:var(--bg); border:1.5px solid var(--bd-info); box-shadow: 0 4px 16px rgba(0,0,0,0.06); margin-bottom: 24px;' 
+    : 'background:var(--bg); border:1px solid var(--bd); box-shadow: 0 2px 8px rgba(0,0,0,0.03); margin-bottom: 24px;';
+  
+  const singleCardHtml = `
+  <div id="card-${currentDateKey.replace(/\s/g, '-')}" data-is-today="${isToday ? 'true' : 'false'}" style="border-radius:18px; padding:16px; ${cardStyle}">
+      ${dayNavHtml}
+      <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; margin-bottom:12px; border-bottom:1px solid var(--bd);">
+          <div style="font-size:16px; font-weight:800; color:var(--tx); display:flex; align-items:center; gap:8px;">
+              📅 ${cleanDate}
+          </div>
+          ${badgeLabel}
+      </div>
+      ${commentHtml}
+      ${birthdayHtml}
+      ${timelineEventsHtml}
+  </div>`;
+
   area.innerHTML = `
     ${capsulesHtml}
     ${reminderBarHtml}
+    ${rollBannerHtml}
     ${livePulseHtml}
-    ${fullCardsHtml || '<div class="empty-tt">No upcoming schedule found.</div>'}
+    ${singleCardHtml}
   `;
 
   // Countdown timer for next class
@@ -2146,14 +2403,14 @@ function renderDailySchedule() {
       if (window._nextClassInterval) clearInterval(window._nextClassInterval);
   }
 
-  // Smooth scroll to today on first load
-  if (window._isFirstDailyRender === undefined) {
-      window._isFirstDailyRender = true;
-      setTimeout(() => {
-          const todayCard = document.querySelector('[data-is-today="true"]');
-          if (todayCard) todayCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 300);
-  }
+  // Smooth scroll selected capsule into center
+  setTimeout(() => {
+      const capEl = document.getElementById(`capsule-${currentDateKey.replace(/\s/g, '-')}`);
+      if (capEl) {
+          capEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+  }, 50);
 }
+
 
 
