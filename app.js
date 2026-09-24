@@ -1497,34 +1497,81 @@ window.refreshLiveSchedule = function(btnElement) {
 };
 
 // ── PWA INSTANT BOOT FROM CACHE + SIDE DRAWER INJECTION ─────────────────────
-(function pwaInstantBoot() {
+// ── PWA & BROWSER DRAWER WITH PREFERENCES & 30-MIN ALERTS ─────────────────
+(function initDrawerAndBoot() {
     const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-    if (!isPWA) return;
 
-    // 1. Inject top bar + side drawer HTML
+    // 1. Inject top bar (if standalone) + side drawer HTML (for everyone)
+    let topbarHtml = '';
+    if (isPWA) {
+      topbarHtml = `
+      <div id="pwa-topbar">
+        <button id="pwa-hamburger" onclick="pwaOpenDrawer()" aria-label="Menu">
+          <span></span><span></span><span></span>
+        </button>
+        <span id="pwa-topbar-title">📅 Daily Agenda</span>
+        <button id="pwa-theme-inline" onclick="toggleTheme()" style="background:none;border:none;font-size:20px;cursor:pointer;padding:4px 8px;-webkit-tap-highlight-color:transparent;">🌗</button>
+      </div>`;
+      const floatingTheme = document.getElementById('theme-toggle');
+      if (floatingTheme) floatingTheme.style.display = 'none';
+    }
+
     const drawerHTML = `
-    <div id="pwa-topbar">
-      <button id="pwa-hamburger" onclick="pwaOpenDrawer()" aria-label="Menu">
-        <span></span><span></span><span></span>
-      </button>
-      <span id="pwa-topbar-title">📅 Daily Agenda</span>
-      <button id="pwa-theme-inline" onclick="toggleTheme()" style="background:none;border:none;font-size:20px;cursor:pointer;padding:4px 8px;-webkit-tap-highlight-color:transparent;">🌗</button>
-    </div>
+    ${topbarHtml}
     <div id="pwa-drawer-backdrop" onclick="pwaCloseDrawer()"></div>
     <nav id="pwa-drawer">
-      <div id="pwa-drawer-header">MBA Planner</div>
-      <button class="pwa-drawer-item active" data-view="daily"  onclick="pwaNav('daily')">📅 Daily Agenda</button>
-      <button class="pwa-drawer-item"        data-view="plan"   onclick="pwaNav('plan')">📋 My Planner</button>
-      <button class="pwa-drawer-item"        data-view="master" onclick="pwaNav('master')">🗓️ Weekly Schedule</button>
-      <button class="pwa-drawer-item"        data-view="att"    onclick="pwaNav('att')">✅ Attendance</button>
+      <div id="pwa-drawer-header">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span>MBA Planner</span>
+          <button onclick="pwaCloseDrawer()" style="background:none; border:none; font-size:18px; color:var(--tx2); cursor:pointer; padding:2px 6px;">✕</button>
+        </div>
+        <div id="pwa-drawer-student" style="font-size:11.5px; font-weight:600; color:var(--tx2); margin-top:4px;"></div>
+      </div>
+      
+      <div class="pwa-drawer-section">Navigation</div>
+      <button class="pwa-drawer-item active" data-view="daily"   onclick="pwaNav('daily')">📅 Daily Agenda</button>
+      <button class="pwa-drawer-item"        data-view="plan"    onclick="pwaNav('plan')">📋 My Planner</button>
+      <button class="pwa-drawer-item"        data-view="master"  onclick="pwaNav('master')">🗓️ Weekly Schedule</button>
+      <button class="pwa-drawer-item"        data-view="att"     onclick="pwaNav('att')">✅ Attendance</button>
       <button class="pwa-drawer-item"        data-view="compare" onclick="pwaNav('compare')">👥 Compare</button>
-      <button class="pwa-drawer-item"        data-view="mess"   onclick="pwaNav('mess')">🍽 Mess Menu</button>
+      <button class="pwa-drawer-item"        data-view="mess"    onclick="pwaNav('mess')">🍽 Mess Menu</button>
+      
+      <div class="pwa-drawer-section">Preferences & Alerts</div>
+      
+      <!-- 30-Min Alert Toggle in Menu -->
+      <div class="drawer-setting-row">
+        <div class="drawer-setting-info">
+          <span class="drawer-setting-title">🔔 30-Min Class Alerts</span>
+          <span class="drawer-setting-sub" id="drawer-alert-status-text">Alerts before each class</span>
+        </div>
+        <label class="ios-switch">
+          <input type="checkbox" id="drawer-alert-checkbox" onchange="toggle30mAlertFromDrawer(this.checked)">
+          <span class="ios-slider"></span>
+        </label>
+      </div>
+
+      <!-- Student Roll Number Setting -->
+      <div class="drawer-setting-row" onclick="changeAgendaRollNo()" style="cursor:pointer;">
+        <div class="drawer-setting-info">
+          <span class="drawer-setting-title">🎓 Student Roll No</span>
+          <span class="drawer-setting-sub" id="drawer-roll-display">Tap to set roll number</span>
+        </div>
+        <span style="color:var(--tx3); font-size:18px;">›</span>
+      </div>
+
+      <!-- Dark Mode Toggle -->
+      <div class="drawer-setting-row">
+        <div class="drawer-setting-info">
+          <span class="drawer-setting-title">🌓 Dark Mode</span>
+          <span class="drawer-setting-sub">Toggle appearance</span>
+        </div>
+        <label class="ios-switch">
+          <input type="checkbox" id="drawer-theme-checkbox" onchange="toggleTheme(); updateDrawerSettingsUI();">
+          <span class="ios-slider"></span>
+        </label>
+      </div>
     </nav>`;
     document.body.insertAdjacentHTML('afterbegin', drawerHTML);
-
-    // Hide the floating theme toggle (replaced by inline button in top bar)
-    const floatingTheme = document.getElementById('theme-toggle');
-    if (floatingTheme) floatingTheme.style.display = 'none';
 
     // 2. Try loading cached schedule immediately
     const cached = localStorage.getItem('mbaplanner_daily_cache');
@@ -1544,13 +1591,80 @@ window.refreshLiveSchedule = function(btnElement) {
     renderDailySchedule();
 })();
 
+window.updateDrawerSettingsUI = function() {
+    const isGranted = ('Notification' in window) && Notification.permission === 'granted';
+    const reminderPref = localStorage.getItem('mbaplanner_reminder_30m');
+    const isAlertActive = isGranted && reminderPref !== 'off';
+
+    const alertCb = document.getElementById('drawer-alert-checkbox');
+    const alertSub = document.getElementById('drawer-alert-status-text');
+    if (alertCb) alertCb.checked = isAlertActive;
+    if (alertSub) alertSub.textContent = isAlertActive ? 'Active · Alerts 30m before' : 'Disabled';
+
+    const roll = (localStorage.getItem('mbaplanner_roll_no') || '').trim();
+    const rollDisp = document.getElementById('drawer-roll-display');
+    const studentHeader = document.getElementById('pwa-drawer-student');
+    let studentName = '';
+    if (roll && typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB[roll]) {
+        studentName = CLASS_ATTENDANCE_DB[roll].name;
+    }
+    if (rollDisp) {
+        rollDisp.textContent = roll ? `${roll}${studentName ? ` · ${studentName}` : ''}` : 'Tap to set roll number';
+    }
+    if (studentHeader) {
+        studentHeader.textContent = roll ? `🎓 ${roll}${studentName ? ` · ${studentName}` : ''}` : '';
+    }
+
+    const themeCb = document.getElementById('drawer-theme-checkbox');
+    if (themeCb) {
+        themeCb.checked = document.documentElement.getAttribute('data-theme') === 'dark';
+    }
+};
+
+window.toggle30mAlertFromDrawer = function(checked) {
+    if (checked) {
+        if (!('Notification' in window)) {
+            alert('Push notifications are not supported in this browser.');
+            updateDrawerSettingsUI();
+            return;
+        }
+        if (Notification.permission === 'granted') {
+            localStorage.setItem('mbaplanner_reminder_30m', 'on');
+            updateDrawerSettingsUI();
+            if (typeof currentView !== 'undefined' && currentView === 'daily') renderDailySchedule();
+        } else if (Notification.permission === 'denied') {
+            alert('Notifications are blocked in your browser settings. Please allow notifications for this site to receive 30-min reminders.');
+            updateDrawerSettingsUI();
+        } else {
+            Notification.requestPermission().then(perm => {
+                if (perm === 'granted') {
+                    localStorage.setItem('mbaplanner_reminder_30m', 'on');
+                } else {
+                    localStorage.setItem('mbaplanner_reminder_30m', 'off');
+                }
+                updateDrawerSettingsUI();
+                if (typeof currentView !== 'undefined' && currentView === 'daily') renderDailySchedule();
+            });
+        }
+    } else {
+        localStorage.setItem('mbaplanner_reminder_30m', 'off');
+        if (window._activeNotifications) {
+            window._activeNotifications.forEach(id => clearTimeout(id));
+            window._activeNotifications = [];
+        }
+        updateDrawerSettingsUI();
+        if (typeof currentView !== 'undefined' && currentView === 'daily') renderDailySchedule();
+    }
+};
+
 window.pwaOpenDrawer = function() {
-    document.getElementById('pwa-drawer').classList.add('open');
-    document.getElementById('pwa-drawer-backdrop').classList.add('open');
+    updateDrawerSettingsUI();
+    document.getElementById('pwa-drawer')?.classList.add('open');
+    document.getElementById('pwa-drawer-backdrop')?.classList.add('open');
 };
 window.pwaCloseDrawer = function() {
-    document.getElementById('pwa-drawer').classList.remove('open');
-    document.getElementById('pwa-drawer-backdrop').classList.remove('open');
+    document.getElementById('pwa-drawer')?.classList.remove('open');
+    document.getElementById('pwa-drawer-backdrop')?.classList.remove('open');
 };
 window.pwaNav = function(v) {
     pwaCloseDrawer();
@@ -2019,29 +2133,7 @@ function renderDailySchedule() {
   }
   capsulesHtml += `</div>`;
 
-  // Build 30-Min Reminder Bar with ON/OFF Toggle
-  const reminderPref = localStorage.getItem('mbaplanner_reminder_30m');
-  const isGranted = ('Notification' in window) && Notification.permission === 'granted';
-  const isAlertActive = isGranted && reminderPref !== 'off';
-
-  let reminderBarHtml = '';
-  if ('Notification' in window) {
-      reminderBarHtml = `
-      <div class="agenda-reminder-bar">
-        <div class="agenda-reminder-info">
-          <span style="font-size: 18px;">🔔</span>
-          <div>
-            <div class="agenda-reminder-title">30-Min Class Reminder</div>
-            <div class="agenda-reminder-sub">${isAlertActive ? 'Active · Alerts 30 mins before each class starts' : 'Get alerted 30 mins before each class starts'}</div>
-          </div>
-        </div>
-        <button class="agenda-toggle-btn ${isAlertActive ? 'on' : 'off'}" onclick="toggle30mAlert()">
-          ${isAlertActive ? '🔔 Alerts ON' : '🔕 Alerts OFF'}
-        </button>
-      </div>`;
-  }
-
-  // Roll Number Banner / Prompt for Attendance
+  // Roll Number Banner / Prompt for Attendance (iOS style)
   const savedRoll = (localStorage.getItem('mbaplanner_roll_no') || '').trim();
   let rollBannerHtml = '';
   if (savedRoll) {
@@ -2050,31 +2142,33 @@ function renderDailySchedule() {
           studentName = CLASS_ATTENDANCE_DB[savedRoll].name;
       }
       rollBannerHtml = `
-      <div class="agenda-roll-banner">
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:7px 12px; margin-bottom:12px; background:var(--bg2); border-radius:12px; border:0.5px solid var(--bd); font-size:12px;">
           <div style="display:flex; align-items:center; gap:6px;">
               <span>🎓</span>
-              <span>Roll No: <strong style="color:var(--tx);">${savedRoll}</strong>${studentName ? ` · <span style="color:var(--tx2);">${studentName}</span>` : ''}</span>
+              <span style="color:var(--tx2);">Roll:</span>
+              <strong style="color:var(--tx);">${savedRoll}</strong>
+              ${studentName ? `<span style="color:var(--tx3); font-size:11.5px;">· ${studentName}</span>` : ''}
           </div>
-          <button class="att-action-btn" onclick="changeAgendaRollNo()" style="font-size:10.5px; padding:3px 8px;">Change</button>
+          <button class="ios-seg-btn" onclick="changeAgendaRollNo()" style="padding:2px 8px; font-size:11px; color:#007AFF; font-weight:700;">Edit</button>
       </div>`;
   } else {
       rollBannerHtml = `
-      <div class="agenda-roll-prompt">
-          <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+      <div style="background:rgba(0,122,255,0.05); border:0.5px solid rgba(0,122,255,0.2); border-radius:14px; padding:12px 14px; margin-bottom:12px;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
               <span style="font-size:16px;">🎓</span>
-              <span style="font-size:13px; font-weight:800; color:var(--tx);">Set Roll Number for Attendance</span>
+              <span style="font-size:13px; font-weight:700; color:var(--tx);">Set Roll Number for Attendance</span>
           </div>
-          <div style="font-size:11.5px; color:var(--tx2); margin-bottom:10px; line-height:1.4;">
-              Enter your Roll No (e.g. <code>MS25A071</code>) to start logging class-by-class attendance.
+          <div style="font-size:11.5px; color:var(--tx2); margin-bottom:8px; line-height:1.4;">
+              Enter your Roll No (e.g. <code>MS25A071</code>) to track your class-by-class attendance.
           </div>
           <div style="display:flex; gap:8px;">
-              <input type="text" id="agenda-roll-input" class="cmp-input" placeholder="e.g. MS25A071" style="flex:1; text-transform:uppercase; font-weight:700;" onkeydown="if(event.key==='Enter') saveAgendaRollNo()">
-              <button class="cmp-btn" onclick="saveAgendaRollNo()" style="white-space:nowrap; padding:6px 14px;">Save</button>
+              <input type="text" id="agenda-roll-input" class="cmp-input" placeholder="e.g. MS25A071" style="flex:1; text-transform:uppercase; font-weight:700; border-radius:8px; padding:6px 10px;" onkeydown="if(event.key==='Enter') saveAgendaRollNo()">
+              <button class="cmp-btn" onclick="saveAgendaRollNo()" style="white-space:nowrap; padding:6px 14px; border-radius:8px;">Save</button>
           </div>
       </div>`;
   }
 
-  // Live Pulse Hero Widget (tracks today's real-time classes)
+  // Live Island Widget (tracks today's real-time classes in Dynamic Island style)
   let ongoingClassFound = null;
   let nextClassFound = null;
   const todayKey = dateKeys.find(k => k.startsWith(todayYmd));
@@ -2109,35 +2203,35 @@ function renderDailySchedule() {
       }
   }
 
-  let livePulseHtml = '';
+  let liveIslandHtml = '';
   if (ongoingClassFound) {
-      livePulseHtml = `
-      <div class="live-pulse-widget">
-          <div class="pulse-header">
-              <span class="pulse-badge"><span class="pulse-node"></span> Happening Now</span>
-              <span class="pulse-countdown">${ongoingClassFound.timeSlot}</span>
+      liveIslandHtml = `
+      <div class="ios-live-island">
+          <div class="ios-island-left">
+              <span class="ios-island-dot"></span>
+              <span class="ios-island-badge">Now</span>
+              <span class="ios-island-title">${ongoingClassFound.name}</span>
           </div>
-          <div class="pulse-title">${ongoingClassFound.name}</div>
-          <div class="pulse-location">📍 ${ongoingClassFound.room ? `Room ${ongoingClassFound.room} · ` : ''}${ongoingClassFound.timeSlot}</div>
+          <span class="ios-island-loc">📍 ${ongoingClassFound.room ? `Rm ${ongoingClassFound.room} · ` : ''}${ongoingClassFound.timeSlot}</span>
       </div>`;
   } else if (nextClassFound) {
-      livePulseHtml = `
-      <div class="live-pulse-widget" style="background:var(--bg-info);">
-          <div class="pulse-header">
-              <span class="pulse-badge"><span class="pulse-node" style="background:var(--tx-info); box-shadow:none;"></span> Up Next</span>
-              <span id="pulse-next-countdown" class="pulse-countdown">in ...</span>
+      liveIslandHtml = `
+      <div class="ios-live-island">
+          <div class="ios-island-left">
+              <span class="ios-island-dot" style="background:#007AFF; box-shadow:0 0 8px rgba(0,122,255,0.6);"></span>
+              <span class="ios-island-badge up-next">Up Next</span>
+              <span class="ios-island-title">${nextClassFound.name}</span>
           </div>
-          <div class="pulse-title">${nextClassFound.name}</div>
-          <div class="pulse-location">📍 ${nextClassFound.room ? `Room ${nextClassFound.room} · ` : ''}Next scheduled session</div>
+          <span id="pulse-next-countdown" class="ios-island-loc">📍 ${nextClassFound.room ? `Rm ${nextClassFound.room} · ` : ''}in ...</span>
       </div>`;
-  } else if (todayKey) {
-      livePulseHtml = `
-      <div style="background:var(--bg2); border:1px solid var(--bd); border-radius:14px; padding:10px 14px; margin-bottom:16px; text-align:center; font-size:12px; font-weight:700; color:var(--tx2);">
-          No more classes today! 🎉
+  } else if (todayKey && currentDateKey === todayKey) {
+      liveIslandHtml = `
+      <div class="ios-live-island" style="justify-content:center; padding:8px 12px;">
+          <span style="font-size:12px; font-weight:600; color:var(--tx2);">🎉 No more classes scheduled for today!</span>
       </div>`;
   }
 
-  // Render ONLY the Selected Day's Card
+  // Render Selected Day's Card
   const dailySlots = liveDailyCache[currentDateKey] || {};
   let comment = dailySlots['Comments'] || '';
   const birthdays = dailySlots['Birthdays'];
@@ -2193,23 +2287,21 @@ function renderDailySchedule() {
 
   let timelineEventsHtml = '';
   if (hasCls) {
-      timelineEventsHtml += `<div class="agenda-timeline">`;
+      timelineEventsHtml += `<div class="ios-classes-list">`;
       for (const b of finalBlocks) {
           const isHappeningNow = isToday && currentSlot === b.t;
           
           if (b.type === 'lunch') {
               timelineEventsHtml += `
-              <div class="timeline-event lunch">
-                  <div class="event-node"></div>
-                  <div class="lunch-card">
-                      <span>🍽 Campus Lunch Break</span>
-                      <span>12:00 – 1:00 PM</span>
-                  </div>
+              <div class="ios-divider-break">
+                  <span>🍽</span>
+                  <span>Campus Lunch Break · 12:00 – 1:00 PM</span>
               </div>`;
           } else if (b.type === 'free') {
               timelineEventsHtml += `
-              <div class="free-gap">
-                  <span>☕ ${b.start} – ${b.end} Free</span>
+              <div class="ios-divider-break">
+                  <span>☕</span>
+                  <span>Free Time · ${b.start} – ${b.end}</span>
               </div>`;
           } else if (b.type === 'class') {
               const data = b.data;
@@ -2218,12 +2310,12 @@ function renderDailySchedule() {
               const subjectName = isIcrc ? 'ICRC Placement Prep' : data.subject.name;
               const room = isIcrc ? null : data.subject.room;
               
-              // In Q6: Behavioural lab & Business Models are the 2 Mandatory Core courses; everything else is an Elective
+              // In Q6: Behavioural lab (MS5529) & Business Models (MS6210) are the 2 Mandatory Core courses; everything else is an Elective
               const isCore = !isIcrc && Boolean(data.subject && data.subject.isCore);
               const domain = isIcrc ? 'Placement' : (data.subject.v || (isCore ? 'Core' : 'Elective'));
               const domainIcon = isCore ? '🔒' : (DOMAIN_ICONS[domain] || '📚');
-              const domainColor = isCore ? 'var(--tx-info)' : (DCOL[domain] || 'var(--tx-info)');
-              const domainLabel = isCore ? 'Core Course' : domain;
+              const domainColor = isCore ? '#007AFF' : (DCOL[domain] || 'var(--tx-info)');
+              const domainLabel = isCore ? 'Core' : domain;
 
               // Check if class has already finished earlier today
               let isDone = false;
@@ -2237,35 +2329,29 @@ function renderDailySchedule() {
                   }
               }
 
-              let eventClass = 'timeline-event';
-              if (cancelled) eventClass += ' cancelled';
-              else if (isHappeningNow) eventClass += ' ongoing';
-              else if (isDone) eventClass += ' done';
-
-              const strikeStyle = cancelled ? 'text-decoration: line-through; opacity: 0.6;' : '';
-              const cardBorderColor = cancelled ? 'var(--bd-danger)' : domainColor;
-
               // Attendance Row (only when class is not cancelled and has a valid academic subject)
               let attRowHtml = '';
               if (!cancelled && data.subject) {
                   const sessionId = `${ymd}_${b.t}_${data.subject.code}`;
                   const currentStatus = classAttMap[sessionId]; // 'P', 'A', or undefined
-                  
+                  const attStatusLabel = currentStatus === 'P' 
+                      ? '<span style="color:#34C759; font-weight:700;">✓ Present</span>' 
+                      : (currentStatus === 'A' 
+                          ? '<span style="color:#FF3B30; font-weight:700;">✕ Absent</span>' 
+                          : '<span style="color:var(--tx3);">Not marked</span>');
+
                   attRowHtml = `
-                  <div class="class-att-row">
-                      <div style="font-size:11px; font-weight:700; color:var(--tx2); display:flex; align-items:center; gap:4px;">
-                          Attendance: 
-                          <span style="font-weight:800; color:${currentStatus === 'P' ? 'var(--tx-success)' : (currentStatus === 'A' ? 'var(--tx-danger)' : 'var(--tx3)')};">
-                              ${currentStatus === 'P' ? '✓ Present' : (currentStatus === 'A' ? '✕ Absent' : 'Not marked')}
-                          </span>
+                  <div class="ios-class-bottom">
+                      <div class="ios-att-status-text">
+                          Attendance: ${attStatusLabel}
                       </div>
-                      <div class="att-btn-group">
-                          <button class="att-action-btn ${currentStatus === 'P' ? 'p-active' : ''}" 
+                      <div class="ios-segmented">
+                          <button class="ios-seg-btn ${currentStatus === 'P' ? 'active-p' : ''}" 
                                   onclick="markClassAttendance('${ymd}', '${b.t}', '${data.subject.code}', 'P')" 
                                   title="Mark Present">
                               ✓ Present
                           </button>
-                          <button class="att-action-btn ${currentStatus === 'A' ? 'a-active' : ''}" 
+                          <button class="ios-seg-btn ${currentStatus === 'A' ? 'active-a' : ''}" 
                                   onclick="markClassAttendance('${ymd}', '${b.t}', '${data.subject.code}', 'A')" 
                                   title="Mark Absent">
                               ✕ Absent
@@ -2275,31 +2361,31 @@ function renderDailySchedule() {
               }
 
               timelineEventsHtml += `
-              <div class="${eventClass}">
-                  <div class="event-node"></div>
-                  <div class="event-card" style="border-left: 3px solid ${cardBorderColor};">
-                      <div class="event-meta-row">
-                          <span class="event-time" ${isHappeningNow ? 'style="color:var(--tx-info); font-weight:800;"' : ''}>${b.t}</span>
-                          <span class="domain-pill" style="background: var(--bg); color: ${domainColor}; border: .5px solid var(--bd);">
-                              ${domainIcon} ${domainLabel}
-                          </span>
+              <div class="ios-class-item ${cancelled ? 'cancelled' : ''}">
+                  <div class="ios-class-top">
+                      <div class="ios-class-time" ${isHappeningNow ? 'style="color:#007AFF; font-weight:800;"' : ''}>
+                          ${b.t}${isHappeningNow ? ' · <span style="color:#34C759; font-size:11px; font-weight:700;">● Active Now</span>' : (isDone ? ' · <span style="color:var(--tx3); font-size:11px; font-weight:600;">Finished</span>' : '')}
                       </div>
-                      <div class="event-name" style="${strikeStyle}">
-                          ${subjectName}
+                      <div class="ios-class-meta">
+                          ${cancelled 
+                              ? `<span class="ios-pill" style="color:#FF3B30; background:rgba(255,59,48,0.1); border-color:rgba(255,59,48,0.3); font-weight:800;">🚫 Cancelled</span>` 
+                              : `<span class="ios-pill" style="color:${domainColor}; background:var(--bg);">${domainIcon} ${domainLabel}</span>`
+                          }
                       </div>
-                      <div class="event-footer">
-                          ${room && !cancelled ? `<span class="room-badge">📍 Room ${room}</span>` : ''}
-                          ${cancelled ? `<span style="font-size:11px; font-weight:800; color:var(--tx-danger); background:var(--bg-danger); border: .5px solid var(--bd-danger); padding:3px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:3px;">🚫 Class Cancelled</span>` : ''}
-                          ${isHappeningNow ? `<span style="font-size:11px; font-weight:800; color:var(--tx-info);">● Happening Now</span>` : ''}
-                      </div>
-                      ${attRowHtml}
                   </div>
+                  <div class="ios-class-title" ${cancelled ? 'style="text-decoration:line-through; opacity:0.6;"' : ''}>
+                      ${subjectName}
+                  </div>
+                  <div class="ios-class-sub">
+                      ${room && !cancelled ? `📍 Room ${room}` : (!cancelled ? '📍 Department' : 'Cancelled in schedule')}
+                  </div>
+                  ${attRowHtml}
               </div>`;
           }
       }
       timelineEventsHtml += `</div>`;
   } else {
-      timelineEventsHtml += `<div style="font-size:12.5px; color:var(--tx3); padding: 24px 0; text-align:center; border: 1px dashed var(--bd); border-radius: 14px; background: var(--bg2);">☕ No classes scheduled for this day. Enjoy your break!</div>`;
+      timelineEventsHtml += `<div style="font-size:12.5px; color:var(--tx3); padding: 28px 0; text-align:center; border: 0.5px dashed var(--bd); border-radius: 14px; background: var(--bg2);">☕ No classes scheduled for this day. Enjoy your break!</div>`;
   }
 
   // Format Date Title
@@ -2313,8 +2399,8 @@ function renderDailySchedule() {
   }
   
   let badgeLabel = '';
-  if (isToday) badgeLabel = `<span style="background:var(--bg-info); color:var(--tx-info); font-size:10px; font-weight:800; padding:2px 8px; border-radius:10px; text-transform:uppercase; letter-spacing:0.4px;">Today</span>`;
-  else if (isTomorrow) badgeLabel = `<span style="background:var(--bg2); color:var(--tx2); font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px;">Tomorrow</span>`;
+  if (isToday) badgeLabel = `<span class="ios-today-badge">Today</span>`;
+  else if (isTomorrow) badgeLabel = `<span class="ios-today-badge" style="background:var(--bg3); color:var(--tx2);">Tomorrow</span>`;
 
   // Exam Banner
   let commentHtml = '';
@@ -2323,7 +2409,7 @@ function renderDailySchedule() {
       const badgeBorder = isExam ? 'var(--bd-danger)' : 'var(--bd-warn)';
       const badgeColor = isExam ? 'var(--tx-danger)' : 'var(--tx-warn)';
       const icon = isExam ? '📝' : '⚠️';
-      commentHtml = `<div style="font-size:12px; font-weight:700; color:${badgeColor}; margin-bottom:10px; background:${badgeBg}; padding:8px 12px; border-radius:10px; border:.5px solid ${badgeBorder}; display:flex; align-items:center; gap:8px;">
+      commentHtml = `<div style="font-size:12px; font-weight:700; color:${badgeColor}; margin-bottom:10px; background:${badgeBg}; padding:8px 12px; border-radius:10px; border:0.5px solid ${badgeBorder}; display:flex; align-items:center; gap:8px;">
           <span style="font-size:16px;">${icon}</span>
           <span style="flex:1;">${comment}</span>
       </div>`;
@@ -2332,7 +2418,7 @@ function renderDailySchedule() {
   // Birthday Banner
   let birthdayHtml = '';
   if (birthdays) {
-      birthdayHtml = `<div class="agenda-birthday-card">
+      birthdayHtml = `<div class="agenda-birthday-card" style="margin-bottom:10px; border-radius:12px;">
           <span style="font-size:16px;">🎉</span>
           <span>Happy Birthday: <strong>${birthdays}</strong>!</span>
       </div>`;
@@ -2343,31 +2429,15 @@ function renderDailySchedule() {
   const prevDateKey = currentIndex > 0 ? dateKeys[currentIndex - 1] : null;
   const nextDateKey = currentIndex < dateKeys.length - 1 ? dateKeys[currentIndex + 1] : null;
 
-  const dayNavHtml = `
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:8px;">
-      <button class="att-action-btn" ${prevDateKey ? `onclick="selectAgendaDate('${prevDateKey}')"` : 'disabled style="opacity:0.35;cursor:default;"'}>
-          ← Prev Day
-      </button>
-      <div style="font-size:11.5px; font-weight:700; color:var(--tx2);">
-          ${currentIndex >= 0 ? `Day ${currentIndex + 1} of ${dateKeys.length}` : ''}
-      </div>
-      <button class="att-action-btn" ${nextDateKey ? `onclick="selectAgendaDate('${nextDateKey}')"` : 'disabled style="opacity:0.35;cursor:default;"'}>
-          Next Day →
-      </button>
-  </div>`;
-
-  const cardStyle = isToday 
-    ? 'background:var(--bg); border:1.5px solid var(--bd-info); box-shadow: 0 4px 16px rgba(0,0,0,0.06); margin-bottom: 24px;' 
-    : 'background:var(--bg); border:1px solid var(--bd); box-shadow: 0 2px 8px rgba(0,0,0,0.03); margin-bottom: 24px;';
-  
   const singleCardHtml = `
-  <div id="card-${currentDateKey.replace(/\s/g, '-')}" data-is-today="${isToday ? 'true' : 'false'}" style="border-radius:18px; padding:16px; ${cardStyle}">
-      ${dayNavHtml}
-      <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; margin-bottom:12px; border-bottom:1px solid var(--bd);">
-          <div style="font-size:16px; font-weight:800; color:var(--tx); display:flex; align-items:center; gap:8px;">
-              📅 ${cleanDate}
+  <div class="ios-day-card" id="card-${currentDateKey.replace(/\s/g, '-')}" data-is-today="${isToday ? 'true' : 'false'}">
+      <div class="ios-day-header">
+          <button class="ios-nav-btn" ${prevDateKey ? `onclick="selectAgendaDate('${prevDateKey}')"` : 'disabled'} title="Previous Day">‹</button>
+          <div class="ios-date-title">
+              <span>${cleanDate}</span>
+              ${badgeLabel}
           </div>
-          ${badgeLabel}
+          <button class="ios-nav-btn" ${nextDateKey ? `onclick="selectAgendaDate('${nextDateKey}')"` : 'disabled'} title="Next Day">›</button>
       </div>
       ${commentHtml}
       ${birthdayHtml}
@@ -2376,9 +2446,8 @@ function renderDailySchedule() {
 
   area.innerHTML = `
     ${capsulesHtml}
-    ${reminderBarHtml}
+    ${liveIslandHtml}
     ${rollBannerHtml}
-    ${livePulseHtml}
     ${singleCardHtml}
   `;
 
@@ -2391,9 +2460,9 @@ function renderDailySchedule() {
           if (diffMin <= 0) {
               renderDailySchedule();
           } else if (diffMin > 60) {
-              cd.textContent = `in ${Math.floor(diffMin/60)}h ${diffMin%60}m`;
+              cd.textContent = `📍 ${nextClassFound.room ? `Rm ${nextClassFound.room} · ` : ''}in ${Math.floor(diffMin/60)}h ${diffMin%60}m`;
           } else {
-              cd.textContent = `in ${diffMin} min`;
+              cd.textContent = `📍 ${nextClassFound.room ? `Rm ${nextClassFound.room} · ` : ''}in ${diffMin} min`;
           }
       };
       updateCountdown();

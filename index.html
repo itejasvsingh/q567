@@ -47,9 +47,14 @@
 <div class="page">
 
 <div class="hdr" style="display:flex; justify-content:space-between; align-items:center;">
-  <div>
-    <h1>IIT Madras MBA — Elective Planner</h1>
-    <p>Q5: Jul–Sep 2026 · Q6: Oct–Dec 2026 · Q7: Jan–Mar 2027 · 12 electives total</p>
+  <div style="display:flex; align-items:center; gap:12px;">
+    <button id="hdr-menu-btn" onclick="pwaOpenDrawer()" aria-label="Menu" class="ios-menu-btn">
+      <span>☰</span> <span>Menu</span>
+    </button>
+    <div>
+      <h1>IIT Madras MBA — Elective Planner</h1>
+      <p>Q5: Jul–Sep 2026 · Q6: Oct–Dec 2026 · Q7: Jan–Mar 2027 · 12 electives total</p>
+    </div>
   </div>
   <button id="hdr-install-btn" onclick="handleInstallClick()" style="display:none; background:var(--bg-info); color:var(--tx-info); border:.5px solid var(--bd-info); border-radius:8px; padding:8px 14px; font-size:12px; font-weight:700; cursor:pointer; font-family:var(--font); white-space:nowrap; flex-shrink:0; margin-left:12px;">📲 Install App</button>
 </div>
