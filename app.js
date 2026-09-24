@@ -1497,14 +1497,13 @@ window.refreshLiveSchedule = function(btnElement) {
 };
 
 // ── PWA INSTANT BOOT FROM CACHE + SIDE DRAWER INJECTION ─────────────────────
-// ── PWA & BROWSER DRAWER WITH PREFERENCES & 30-MIN ALERTS ─────────────────
+// ── PWA STANDALONE BOOT + DRAWER (ONLY FOR PWA) ─────────────────────────────
 (function initDrawerAndBoot() {
     const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
-    // 1. Inject top bar (if standalone) + side drawer HTML (for everyone)
-    let topbarHtml = '';
+    // 1. Only inject topbar and side drawer HTML if running as PWA
     if (isPWA) {
-      topbarHtml = `
+      const topbarHtml = `
       <div id="pwa-topbar">
         <button id="pwa-hamburger" onclick="pwaOpenDrawer()" aria-label="Menu">
           <span></span><span></span><span></span>
@@ -1514,64 +1513,64 @@ window.refreshLiveSchedule = function(btnElement) {
       </div>`;
       const floatingTheme = document.getElementById('theme-toggle');
       if (floatingTheme) floatingTheme.style.display = 'none';
+
+      const drawerHTML = `
+      ${topbarHtml}
+      <div id="pwa-drawer-backdrop" onclick="pwaCloseDrawer()"></div>
+      <nav id="pwa-drawer">
+        <div id="pwa-drawer-header">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span>MBA Planner</span>
+            <button onclick="pwaCloseDrawer()" style="background:none; border:none; font-size:18px; color:var(--tx2); cursor:pointer; padding:2px 6px;">✕</button>
+          </div>
+          <div id="pwa-drawer-student" style="font-size:11.5px; font-weight:600; color:var(--tx2); margin-top:4px;"></div>
+        </div>
+        
+        <div class="pwa-drawer-section">Navigation</div>
+        <button class="pwa-drawer-item active" data-view="daily"   onclick="pwaNav('daily')">📅 Daily Agenda</button>
+        <button class="pwa-drawer-item"        data-view="plan"    onclick="pwaNav('plan')">📋 My Planner</button>
+        <button class="pwa-drawer-item"        data-view="master"  onclick="pwaNav('master')">🗓️ Weekly Schedule</button>
+        <button class="pwa-drawer-item"        data-view="att"     onclick="pwaNav('att')">✅ Attendance</button>
+        <button class="pwa-drawer-item"        data-view="compare" onclick="pwaNav('compare')">👥 Compare</button>
+        <button class="pwa-drawer-item"        data-view="mess"    onclick="pwaNav('mess')">🍽 Mess Menu</button>
+        
+        <div class="pwa-drawer-section">Preferences & Alerts</div>
+        
+        <!-- 30-Min Alert Toggle in Menu -->
+        <div class="drawer-setting-row">
+          <div class="drawer-setting-info">
+            <span class="drawer-setting-title">🔔 30-Min Class Alerts</span>
+            <span class="drawer-setting-sub" id="drawer-alert-status-text">Alerts before each class</span>
+          </div>
+          <label class="ios-switch">
+            <input type="checkbox" id="drawer-alert-checkbox" onchange="toggle30mAlertFromDrawer(this.checked)">
+            <span class="ios-slider"></span>
+          </label>
+        </div>
+
+        <!-- Student Roll Number Setting -->
+        <div class="drawer-setting-row" onclick="changeAgendaRollNo()" style="cursor:pointer;">
+          <div class="drawer-setting-info">
+            <span class="drawer-setting-title">🎓 Student Roll No</span>
+            <span class="drawer-setting-sub" id="drawer-roll-display">Tap to set roll number</span>
+          </div>
+          <span style="color:var(--tx3); font-size:18px;">›</span>
+        </div>
+
+        <!-- Dark Mode Toggle -->
+        <div class="drawer-setting-row">
+          <div class="drawer-setting-info">
+            <span class="drawer-setting-title">🌓 Dark Mode</span>
+            <span class="drawer-setting-sub">Toggle appearance</span>
+          </div>
+          <label class="ios-switch">
+            <input type="checkbox" id="drawer-theme-checkbox" onchange="toggleTheme(); updateDrawerSettingsUI();">
+            <span class="ios-slider"></span>
+          </label>
+        </div>
+      </nav>`;
+      document.body.insertAdjacentHTML('afterbegin', drawerHTML);
     }
-
-    const drawerHTML = `
-    ${topbarHtml}
-    <div id="pwa-drawer-backdrop" onclick="pwaCloseDrawer()"></div>
-    <nav id="pwa-drawer">
-      <div id="pwa-drawer-header">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span>MBA Planner</span>
-          <button onclick="pwaCloseDrawer()" style="background:none; border:none; font-size:18px; color:var(--tx2); cursor:pointer; padding:2px 6px;">✕</button>
-        </div>
-        <div id="pwa-drawer-student" style="font-size:11.5px; font-weight:600; color:var(--tx2); margin-top:4px;"></div>
-      </div>
-      
-      <div class="pwa-drawer-section">Navigation</div>
-      <button class="pwa-drawer-item active" data-view="daily"   onclick="pwaNav('daily')">📅 Daily Agenda</button>
-      <button class="pwa-drawer-item"        data-view="plan"    onclick="pwaNav('plan')">📋 My Planner</button>
-      <button class="pwa-drawer-item"        data-view="master"  onclick="pwaNav('master')">🗓️ Weekly Schedule</button>
-      <button class="pwa-drawer-item"        data-view="att"     onclick="pwaNav('att')">✅ Attendance</button>
-      <button class="pwa-drawer-item"        data-view="compare" onclick="pwaNav('compare')">👥 Compare</button>
-      <button class="pwa-drawer-item"        data-view="mess"    onclick="pwaNav('mess')">🍽 Mess Menu</button>
-      
-      <div class="pwa-drawer-section">Preferences & Alerts</div>
-      
-      <!-- 30-Min Alert Toggle in Menu -->
-      <div class="drawer-setting-row">
-        <div class="drawer-setting-info">
-          <span class="drawer-setting-title">🔔 30-Min Class Alerts</span>
-          <span class="drawer-setting-sub" id="drawer-alert-status-text">Alerts before each class</span>
-        </div>
-        <label class="ios-switch">
-          <input type="checkbox" id="drawer-alert-checkbox" onchange="toggle30mAlertFromDrawer(this.checked)">
-          <span class="ios-slider"></span>
-        </label>
-      </div>
-
-      <!-- Student Roll Number Setting -->
-      <div class="drawer-setting-row" onclick="changeAgendaRollNo()" style="cursor:pointer;">
-        <div class="drawer-setting-info">
-          <span class="drawer-setting-title">🎓 Student Roll No</span>
-          <span class="drawer-setting-sub" id="drawer-roll-display">Tap to set roll number</span>
-        </div>
-        <span style="color:var(--tx3); font-size:18px;">›</span>
-      </div>
-
-      <!-- Dark Mode Toggle -->
-      <div class="drawer-setting-row">
-        <div class="drawer-setting-info">
-          <span class="drawer-setting-title">🌓 Dark Mode</span>
-          <span class="drawer-setting-sub">Toggle appearance</span>
-        </div>
-        <label class="ios-switch">
-          <input type="checkbox" id="drawer-theme-checkbox" onchange="toggleTheme(); updateDrawerSettingsUI();">
-          <span class="ios-slider"></span>
-        </label>
-      </div>
-    </nav>`;
-    document.body.insertAdjacentHTML('afterbegin', drawerHTML);
 
     // 2. Try loading cached schedule immediately
     const cached = localStorage.getItem('mbaplanner_daily_cache');
@@ -1586,9 +1585,13 @@ window.refreshLiveSchedule = function(btnElement) {
         } catch(e) { console.warn('PWA boot cache parse error', e); }
     }
 
-    // 3. Always land on Daily Agenda
-    switchView('daily');
-    renderDailySchedule();
+    // 3. Landing view: PWA lands on Daily Agenda; Website lands on My Planner
+    if (isPWA) {
+        switchView('daily');
+        renderDailySchedule();
+    } else {
+        switchView('plan');
+    }
 })();
 
 window.updateDrawerSettingsUI = function() {
@@ -2142,6 +2145,19 @@ function renderDailySchedule() {
   capsulesHtml += `</div>`;
 
   // Roll Number Banner / Prompt for Attendance (iOS style)
+  const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  const reminderPref = localStorage.getItem('mbaplanner_reminder_30m');
+  const isGranted = ('Notification' in window) && Notification.permission === 'granted';
+  const isAlertActive = isGranted && reminderPref !== 'off';
+
+  let websiteAlertBtn = '';
+  if (!isPWA && 'Notification' in window) {
+      websiteAlertBtn = `
+      <button class="ios-seg-btn ${isAlertActive ? 'active-p' : ''}" onclick="toggle30mAlert()" style="padding:4px 10px; font-size:11px; margin-left:auto;">
+          ${isAlertActive ? '🔔 30m Alerts ON' : '🔕 30m Alerts OFF'}
+      </button>`;
+  }
+
   const savedRoll = (localStorage.getItem('mbaplanner_roll_no') || '').trim();
   let rollBannerHtml = '';
   if (savedRoll) {
@@ -2150,21 +2166,25 @@ function renderDailySchedule() {
           studentName = CLASS_ATTENDANCE_DB[savedRoll].name;
       }
       rollBannerHtml = `
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:7px 12px; margin-bottom:12px; background:var(--bg2); border-radius:12px; border:0.5px solid var(--bd); font-size:12px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:7px 12px; margin-bottom:12px; background:var(--bg2); border-radius:12px; border:0.5px solid var(--bd); font-size:12px; gap:8px;">
           <div style="display:flex; align-items:center; gap:6px;">
               <span>🎓</span>
               <span style="color:var(--tx2);">Roll:</span>
               <strong style="color:var(--tx);">${savedRoll}</strong>
               ${studentName ? `<span style="color:var(--tx3); font-size:11.5px;">· ${studentName}</span>` : ''}
+              <button class="ios-seg-btn" onclick="changeAgendaRollNo()" style="padding:2px 8px; font-size:11px; color:#007AFF; font-weight:700;">Edit</button>
           </div>
-          <button class="ios-seg-btn" onclick="changeAgendaRollNo()" style="padding:2px 8px; font-size:11px; color:#007AFF; font-weight:700;">Edit</button>
+          ${websiteAlertBtn}
       </div>`;
   } else {
       rollBannerHtml = `
       <div style="background:rgba(0,122,255,0.05); border:0.5px solid rgba(0,122,255,0.2); border-radius:14px; padding:12px 14px; margin-bottom:12px;">
-          <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-              <span style="font-size:16px;">🎓</span>
-              <span style="font-size:13px; font-weight:700; color:var(--tx);">Set Roll Number for Attendance</span>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:16px;">🎓</span>
+                  <span style="font-size:13px; font-weight:700; color:var(--tx);">Set Roll Number for Attendance</span>
+              </div>
+              ${websiteAlertBtn}
           </div>
           <div style="font-size:11.5px; color:var(--tx2); margin-bottom:8px; line-height:1.4;">
               Enter your Roll No (e.g. <code>MS25A071</code>) to track your class-by-class attendance.
