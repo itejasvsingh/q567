@@ -1,6 +1,6 @@
 function syncQ5AttendanceToFirebase() {
   // 1. Setup your Sheet ID and Firebase URL
-  var sheetId = 'YOUR_Q5_ATTENDANCE_SHEET_ID_HERE'; // Extract from the Google Sheet URL
+  var sheetId = '1LRJ3gEMlh_pAaaKoCp9MA9eZBHZ6UjPT_FJ7PpJFoQI'; // Extract from the Google Sheet URL
   var firebaseUrl = 'https://q567mba-default-rtdb.asia-southeast1.firebasedatabase.app/q5_attendance.json';
   
   try {
