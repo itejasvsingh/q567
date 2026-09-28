@@ -3275,7 +3275,22 @@ function _renderDailyScheduleInner() {
       return { dayClasses, hasCls, hasActiveCls };
   };
 
-  const dateKeys = Object.keys(liveDailyCache);
+  let dateKeys = Object.keys(liveDailyCache);
+  if (dateKeys.length > 0) {
+      dateKeys.sort((a,b) => a.localeCompare(b));
+      const firstDate = new Date(dateKeys[0].split(' ')[0]);
+      const lastDate = new Date(dateKeys[dateKeys.length-1].split(' ')[0]);
+      
+      const continuousKeys = [];
+      let curr = new Date(firstDate);
+      while (curr <= lastDate) {
+          const ymd = `${curr.getFullYear()}-${String(curr.getMonth()+1).padStart(2,'0')}-${String(curr.getDate()).padStart(2,'0')}`;
+          const dName = curr.toLocaleDateString('en-US', { weekday: 'long' });
+          continuousKeys.push(`${ymd} ${dName}`);
+          curr.setDate(curr.getDate() + 1);
+      }
+      dateKeys = continuousKeys;
+  }
   if (!window._selectedAgendaDate || !liveDailyCache[window._selectedAgendaDate]) {
       const todayMatch = dateKeys.find(k => k.startsWith(todayYmd));
       if (todayMatch) {
