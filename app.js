@@ -1918,9 +1918,11 @@ window.setCohortTerm = function(term) {
   window.currentCohortTerm = term;
   const q6Btn = document.getElementById('cohort-tab-q6');
   const q5Btn = document.getElementById('cohort-tab-q5');
-  if (q6Btn && q5Btn) {
+  const bothBtn = document.getElementById('cohort-tab-both');
+  if (q6Btn && q5Btn && bothBtn) {
     q6Btn.className = 'ios-seg-btn ' + (term === 'Q6' ? 'active-p' : '');
     q5Btn.className = 'ios-seg-btn ' + (term === 'Q5' ? 'active-p' : '');
+    bothBtn.className = 'ios-seg-btn ' + (term === 'BOTH' ? 'active-p' : '');
   }
   searchCohortAttendance();
 };
