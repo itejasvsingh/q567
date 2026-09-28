@@ -3122,6 +3122,15 @@ window.selectAgendaDate = function(dateKey) {
 
 // --- DAILY AGENDA LOGIC ---
 function renderDailySchedule() {
+  try {
+    _renderDailyScheduleInner();
+  } catch(e) {
+    alert("Crash in Agenda: " + e.message);
+    console.error(e);
+  }
+}
+function _renderDailyScheduleInner() {
+
   const area = document.getElementById('daily-render');
   if (!area) return;
   const quarter = (typeof cQ !== 'undefined' && cQ) ? cQ : 'Q6';
@@ -3439,7 +3448,7 @@ function renderDailySchedule() {
   }
 
   const { dayClasses, hasCls } = parseDayClasses(dailySlots);
-  const [ymd, dayName] = currentDateKey.split(' ');
+  const [ymd, dayName] = currentDateKey ? currentDateKey.split(' ') : ['', ''];
   const isToday = ymd === todayYmd;
   const isTomorrow = ymd === tomorrowYmd;
 
