@@ -3791,7 +3791,7 @@ window.renderAdminSlots = function(data, datesToLoad) {
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
             <div style="display:flex; align-items:center; gap:4px; flex:1;">
                <span style="font-size:14px;">🕒</span>
-               <input type="text" id="admin-time-${dk.replace(/\s/g, '_')}-${t}" value="${dayData.customTimes && dayData.customTimes[t] ? dayData.customTimes[t] : adminSlotLabels[t]}" title="Edit the time label" style="font-size:13px; font-weight:800; color:var(--tx-info); background:var(--bg); border:1px dashed var(--bd); padding:4px 6px; border-radius:6px; min-width:140px; outline:none; transition:all 0.2s; pointer-events:auto; user-select:auto;">
+               <input type="text" id="admin-time-${dk.replace(/\s/g, '_')}-${t}" value="${dayData.customTimes && dayData.customTimes[t] ? dayData.customTimes[t] : adminSlotLabels[t]}" title="Edit the time label" style="font-size:13px; font-weight:800; color:var(--tx-info); background:var(--bg); border:1px dashed var(--bd); padding:4px 6px; border-radius:6px; min-width:140px; outline:none; transition:all 0.2s; pointer-events:auto; user-select:text; -webkit-user-select:text;">
             </div>
             <div style="display:flex; gap:8px;">
               <button id="shift-btn-${dk.replace(/\s/g, '_')}-${t}" onclick="adminOpenShiftModal('${dk.replace(/\s/g, '_')}', '${t}')" style="padding:6px 12px; border-radius:8px; border:none; background:var(--tx-info); color:#fff; font-size:12px; font-weight:700; cursor:pointer; opacity: ${isStrike ? '1' : '0.4'}; pointer-events: ${isStrike ? 'auto' : 'none'}; transition: all 0.2s;">Shift ➡️</button>
@@ -3875,7 +3875,7 @@ window.adminOpenShiftModal = function(oldDkId, oldT) {
             
             <div style="margin-bottom:24px;">
                 <label style="display:block; font-size:12px; font-weight:700; color:var(--tx3); margin-bottom:4px;">Custom Time Label (Optional)</label>
-                <input type="text" id="admin-shift-custom-time" placeholder="e.g. 8-11 or 9:30 AM - 12:30 PM" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--bd); background:var(--bg2); color:var(--tx); font-size:14px; outline:none; pointer-events:auto; user-select:auto;">
+                <input type="text" id="admin-shift-custom-time" placeholder="e.g. 8-11 or 9:30 AM - 12:30 PM" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--bd); background:var(--bg2); color:var(--tx); font-size:14px; outline:none; pointer-events:auto; user-select:text; -webkit-user-select:text;">
             </div>
             
             <div style="display:flex; gap:10px;">
