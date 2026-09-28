@@ -3736,7 +3736,8 @@ window.initAdminView = function() {
       titleEl.innerHTML = '📅 Live Schedule (Next 7 Days)';
     }
     const allData = snap.val() || {};
-    const filteredData = {};
+    window._adminCurrentData = window._adminCurrentData || {};
+    const filteredData = window._adminCurrentData;
     for (const dk of datesToLoad) {
         filteredData[dk] = allData[dk] || {};
     }
@@ -3879,6 +3880,54 @@ window.adminShiftClass = function(selectEl, oldDkId, oldT) {
         }, 500);
     }
     selectEl.value = '';
+};
+
+
+window.adminAddCustomDate = function(ymd) {
+    if (!ymd) return;
+    const dk = getFullDateKey(ymd);
+    if (window._adminDatesEditing.includes(dk)) {
+        switchAdminTab(dk);
+        return;
+    }
+    document.getElementById('admin-add-date').disabled = true;
+    fbDb.ref(`schedule/daily/${dk}`).once('value').then(snap => {
+        document.getElementById('admin-add-date').disabled = false;
+        const dayData = snap.val() || {};
+        window._adminDatesEditing.push(dk);
+        window._adminCurrentData[dk] = dayData;
+        
+        // Save current input values before re-rendering!
+        for (const existingDk of window._adminDatesEditing) {
+            if (existingDk === dk) continue;
+            for (const t of adminTimeOrder) {
+                const inp = document.getElementById(`admin-slot-${existingDk.replace(/\s/g, '_')}-${t}`);
+                const cb = document.getElementById(`admin-strike-${existingDk.replace(/\s/g, '_')}-${t}`);
+                if (inp && window._adminCurrentData[existingDk]) {
+                    // Update in-memory data so it re-renders correctly
+                    let val = inp.value.trim();
+                    let strike = cb.checked;
+                    if (val) {
+                        const parts = val.split('/').map(s => s.trim()).filter(s => s);
+                        if (parts.length === 1) {
+                            window._adminCurrentData[existingDk][t] = strike ? { text: parts[0], strike: true } : parts[0];
+                        } else {
+                            window._adminCurrentData[existingDk][t] = parts.map(p => (strike ? { text: p, strike: true } : p));
+                        }
+                    } else {
+                        delete window._adminCurrentData[existingDk][t];
+                    }
+                }
+            }
+        }
+        
+        renderAdminSlots(window._adminCurrentData, window._adminDatesEditing);
+        switchAdminTab(dk);
+    }).catch(e => {
+        document.getElementById('admin-add-date').disabled = false;
+        console.error(e);
+        alert("Failed to load date");
+    });
 };
 
 window.adminSaveSchedule = function() {

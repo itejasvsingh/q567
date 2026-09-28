@@ -4,17 +4,14 @@
     <p class="section-subtitle">Edit Live Daily Schedule (Admin Only)</p>
   </div>
   
-  <div class="card" style="margin-bottom: 20px;">
-    <label style="display:block; font-size:13px; font-weight:700; margin-bottom:8px; color:var(--tx);">Select Date to Edit</label>
-    <div style="display:flex; gap:10px;">
-      <input type="date" id="admin-date-picker" style="flex:1; padding:10px; border-radius:10px; border:1px solid var(--bd); background:var(--bg2); color:var(--tx); font-size:15px; font-family:inherit;">
-      <button class="ios-btn-primary" onclick="adminLoadSchedule()" style="padding:0 20px;">Load</button>
-    </div>
-  </div>
-
   <div id="admin-editor-container" style="display:none;">
     <div class="card">
-      <h3 style="font-size:16px; font-weight:700; margin-bottom:16px; color:var(--tx-info);" id="admin-editing-title">Editing Date</h3>
+      
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+        <h3 style="font-size:16px; font-weight:700; color:var(--tx-info); margin:0;" id="admin-editing-title">📅 Live Schedule</h3>
+        <input type="date" id="admin-add-date" onchange="adminAddCustomDate(this.value)" style="padding:6px 10px; border-radius:8px; border:1px solid var(--bd); background:var(--bg2); color:var(--tx); font-size:13px; outline:none;" title="Add another date">
+      </div>
+
       
       <div id="admin-slots-container">
         <!-- Rendered via JS -->
