@@ -3799,7 +3799,7 @@ window.renderAdminSlots = function(data, datesToLoad) {
                     else if (idx === 1) label = 'Tomorrow';
                     return `<optgroup label="${label}">` + adminTimeOrder.map(ot => {
                         if (otherDk === dk && ot === t) return '';
-                        return `<option value="${otherDk.replace(/\s/g, '_')}|${ot}">${adminSlotLabels[ot].split(' - ')[0]}</option>`;
+                        return `<option value="${otherDk.replace(/\s/g, '_')}|${ot}">${adminSlotLabels[ot]}</option>`;
                     }).join('') + `</optgroup>`;
                 }).join('')}
               </select>
