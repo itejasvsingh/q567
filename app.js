@@ -3786,12 +3786,18 @@ window.renderAdminSlots = function(data, datesToLoad) {
       
       contentHtml += `
         <div style="margin-bottom: 16px; padding:14px; background:var(--bg2); border:1px solid var(--bd); border-radius:16px; display:flex; flex-direction:column; gap:10px;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
             <div style="font-size:14px; font-weight:800; color:var(--tx-info);">🕒 ${adminSlotLabels[t]}</div>
-            <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:var(--tx-warn); font-weight:700; background:var(--bg); padding:6px 10px; border-radius:8px; border:1px solid var(--bd);">
-              <input type="checkbox" id="${strikeId}" ${isStrike ? 'checked' : ''} style="width:16px; height:16px; accent-color:red;">
-              Cancel
-            </label>
+            <div style="display:flex; gap:8px;">
+              <select onchange="adminShiftClass(this, '${dk.replace(/\s/g, '_')}', '${t}')" style="padding:4px 8px; border-radius:6px; border:1px solid var(--bd); background:var(--bg); color:var(--tx); font-size:12px; font-weight:700; outline:none;">
+                <option value="">Shift...</option>
+                ${adminTimeOrder.filter(ot => ot !== t).map(ot => `<option value="${ot}">${adminSlotLabels[ot].split(' - ')[0]}</option>`).join('')}
+              </select>
+              <label style="display:flex; align-items:center; gap:4px; font-size:13px; color:var(--tx-warn); font-weight:700; background:var(--bg); padding:4px 8px; border-radius:6px; border:1px solid var(--bd);">
+                <input type="checkbox" id="${strikeId}" ${isStrike ? 'checked' : ''} style="width:14px; height:14px; accent-color:red;">
+                Cancel
+              </label>
+            </div>
           </div>
           <input type="text" id="${inputId}" value="${classStr}" placeholder="Tap here to type class code..." style="width:100%; padding:14px; border-radius:10px; border:2px solid var(--blue); background:var(--bg); color:var(--tx); font-size:16px; font-weight:800; font-family:inherit; outline:none; box-sizing:border-box; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
         </div>
@@ -3820,6 +3826,34 @@ window.switchAdminTab = function(selectedDk) {
             content.style.display = 'none';
         }
     });
+};
+
+
+window.adminShiftClass = function(selectEl, dkId, oldT) {
+    const newT = selectEl.value;
+    if (!newT) return;
+    
+    const oldInput = document.getElementById(`admin-slot-${dkId}-${oldT}`);
+    const oldStrike = document.getElementById(`admin-strike-${dkId}-${oldT}`);
+    const newInput = document.getElementById(`admin-slot-${dkId}-${newT}`);
+    
+    if (oldInput && oldInput.value.trim() && newInput) {
+        oldStrike.checked = true;
+        const classToMove = oldInput.value.trim();
+        if (newInput.value.trim()) {
+            newInput.value = newInput.value.trim() + ' / ' + classToMove;
+        } else {
+            newInput.value = classToMove;
+        }
+        newInput.style.transition = 'all 0.3s';
+        newInput.style.background = 'var(--blue)';
+        newInput.style.color = '#fff';
+        setTimeout(() => {
+            newInput.style.background = 'var(--bg)';
+            newInput.style.color = 'var(--tx)';
+        }, 500);
+    }
+    selectEl.value = '';
 };
 
 window.adminSaveSchedule = function() {
