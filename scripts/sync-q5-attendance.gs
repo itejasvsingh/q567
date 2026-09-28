@@ -11,46 +11,59 @@ function syncQ5AttendanceToFirebase() {
   }
   
   // 2. Parse the Active Sheet
-  var sheet = ss.getActiveSheet(); // or ss.getSheetByName('Sheet1')
+  var sheet = ss.getActiveSheet(); 
   var data = sheet.getDataRange().getValues();
   if (data.length < 2) return;
   
-  var headers = data[0];
+  var headers = null;
+  var headerRowIdx = -1;
   var rollIdx = -1;
   var nameIdx = -1;
   var subjectCols = {}; // { index: "COURSE_CODE" }
   
-  // Find Roll and Name columns, and treat the rest as subjects
+  // Scan the first 10 rows to find the actual header row (it's often not row 1!)
+  for (var r = 0; r < Math.min(10, data.length); r++) {
+    var row = data[r];
+    for (var c = 0; c < row.length; c++) {
+      var cellVal = String(row[c]).toLowerCase();
+      if (cellVal.indexOf('roll') !== -1 || cellVal === 'id' || cellVal.indexOf('student id') !== -1) {
+        headers = row;
+        headerRowIdx = r;
+        break;
+      }
+    }
+    if (headers) break; // Found the header row!
+  }
+  
+  if (!headers) {
+    Logger.log("Error: Could not find a 'Roll Number' column anywhere in the first 10 rows.");
+    return;
+  }
+  
+  // Find Roll, Name, and Course columns within the identified header row
   for (var i = 0; i < headers.length; i++) {
     var h = String(headers[i]).trim();
     if (!h) continue;
     
     var hLower = h.toLowerCase();
-    if (hLower.indexOf('roll') !== -1 || hLower === 'id') {
+    if (hLower.indexOf('roll') !== -1 || hLower === 'id' || hLower.indexOf('student id') !== -1) {
       rollIdx = i;
     } else if (hLower.indexOf('name') !== -1 || hLower === 'student') {
       nameIdx = i;
     } else if (/^[A-Z0-9-]{4,10}$/.test(h)) {
-      // Looks like a course code (e.g., MS5760, CORE-LAW)
       subjectCols[i] = h.toUpperCase();
     }
   }
   
-  if (rollIdx === -1) {
-    Logger.log("Error: Could not find a 'Roll Number' column in the header row.");
-    return;
-  }
-  
   var outputDb = {};
   
-  // 3. Process each student row
-  for (var r = 1; r < data.length; r++) {
+  // 3. Process each student row (starting right after the header row)
+  for (var r = headerRowIdx + 1; r < data.length; r++) {
     var row = data[r];
     var roll = String(row[rollIdx]).trim().toUpperCase();
-    if (!roll) continue;
+    if (!roll) continue; // Skip empty rows
     
     var name = nameIdx !== -1 ? String(row[nameIdx]).trim() : '';
-    
     var studentAtt = {};
     
     for (var colIdx in subjectCols) {
@@ -59,7 +72,6 @@ function syncQ5AttendanceToFirebase() {
       
       if (!cellVal || cellVal === '-' || cellVal.toLowerCase() === 'na') continue;
       
-      // Parse formats like: "10", "10/12", "10 / 12", "83%", "10 (83%)"
       var attended = 0;
       var total = 0;
       
@@ -68,7 +80,6 @@ function syncQ5AttendanceToFirebase() {
         attended = parseInt(slashMatch[1], 10);
         total = parseInt(slashMatch[2], 10);
       } else {
-        // Just a number? Assume it's the attended classes, default total to 14
         var numMatch = cellVal.match(/^(\d+)$/);
         if (numMatch) {
           attended = parseInt(numMatch[1], 10);
@@ -111,4 +122,3 @@ function syncQ5AttendanceToFirebase() {
     Logger.log("❌ Firebase Error: " + e.message);
   }
 }
-
