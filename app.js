@@ -3748,48 +3748,78 @@ window.initAdminView = function() {
 
 window.renderAdminSlots = function(data, datesToLoad) {
   const container = document.getElementById('admin-slots-container');
-  let html = '';
   
-  for (const dk of datesToLoad) {
-      const dayData = data[dk] || {};
+  let tabsHtml = `<div style="display:flex; overflow-x:auto; gap:10px; margin-bottom:20px; padding-bottom:5px; scrollbar-width:none;">`;
+  datesToLoad.forEach((dk, index) => {
+    const [ymd, dayName] = dk.split(' ');
+    const shortDay = dayName.substring(0,3);
+    const dd = ymd.split('-')[2];
+    tabsHtml += `<div onclick="switchAdminTab('${dk}')" id="admin-tab-${dk.replace(/\s/g, '_')}" style="padding:10px 16px; border-radius:12px; border:1px solid var(--bd); background:${index === 0 ? 'var(--blue)' : 'var(--bg2)'}; color:${index === 0 ? '#fff' : 'var(--tx)'}; text-align:center; min-width:65px; cursor:pointer; flex-shrink:0; transition:all 0.2s;">
+      <div style="font-size:12px; font-weight:700; opacity:0.9;">${shortDay}</div>
+      <div style="font-size:18px; font-weight:800;">${dd}</div>
+    </div>`;
+  });
+  tabsHtml += `</div>`;
+
+  let contentHtml = '';
+  datesToLoad.forEach((dk, index) => {
+    const dayData = data[dk] || {};
+    contentHtml += `<div id="admin-content-${dk.replace(/\s/g, '_')}" style="display: ${index === 0 ? 'block' : 'none'}; animation: fadeIn 0.3s;">`;
+    
+    for (const t of adminTimeOrder) {
+      const slotData = dayData[t];
+      let classStr = '';
+      let isStrike = false;
       
-      html += `<div style="margin-bottom: 24px; padding:16px; background:var(--bg3); border:1px solid var(--bd); border-radius:12px;">`;
-      html += `<h4 style="margin: 0 0 16px 0; font-size:15px; color:var(--tx-info);">📅 ${dk}</h4>`;
+      if (Array.isArray(slotData)) {
+          classStr = slotData.map(e => typeof e === 'object' && e ? (e.text||'') : String(e)).join(' / ');
+          isStrike = slotData.some(e => typeof e === 'object' && e ? e.strike : false);
+      } else if (typeof slotData === 'object' && slotData !== null) {
+          classStr = slotData.text || '';
+          isStrike = slotData.strike || false;
+      } else if (slotData) {
+          classStr = String(slotData);
+      }
       
-      for (const t of adminTimeOrder) {
-        const slotData = dayData[t];
-        let classStr = '';
-        let isStrike = false;
-        
-        if (Array.isArray(slotData)) {
-            classStr = slotData.map(e => typeof e === 'object' && e ? (e.text||'') : String(e)).join(' / ');
-            isStrike = slotData.some(e => typeof e === 'object' && e ? e.strike : false);
-        } else if (typeof slotData === 'object' && slotData !== null) {
-            classStr = slotData.text || '';
-            isStrike = slotData.strike || false;
-        } else if (slotData) {
-            classStr = String(slotData);
-        }
-        
-        const inputId = `admin-slot-${dk.replace(/\s/g, '_')}-${t}`;
-        const strikeId = `admin-strike-${dk.replace(/\s/g, '_')}-${t}`;
-        
-        html += `
-          <div style="margin-bottom: 12px; padding:12px; background:var(--bg2); border:1px solid var(--bd); border-radius:10px;">
-            <div style="font-size:12px; font-weight:800; color:var(--tx3); margin-bottom:8px;">🕒 ${adminSlotLabels[t]}</div>
-            <input type="text" id="${inputId}" value="${classStr}" placeholder="e.g. MS5529 (Empty = No Class)" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--bd); background:var(--bg); color:var(--tx); font-size:14px; font-family:inherit; margin-bottom:8px;">
-            
-            <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--tx2);">
-              <input type="checkbox" id="${strikeId}" ${isStrike ? 'checked' : ''} style="width:16px; height:16px;">
-              Mark as Cancelled (Strikethrough)
+      const inputId = `admin-slot-${dk.replace(/\s/g, '_')}-${t}`;
+      const strikeId = `admin-strike-${dk.replace(/\s/g, '_')}-${t}`;
+      
+      contentHtml += `
+        <div style="margin-bottom: 16px; padding:14px; background:var(--bg2); border:1px solid var(--bd); border-radius:16px; display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-size:14px; font-weight:800; color:var(--tx-info);">🕒 ${adminSlotLabels[t]}</div>
+            <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:var(--tx-warn); font-weight:700; background:var(--bg); padding:6px 10px; border-radius:8px; border:1px solid var(--bd);">
+              <input type="checkbox" id="${strikeId}" ${isStrike ? 'checked' : ''} style="width:16px; height:16px; accent-color:red;">
+              Cancel
             </label>
           </div>
-        `;
-      }
-      html += `</div>`;
-  }
+          <input type="text" id="${inputId}" value="${classStr}" placeholder="Class code (e.g. MS5529)" style="width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--bd); background:var(--bg); color:var(--tx); font-size:16px; font-weight:700; font-family:inherit; outline:none; box-sizing:border-box;">
+        </div>
+      `;
+    }
+    contentHtml += `</div>`;
+  });
   
-  container.innerHTML = html;
+  container.innerHTML = tabsHtml + contentHtml;
+};
+
+window.switchAdminTab = function(selectedDk) {
+    if(!window._adminDatesEditing) return;
+    window._adminDatesEditing.forEach(dk => {
+        const dkId = dk.replace(/\s/g, '_');
+        const tab = document.getElementById(`admin-tab-${dkId}`);
+        const content = document.getElementById(`admin-content-${dkId}`);
+        if(!tab || !content) return;
+        if(dk === selectedDk) {
+            tab.style.background = 'var(--blue)';
+            tab.style.color = '#fff';
+            content.style.display = 'block';
+        } else {
+            tab.style.background = 'var(--bg2)';
+            tab.style.color = 'var(--tx)';
+            content.style.display = 'none';
+        }
+    });
 };
 
 window.adminSaveSchedule = function() {
