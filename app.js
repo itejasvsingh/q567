@@ -3714,6 +3714,19 @@ window.initAdminView = function() {
   document.getElementById('admin-editor-container').style.display = 'block';
   
   const nowIST = new Date(new Date().toLocaleString('en-US', {timeZone: 'Asia/Kolkata'}));
+  
+  if (!document.getElementById('admin-courses-list') && typeof DATA !== 'undefined') {
+      const q = (typeof cQ !== 'undefined' && cQ) ? cQ : 'Q6';
+      if (DATA[q] && DATA[q].subjects) {
+          let dl = '<datalist id="admin-courses-list">';
+          DATA[q].subjects.forEach(s => {
+              dl += `<option value="${s.code}">${s.name} (${s.code})</option>`;
+          });
+          dl += '</datalist>';
+          document.getElementById('admin-editor-container').insertAdjacentHTML('beforeend', dl);
+      }
+  }
+
   const datesToLoad = [];
   
   for (let i = 0; i < 7; i++) {
@@ -3799,7 +3812,7 @@ window.renderAdminSlots = function(data, datesToLoad) {
               </label>
             </div>
           </div>
-          <input type="text" id="${inputId}" value="${classStr}" placeholder="Tap here to type class code..." style="width:100%; padding:14px; border-radius:10px; border:2px solid var(--blue); background:var(--bg); color:var(--tx); font-size:16px; font-weight:800; font-family:inherit; outline:none; box-sizing:border-box; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+          <input type="text" id="${inputId}" value="${classStr}" list="admin-courses-list" placeholder="Tap here to type class code..." style="width:100%; padding:14px; border-radius:10px; border:2px solid var(--blue); background:var(--bg); color:var(--tx); font-size:16px; font-weight:800; font-family:inherit; outline:none; box-sizing:border-box; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
         </div>
       `;
     }
