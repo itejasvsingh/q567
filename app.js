@@ -3790,9 +3790,18 @@ window.renderAdminSlots = function(data, datesToLoad) {
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
             <div style="font-size:14px; font-weight:800; color:var(--tx-info);">🕒 ${adminSlotLabels[t]}</div>
             <div style="display:flex; gap:8px;">
-              <select onchange="adminShiftClass(this, '${dk.replace(/\s/g, '_')}', '${t}')" style="padding:4px 8px; border-radius:6px; border:1px solid var(--bd); background:var(--bg); color:var(--tx); font-size:12px; font-weight:700; outline:none;">
+              <select onchange="adminShiftClass(this, '${dk.replace(/\s/g, '_')}', '${t}')" style="padding:4px 8px; border-radius:6px; border:1px solid var(--bd); background:var(--bg); color:var(--tx); font-size:12px; font-weight:700; outline:none; max-width:110px;">
                 <option value="">Shift...</option>
-                ${adminTimeOrder.filter(ot => ot !== t).map(ot => `<option value="${ot}">${adminSlotLabels[ot].split(' - ')[0]}</option>`).join('')}
+                ${datesToLoad.map((otherDk, idx) => {
+                    const [ymd, dayName] = otherDk.split(' ');
+                    let label = `${dayName.substring(0,3)} ${ymd.split('-')[2]}`;
+                    if (idx === 0) label = 'Today';
+                    else if (idx === 1) label = 'Tomorrow';
+                    return `<optgroup label="${label}">` + adminTimeOrder.map(ot => {
+                        if (otherDk === dk && ot === t) return '';
+                        return `<option value="${otherDk.replace(/\s/g, '_')}|${ot}">${adminSlotLabels[ot].split(' - ')[0]}</option>`;
+                    }).join('') + `</optgroup>`;
+                }).join('')}
               </select>
               <label style="display:flex; align-items:center; gap:4px; font-size:13px; color:var(--tx-warn); font-weight:700; background:var(--bg); padding:4px 8px; border-radius:6px; border:1px solid var(--bd);">
                 <input type="checkbox" id="${strikeId}" ${isStrike ? 'checked' : ''} style="width:14px; height:14px; accent-color:red;">
@@ -3830,13 +3839,14 @@ window.switchAdminTab = function(selectedDk) {
 };
 
 
-window.adminShiftClass = function(selectEl, dkId, oldT) {
-    const newT = selectEl.value;
-    if (!newT) return;
+window.adminShiftClass = function(selectEl, oldDkId, oldT) {
+    const val = selectEl.value;
+    if (!val) return;
+    const [newDkId, newT] = val.split('|');
     
-    const oldInput = document.getElementById(`admin-slot-${dkId}-${oldT}`);
-    const oldStrike = document.getElementById(`admin-strike-${dkId}-${oldT}`);
-    const newInput = document.getElementById(`admin-slot-${dkId}-${newT}`);
+    const oldInput = document.getElementById(`admin-slot-${oldDkId}-${oldT}`);
+    const oldStrike = document.getElementById(`admin-strike-${oldDkId}-${oldT}`);
+    const newInput = document.getElementById(`admin-slot-${newDkId}-${newT}`);
     
     if (oldInput && oldInput.value.trim() && newInput) {
         oldStrike.checked = true;
@@ -3846,6 +3856,20 @@ window.adminShiftClass = function(selectEl, dkId, oldT) {
         } else {
             newInput.value = classToMove;
         }
+        
+        if (oldDkId !== newDkId) {
+            const newTab = document.getElementById(`admin-tab-${newDkId}`);
+            if (newTab) {
+                newTab.style.transition = 'all 0.3s';
+                newTab.style.transform = 'scale(1.1)';
+                newTab.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                setTimeout(() => {
+                    newTab.style.transform = 'scale(1)';
+                    newTab.style.boxShadow = 'none';
+                }, 1000);
+            }
+        }
+        
         newInput.style.transition = 'all 0.3s';
         newInput.style.background = 'var(--blue)';
         newInput.style.color = '#fff';
