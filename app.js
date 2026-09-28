@@ -543,7 +543,7 @@ function clearSearch(){searchQuery='';document.getElementById('courseSearch').va
 function matchesSearch(s,q){
   if(!q)return true;
   q=q.trim().toLowerCase();
-  return s.name.toLowerCase().includes(q)||s.code.toLowerCase().includes(q)||s.instructor.toLowerCase().includes(q);
+  return (s.name ? s.name.toLowerCase() : '').includes(q)||(s.code ? s.code.toLowerCase() : '').includes(q)||s.instructor.toLowerCase().includes(q);
 }
 function toggleRules(){const b=document.getElementById('rbody'),a=document.getElementById('rarrow');b.classList.toggle('open');a.textContent=b.classList.contains('open')?'▼':'▶';}
 
@@ -2939,7 +2939,7 @@ function renderMasterSchedule() {
                   const isStrike = typeof entry === 'object' ? entry.strike : false;
                   
                   // Also support legacy manual triggers
-                  const isCancelled = isStrike || text.includes('~') || text.toLowerCase().includes('cancel') || text.includes('<s>') || text.includes('<strike>');
+                  const isCancelled = isStrike || text.includes('~') || (text ? text.toLowerCase() : '').includes('cancel') || text.includes('<s>') || text.includes('<strike>');
                   
                   const style = isCancelled ? 'text-decoration: line-through; opacity: 0.6; color: var(--tx-warn);' : '';
                   formattedContent += `<div style="margin-bottom:2px; font-weight:600; ${style}">${text}</div>`;
@@ -3230,13 +3230,13 @@ function _renderDailyScheduleInner() {
               classStr = String(slotData);
           }
           if (!classStr) continue;
-          const cancelled = isStrikethrough || classStr.includes('~') || classStr.toLowerCase().includes('cancel') || classStr.includes('<s>') || classStr.includes('<strike>');
+          const cancelled = isStrikethrough || classStr.includes('~') || (classStr ? classStr.toLowerCase() : '').includes('cancel') || classStr.includes('<s>') || classStr.includes('<strike>');
 
           if (classStr.toUpperCase().includes('ICRC')) {
               let icrcCancelled = cancelled;
               if (Array.isArray(slotData)) {
                   const icrcObj = slotData.find(e => typeof e === 'object' && e && e.text && e.text.toUpperCase().includes('ICRC'));
-                  if (icrcObj) icrcCancelled = icrcObj.strike || icrcObj.text.includes('~') || icrcObj.text.toLowerCase().includes('cancel');
+                  if (icrcObj) icrcCancelled = icrcObj.strike || icrcObj.text.includes('~') || (icrcObj && icrcObj.text ? icrcObj.text.toLowerCase() : '').includes('cancel');
               }
               dayClasses[t] = { type: 'icrc', cancelled: icrcCancelled };
               hasCls = true;
@@ -3247,8 +3247,8 @@ function _renderDailyScheduleInner() {
           const classesInCell = classStr.split('/').map(c => c.trim().toLowerCase());
           for (const s of activeSubjects) {
               const acronym = excelAcronyms[s.code] ? excelAcronyms[s.code].toLowerCase() : '';
-              const codeLower = s.code.toLowerCase();
-              const nameLower = s.name.toLowerCase();
+              const codeLower = (s.code ? s.code.toLowerCase() : '');
+              const nameLower = (s.name ? s.name.toLowerCase() : '');
 
               const isMatch = classesInCell.includes(codeLower) || 
                               (acronym && classesInCell.includes(acronym)) || 
@@ -3259,11 +3259,11 @@ function _renderDailyScheduleInner() {
                   let subjCancelled = cancelled;
                   if (Array.isArray(slotData)) {
                       const subjObj = slotData.find(e => typeof e === 'object' && e && e.text && (
-                          e.text.toLowerCase().includes(codeLower) || 
-                          (acronym && e.text.toLowerCase().includes(acronym)) || 
-                          e.text.toLowerCase().includes(nameLower)
+                          (e && e.text ? e.text.toLowerCase() : '').includes(codeLower) || 
+                          (acronym && (e && e.text ? e.text.toLowerCase() : '').includes(acronym)) || 
+                          (e && e.text ? e.text.toLowerCase() : '').includes(nameLower)
                       ));
-                      if (subjObj) subjCancelled = subjObj.strike || subjObj.text.includes('~') || subjObj.text.toLowerCase().includes('cancel');
+                      if (subjObj) subjCancelled = subjObj.strike || subjObj.text.includes('~') || (subjObj && subjObj.text ? subjObj.text.toLowerCase() : '').includes('cancel');
                   }
                   dayClasses[t] = { type: 'class', subject: s, cancelled: subjCancelled, rawStr: classStr };
                   hasCls = true;
@@ -3431,13 +3431,13 @@ function _renderDailyScheduleInner() {
   let isExam = false;
   let examText = '';
   if (comment) {
-      isExam = comment.toLowerCase().includes('end term') || comment.toLowerCase().includes('exam') || comment.toLowerCase().includes('quiz');
+      isExam = (comment ? comment.toLowerCase() : '').includes('end term') || (comment ? comment.toLowerCase() : '').includes('exam') || (comment ? comment.toLowerCase() : '').includes('quiz');
   } else {
       for (const t of timeOrder) {
           const sData = dailySlots[t];
           if (sData) {
               const text = typeof sData === 'object' ? sData.text : String(sData);
-              if (text.toLowerCase().includes('end term') || text.toLowerCase().includes('exam') || text.toLowerCase().includes('quiz')) {
+              if ((text ? text.toLowerCase() : '').includes('end term') || (text ? text.toLowerCase() : '').includes('exam') || (text ? text.toLowerCase() : '').includes('quiz')) {
                   isExam = true;
                   examText = text;
                   break;
