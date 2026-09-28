@@ -3686,13 +3686,6 @@ function renderDailySchedule() {
 
 
 // --- ADMIN PANEL JS ---
-window.initAdminView = function() {
-  const nowIST = new Date(new Date().toLocaleString('en-US', {timeZone: 'Asia/Kolkata'}));
-  const todayYmd = `${nowIST.getFullYear()}-${String(nowIST.getMonth()+1).padStart(2,'0')}-${String(nowIST.getDate()).padStart(2,'0')}`;
-  const picker = document.getElementById('admin-date-picker');
-  if (picker && !picker.value) picker.value = todayYmd;
-};
-
 const adminTimeOrder = ['8am-10am', '10am-12pm', '1pm-3pm', '3pm-5pm', '5pm-7pm'];
 const adminSlotLabels = {
     '8am-10am': '8:00 AM - 10:00 AM',
@@ -3708,17 +3701,14 @@ function getFullDateKey(dateStr) {
     return `${dateStr} ${dayName}`;
 }
 
-window.adminLoadSchedule = function() {
-  const startDateStr = document.getElementById('admin-date-picker').value;
-  if (!startDateStr) return alert("Select a date first.");
-  
-  document.getElementById('admin-editing-title').textContent = `Editing 7 days from: ${startDateStr}`;
+window.initAdminView = function() {
   document.getElementById('admin-editor-container').style.display = 'block';
   
+  const nowIST = new Date(new Date().toLocaleString('en-US', {timeZone: 'Asia/Kolkata'}));
   const datesToLoad = [];
-  const startD = new Date(startDateStr);
+  
   for (let i = 0; i < 7; i++) {
-      const d = new Date(startD);
+      const d = new Date(nowIST);
       d.setDate(d.getDate() + i);
       const ymd = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
       datesToLoad.push(getFullDateKey(ymd));
@@ -3726,8 +3716,15 @@ window.adminLoadSchedule = function() {
   
   window._adminDatesEditing = datesToLoad;
   
-  // Fetch from Firebase
+  const titleEl = document.getElementById('admin-editing-title');
+  if(titleEl) {
+    titleEl.textContent = 'Fetching live schedule...';
+  }
+  
   fbDb.ref('schedule/daily').once('value').then(snap => {
+    if(titleEl) {
+      titleEl.innerHTML = '📅 Live Schedule (Next 7 Days)';
+    }
     const allData = snap.val() || {};
     const filteredData = {};
     for (const dk of datesToLoad) {
@@ -3735,7 +3732,7 @@ window.adminLoadSchedule = function() {
     }
     renderAdminSlots(filteredData, datesToLoad);
   }).catch(e => {
-    alert("Error loading from database.");
+    if(titleEl) titleEl.textContent = 'Error loading from database.';
     console.error(e);
   });
 };
@@ -3822,7 +3819,6 @@ window.adminSaveSchedule = function() {
       if (hasAnyClass) {
           updates[`schedule/daily/${dk}`] = dayPayload;
       } else {
-          // If completely empty, we could delete it, but let's just push empty object or null
           updates[`schedule/daily/${dk}`] = null; 
       }
   }
@@ -3836,7 +3832,6 @@ window.adminSaveSchedule = function() {
     btn.innerHTML = '✅ Saved Successfully';
     setTimeout(() => { btn.innerHTML = oldText; btn.disabled = false; }, 2000);
     
-    // Update local cache
     if (typeof liveDailyCache !== 'undefined') {
       for (const dk of window._adminDatesEditing) {
           if (updates[`schedule/daily/${dk}`] === null) {
