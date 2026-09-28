@@ -10,15 +10,14 @@ function syncQ5AttendanceToFirebase() {
   }
   
   var sheets = ss.getSheets();
-  var outputDb = {}; // { roll: { name: "", attendance: { MS5760: { p, a, t, pct } } } }
+  var outputDb = {}; 
   
   for (var s = 0; s < sheets.length; s++) {
     var sheet = sheets[s];
     var sheetName = sheet.getName();
     
-    // Extract course code from sheet name (e.g. "MS5760-VC" -> "MS5760")
     var codeMatch = sheetName.match(/^([A-Z0-9]{4,8})/);
-    if (!codeMatch) continue; // Skip sheets that don't look like course tabs
+    if (!codeMatch) continue; 
     var courseCode = codeMatch[1];
     
     var data = sheet.getDataRange().getValues();
@@ -27,15 +26,19 @@ function syncQ5AttendanceToFirebase() {
     var nameIdx = -1;
     var headerRowIdx = -1;
     
-    // Find header row (must contain "username" or "roll no")
-    for (var r = 0; r < Math.min(15, data.length); r++) {
+    // Scan deeper (up to 25 rows) and use more flexible matching
+    for (var r = 0; r < Math.min(25, data.length); r++) {
       var row = data[r];
       for (var c = 0; c < row.length; c++) {
         var cell = String(row[c]).toLowerCase().trim();
-        if (cell === 'username' || cell === 'roll no' || cell === 'rollno' || cell === 'roll number' || cell === 'student id') {
+        
+        // Flexible Roll Number Matching
+        if (cell.indexOf('roll') !== -1 || cell === 'username' || cell.indexOf('student id') !== -1 || cell === 'id') {
           rollIdx = c;
           headerRowIdx = r;
-        } else if (cell === 'surname' || cell === 'name' || cell === 'student name') {
+        } 
+        // Flexible Name Matching
+        else if (cell.indexOf('name') !== -1 || cell === 'student' || cell === 'surname') {
           nameIdx = c;
         }
       }
@@ -47,18 +50,15 @@ function syncQ5AttendanceToFirebase() {
       continue; 
     }
     
-    // Process student rows
     for (var r = headerRowIdx + 1; r < data.length; r++) {
       var row = data[r];
       var roll = String(row[rollIdx]).trim().toUpperCase();
-      if (!roll || roll.length < 5) continue; // Skip empty/invalid rolls
+      if (!roll || roll.length < 5) continue; 
       
       var name = nameIdx !== -1 ? String(row[nameIdx]).trim() : '';
-      
       var pCount = 0;
       var aCount = 0;
       
-      // Count P and A in all columns for this student
       for (var c = 0; c < row.length; c++) {
         var val = String(row[c]).trim().toUpperCase();
         if (val === 'P') pCount++;
@@ -85,7 +85,6 @@ function syncQ5AttendanceToFirebase() {
     }
   }
   
-  // Push to Firebase
   var options = {
     method: 'put',
     contentType: 'application/json',
