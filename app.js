@@ -3684,125 +3684,178 @@ function renderDailySchedule() {
 
 
 
+
 // --- ADMIN PANEL JS ---
+window.initAdminView = function() {
+  const nowIST = new Date(new Date().toLocaleString('en-US', {timeZone: 'Asia/Kolkata'}));
+  const todayYmd = `${nowIST.getFullYear()}-${String(nowIST.getMonth()+1).padStart(2,'0')}-${String(nowIST.getDate()).padStart(2,'0')}`;
+  const picker = document.getElementById('admin-date-picker');
+  if (picker && !picker.value) picker.value = todayYmd;
+};
 
-  window.initAdminView = function() {
-    // Set default date to today IST
-    const nowIST = new Date(new Date().toLocaleString('en-US', {timeZone: 'Asia/Kolkata'}));
-    const todayYmd = `${nowIST.getFullYear()}-${String(nowIST.getMonth()+1).padStart(2,'0')}-${String(nowIST.getDate()).padStart(2,'0')}`;
-    const picker = document.getElementById('admin-date-picker');
-    if (picker) picker.value = todayYmd;
-  };
+const adminTimeOrder = ['8am-10am', '10am-12pm', '1pm-3pm', '3pm-5pm', '5pm-7pm'];
+const adminSlotLabels = {
+    '8am-10am': '8:00 AM - 10:00 AM',
+    '10am-12pm': '10:00 AM - 12:00 PM',
+    '1pm-3pm': '1:00 PM - 3:00 PM',
+    '3pm-5pm': '3:00 PM - 5:00 PM',
+    '5pm-7pm': '5:00 PM - 7:00 PM'
+};
 
-  const adminTimeOrder = ['8am-10am', '10am-12pm', '1pm-3pm', '3pm-5pm', '5pm-7pm'];
-  const adminSlotLabels = {
-      '8am-10am': '8:00 AM – 10:00 AM',
-      '10am-12pm': '10:00 AM – 12:00 PM',
-      '1pm-3pm': '1:00 PM – 3:00 PM',
-      '3pm-5pm': '3:00 PM – 5:00 PM',
-      '5pm-7pm': '5:00 PM – 7:00 PM'
-  };
+function getFullDateKey(dateStr) {
+    const d = new Date(dateStr);
+    const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
+    return `${dateStr} ${dayName}`;
+}
 
-  window.adminLoadSchedule = function() {
-    const date = document.getElementById('admin-date-picker').value;
-    if (!date) return alert("Select a date first.");
-    
-    document.getElementById('admin-editing-title').textContent = `Editing: ${date}`;
-    document.getElementById('admin-editor-container').style.display = 'block';
-    
-    // Fetch from Firebase
-    fbDb.ref('schedule/daily/' + date).once('value').then(snap => {
-      const data = snap.val() || {};
-      renderAdminSlots(data);
-    }).catch(e => {
-      alert("Error loading from database.");
-      console.error(e);
-    });
-  };
-
-  window.renderAdminSlots = function(data) {
-    const container = document.getElementById('admin-slots-container');
-    let html = '';
-    
-    for (const t of adminTimeOrder) {
-      const slotData = data[t];
-      let classStr = '';
-      let isStrike = false;
-      
-      if (Array.isArray(slotData)) {
-          classStr = slotData.map(e => typeof e === 'object' && e ? (e.text||'') : String(e)).join(' / ');
-          isStrike = slotData.some(e => typeof e === 'object' && e ? e.strike : false);
-      } else if (typeof slotData === 'object' && slotData !== null) {
-          classStr = slotData.text || '';
-          isStrike = slotData.strike || false;
-      } else if (slotData) {
-          classStr = String(slotData);
-      }
-      
-      html += `
-        <div style="margin-bottom: 16px; padding:12px; background:var(--bg2); border:1px solid var(--bd); border-radius:10px;">
-          <div style="font-size:12px; font-weight:800; color:var(--tx3); margin-bottom:8px;">🕒 ${adminSlotLabels[t]}</div>
-          <input type="text" id="admin-slot-${t}" value="${classStr}" placeholder="e.g. MS5529 / MS5770 (Leave empty for No Class)" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--bd); background:var(--bg); color:var(--tx); font-size:14px; font-family:inherit; margin-bottom:8px;">
-          
-          <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--tx2);">
-            <input type="checkbox" id="admin-strike-${t}" ${isStrike ? 'checked' : ''} style="width:16px; height:16px;">
-            Mark as Cancelled (Strikethrough)
-          </label>
-        </div>
-      `;
+window.adminLoadSchedule = function() {
+  const startDateStr = document.getElementById('admin-date-picker').value;
+  if (!startDateStr) return alert("Select a date first.");
+  
+  document.getElementById('admin-editing-title').textContent = `Editing 7 days from: ${startDateStr}`;
+  document.getElementById('admin-editor-container').style.display = 'block';
+  
+  const datesToLoad = [];
+  const startD = new Date(startDateStr);
+  for (let i = 0; i < 7; i++) {
+      const d = new Date(startD);
+      d.setDate(d.getDate() + i);
+      const ymd = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      datesToLoad.push(getFullDateKey(ymd));
+  }
+  
+  window._adminDatesEditing = datesToLoad;
+  
+  // Fetch from Firebase
+  fbDb.ref('schedule/daily').once('value').then(snap => {
+    const allData = snap.val() || {};
+    const filteredData = {};
+    for (const dk of datesToLoad) {
+        filteredData[dk] = allData[dk] || {};
     }
-    
-    container.innerHTML = html;
-  };
+    renderAdminSlots(filteredData, datesToLoad);
+  }).catch(e => {
+    alert("Error loading from database.");
+    console.error(e);
+  });
+};
 
-  window.adminSaveSchedule = function() {
-    const date = document.getElementById('admin-date-picker').value;
-    if (!date) return alert("No date selected.");
-    
-    const payload = {};
-    for (const t of adminTimeOrder) {
-      const val = document.getElementById(`admin-slot-${t}`).value.trim();
-      const strike = document.getElementById(`admin-strike-${t}`).checked;
+window.renderAdminSlots = function(data, datesToLoad) {
+  const container = document.getElementById('admin-slots-container');
+  let html = '';
+  
+  for (const dk of datesToLoad) {
+      const dayData = data[dk] || {};
       
-      if (val) {
-        const parts = val.split('/').map(s => s.trim()).filter(s => s);
-        if (parts.length === 1) {
-          if (strike) {
-            payload[t] = { text: parts[0], strike: true };
+      html += `<div style="margin-bottom: 24px; padding:16px; background:var(--bg3); border:1px solid var(--bd); border-radius:12px;">`;
+      html += `<h4 style="margin: 0 0 16px 0; font-size:15px; color:var(--tx-info);">📅 ${dk}</h4>`;
+      
+      for (const t of adminTimeOrder) {
+        const slotData = dayData[t];
+        let classStr = '';
+        let isStrike = false;
+        
+        if (Array.isArray(slotData)) {
+            classStr = slotData.map(e => typeof e === 'object' && e ? (e.text||'') : String(e)).join(' / ');
+            isStrike = slotData.some(e => typeof e === 'object' && e ? e.strike : false);
+        } else if (typeof slotData === 'object' && slotData !== null) {
+            classStr = slotData.text || '';
+            isStrike = slotData.strike || false;
+        } else if (slotData) {
+            classStr = String(slotData);
+        }
+        
+        const inputId = `admin-slot-${dk.replace(/\s/g, '_')}-${t}`;
+        const strikeId = `admin-strike-${dk.replace(/\s/g, '_')}-${t}`;
+        
+        html += `
+          <div style="margin-bottom: 12px; padding:12px; background:var(--bg2); border:1px solid var(--bd); border-radius:10px;">
+            <div style="font-size:12px; font-weight:800; color:var(--tx3); margin-bottom:8px;">🕒 ${adminSlotLabels[t]}</div>
+            <input type="text" id="${inputId}" value="${classStr}" placeholder="e.g. MS5529 (Empty = No Class)" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--bd); background:var(--bg); color:var(--tx); font-size:14px; font-family:inherit; margin-bottom:8px;">
+            
+            <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--tx2);">
+              <input type="checkbox" id="${strikeId}" ${isStrike ? 'checked' : ''} style="width:16px; height:16px;">
+              Mark as Cancelled (Strikethrough)
+            </label>
+          </div>
+        `;
+      }
+      html += `</div>`;
+  }
+  
+  container.innerHTML = html;
+};
+
+window.adminSaveSchedule = function() {
+  if (!window._adminDatesEditing || window._adminDatesEditing.length === 0) return alert("Nothing to save.");
+  
+  const updates = {};
+  
+  for (const dk of window._adminDatesEditing) {
+      const dayPayload = {};
+      let hasAnyClass = false;
+      
+      for (const t of adminTimeOrder) {
+        const inputId = `admin-slot-${dk.replace(/\s/g, '_')}-${t}`;
+        const strikeId = `admin-strike-${dk.replace(/\s/g, '_')}-${t}`;
+        
+        const val = document.getElementById(inputId).value.trim();
+        const strike = document.getElementById(strikeId).checked;
+        
+        if (val) {
+          hasAnyClass = true;
+          const parts = val.split('/').map(s => s.trim()).filter(s => s);
+          if (parts.length === 1) {
+            if (strike) {
+              dayPayload[t] = { text: parts[0], strike: true };
+            } else {
+              dayPayload[t] = parts[0];
+            }
           } else {
-            payload[t] = parts[0];
+            dayPayload[t] = parts.map(p => {
+              return strike ? { text: p, strike: true } : p;
+            });
           }
-        } else {
-          payload[t] = parts.map(p => {
-            return strike ? { text: p, strike: true } : p;
-          });
         }
       }
+      
+      if (hasAnyClass) {
+          updates[`schedule/daily/${dk}`] = dayPayload;
+      } else {
+          // If completely empty, we could delete it, but let's just push empty object or null
+          updates[`schedule/daily/${dk}`] = null; 
+      }
+  }
+  
+  const btn = event.target;
+  const oldText = btn.innerHTML;
+  btn.innerHTML = '⏳ Saving...';
+  btn.disabled = true;
+  
+  fbDb.ref().update(updates).then(() => {
+    btn.innerHTML = '✅ Saved Successfully';
+    setTimeout(() => { btn.innerHTML = oldText; btn.disabled = false; }, 2000);
+    
+    // Update local cache
+    if (typeof liveDailyCache !== 'undefined') {
+      for (const dk of window._adminDatesEditing) {
+          if (updates[`schedule/daily/${dk}`] === null) {
+              delete liveDailyCache[dk];
+          } else {
+              liveDailyCache[dk] = updates[`schedule/daily/${dk}`];
+          }
+      }
+      window.lastSyncedTime = new Date();
+      localStorage.setItem('mbaplanner_daily_cache', JSON.stringify({
+          data: liveDailyCache,
+          time: window.lastSyncedTime.getTime()
+      }));
     }
     
-    const btn = event.target;
-    const oldText = btn.innerHTML;
-    btn.innerHTML = '⏳ Saving...';
-    btn.disabled = true;
-    
-    fbDb.ref('schedule/daily/' + date).set(payload).then(() => {
-      btn.innerHTML = '✅ Saved Successfully';
-      setTimeout(() => { btn.innerHTML = oldText; btn.disabled = false; }, 2000);
-      
-      // Update cache so UI updates immediately
-      if (typeof liveDailyCache !== 'undefined') {
-        liveDailyCache[date] = payload;
-        window.lastSyncedTime = new Date();
-        localStorage.setItem('mbaplanner_daily_cache', JSON.stringify({
-            data: liveDailyCache,
-            time: window.lastSyncedTime.getTime()
-        }));
-      }
-      
-    }).catch(e => {
-      btn.innerHTML = '❌ Error';
-      console.error(e);
-      alert("Failed to save: " + e.message);
-      setTimeout(() => { btn.innerHTML = oldText; btn.disabled = false; }, 2000);
-    });
-  };
+  }).catch(e => {
+    btn.innerHTML = '❌ Error';
+    console.error(e);
+    alert("Failed to save: " + e.message);
+    setTimeout(() => { btn.innerHTML = oldText; btn.disabled = false; }, 2000);
+  });
+};
