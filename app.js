@@ -1204,6 +1204,7 @@ function switchView(v){
   document.getElementById('vtab-mess')?.classList.toggle('on', v==='mess');
   document.getElementById('vtab-daily')?.classList.toggle('on', v==='daily');
   document.getElementById('vtab-master')?.classList.toggle('on', v==='master');
+  document.getElementById('vtab-admin')?.classList.toggle('on', v==='admin');
   
   if(document.getElementById('view-plan')) document.getElementById('view-plan').style.display = v==='plan' ? '' : 'none';
   if(document.getElementById('view-att')) document.getElementById('view-att').style.display = v==='att' ? '' : 'none';
@@ -1211,6 +1212,7 @@ function switchView(v){
   if(document.getElementById('view-mess')) document.getElementById('view-mess').style.display = v==='mess' ? '' : 'none';
   if(document.getElementById('view-daily')) document.getElementById('view-daily').style.display = v==='daily' ? '' : 'none';
   if(document.getElementById('view-master')) document.getElementById('view-master').style.display = v==='master' ? '' : 'none';
+  if(document.getElementById('view-admin')) document.getElementById('view-admin').style.display = v==='admin' ? '' : 'none';
   if (v !== 'daily' && window._nextClassInterval) {
       clearInterval(window._nextClassInterval);
       window._nextClassInterval = null;
@@ -2140,7 +2142,7 @@ function searchCohortAttendance() {
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
         <div>
           <div style="font-size:15px; font-weight:800; color:var(--tx); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-            <span>🟢</span> <span>${name ? `\${name} · ` : ''}<strong>${roll}</strong></span>
+            <span>🟢</span> <span>${name ? `${name} · ` : ''}<strong>${roll}</strong></span>
             ${(roll === getActiveRollNo()) 
               ? '<span class="agenda-autosave-badge" style="font-size:10.5px; font-weight:700; color:#34C759; background:rgba(52,199,89,0.12); border:0.5px solid rgba(52,199,89,0.3); padding:2px 8px; border-radius:8px;">✓ Auto-Saving</span>' 
               : `<button class="ios-seg-btn" onclick="setRollNumber('${roll}')" style="padding:2px 8px; font-size:11px; color:#007AFF; font-weight:700;">Set as My Profile</button>`}
@@ -2334,6 +2336,26 @@ function searchCohortAttendance() {
 
 
 // ── INIT ────────────────────────────────────────────────────────────────────
+
+// ADMIN LOGIC
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('admin') === 'tej') {
+    localStorage.setItem('isAdmin', 'true');
+    // Remove it from URL so it doesn't stay in history
+    window.history.replaceState({}, document.title, window.location.pathname);
+}
+if (localStorage.getItem('isAdmin') === 'true') {
+    const tabs = document.querySelector('.view-tabs');
+    if (tabs && !document.getElementById('vtab-admin')) {
+        const btn = document.createElement('button');
+        btn.className = 'view-tab';
+        btn.id = 'vtab-admin';
+        btn.onclick = () => switchView('admin');
+        btn.innerHTML = '<span class="tab-icon">⚙️</span><span class="tab-label">Admin</span>';
+        tabs.appendChild(btn);
+    }
+}
+
 renderGoalDomChips();
 const wasShared=loadFromURL();
 render();

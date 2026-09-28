@@ -72,6 +72,7 @@
 <div id="view-mess" style="display:none"></div>
 <div id="view-att" style="display:none"></div>
 <div id="view-master" style="display:none"></div>
+<div id="view-admin" style="display:none"></div>
 </div>
 
 <!-- ALERT MODAL FOR Q6 MISTAKE -->
@@ -99,6 +100,7 @@
     document.getElementById('view-att').innerHTML = await fetchView('views/att.html');
     document.getElementById('view-daily').innerHTML = await fetchView('views/daily.html');
     document.getElementById('view-master').innerHTML = await fetchView('views/master.html');
+    document.getElementById('view-admin').innerHTML = await fetchView('views/admin.html');
     document.getElementById('alert-modal-container').innerHTML = await fetchView('components/alert-modal.html');
     document.getElementById('export-modal-container').innerHTML = await fetchView('components/export-modal.html');
     
