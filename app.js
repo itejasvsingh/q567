@@ -2114,24 +2114,33 @@ function searchCohortAttendance() {
   }
 
   const term = window.currentCohortTerm || 'Q6';
+  let htmlOutput = '';
+  
+  let totalP = 0;
+  let totalA = 0;
+  let totalHeld = 0;
+  let studentName = '';
+  let studentRoll = '';
 
-  if (term === 'Q6') {
+  // GENERATOR FOR Q6
+  const getQ6Html = () => {
     const res = getQ6AttendanceForRoll(query);
-    if (!res) {
-      container.style.display = 'block';
-      container.innerHTML = `<div class="cmp-empty" style="border-color: var(--bd-warn)">No student found matching "${query}". Check the Roll No or Name.</div>`;
-      return;
-    }
-
+    if (!res) return '';
     const { roll, name, records, summary } = res;
-    const overallColor = summary.overallPctHeld < 85 ? 'var(--tx-danger)' : '#34C759';
     
+    totalP += summary.totalAttended;
+    totalA += summary.totalAbsent;
+    totalHeld += summary.totalHeld;
+    if (!studentName && name) studentName = name;
+    if (!studentRoll) studentRoll = roll;
+
+    const overallColor = summary.overallPctHeld < 85 ? 'var(--tx-danger)' : '#34C759';
     let html = `
     <div style="background:var(--bg2); border:0.5px solid var(--bd); border-radius:14px; padding:14px; margin-bottom:12px;">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
         <div>
           <div style="font-size:15px; font-weight:800; color:var(--tx); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-            <span>🎓</span> <span>${name ? `${name} · ` : ''}<strong>${roll}</strong></span>
+            <span>🟢</span> <span>${name ? `\${name} · ` : ''}<strong>${roll}</strong></span>
             ${(roll === getActiveRollNo()) 
               ? '<span class="agenda-autosave-badge" style="font-size:10.5px; font-weight:700; color:#34C759; background:rgba(52,199,89,0.12); border:0.5px solid rgba(52,199,89,0.3); padding:2px 8px; border-radius:8px;">✓ Auto-Saving</span>' 
               : `<button class="ios-seg-btn" onclick="setRollNumber('${roll}')" style="padding:2px 8px; font-size:11px; color:#007AFF; font-weight:700;">Set as My Profile</button>`}
@@ -2140,9 +2149,9 @@ function searchCohortAttendance() {
             Q6 Active Attendance Record · 14 Classes Planned Per Course
           </div>
         </div>
-        <button class="ios-seg-btn active-p" onclick="switchView('daily')" style="padding:4px 10px; font-size:11px;">
+        ${term !== 'BOTH' ? `<button class="ios-seg-btn active-p" onclick="switchView('daily')" style="padding:4px 10px; font-size:11px;">
           📅 Log in Daily Agenda
-        </button>
+        </button>` : ''}
       </div>
 
       <!-- Quick Metrics Summary Grid -->
@@ -2171,139 +2180,158 @@ function searchCohortAttendance() {
           <thead>
             <tr style="border-bottom:1px solid var(--bd); background:var(--bg3);">
               <th style="padding:9px 10px; font-weight:700;">Subject</th>
-              <th style="padding:9px 8px; text-align:center; font-weight:700;">Attended</th>
-              <th style="padding:9px 8px; text-align:center; font-weight:700;">Absent</th>
-              <th style="padding:9px 8px; text-align:center; font-weight:700;">Held / 14</th>
-              <th style="padding:9px 10px; text-align:center; font-weight:700;">Attendance %</th>
-              <th style="padding:9px 10px; text-align:right; font-weight:700;">Safe Margin</th>
+              <th style="padding:9px 10px; text-align:center; font-weight:700;">Present</th>
+              <th style="padding:9px 10px; text-align:center; font-weight:700;">Absent</th>
+              <th style="padding:9px 10px; text-align:center; font-weight:700;">Margin</th>
+              <th style="padding:9px 10px; text-align:center; font-weight:700;">% (Held)</th>
+              <th style="padding:9px 10px; text-align:center; font-weight:700;">% (Total)</th>
             </tr>
           </thead>
-          <tbody>`;
+          <tbody>
+    `;
 
-    for (const rec of records) {
-      let pctColor = '#34C759';
-      if (rec.pctHeld < 85) pctColor = '#FF3B30';
-      else if (rec.absencesLeft === 0) pctColor = 'var(--tx-warn)';
-
-      let marginBadge = '';
-      if (rec.absencesLeft > 1) {
-        marginBadge = `<span style="font-size:10.5px; font-weight:700; color:#34C759; background:rgba(52,199,89,0.1); padding:2px 7px; border-radius:6px;">${rec.absencesLeft} left</span>`;
-      } else if (rec.absencesLeft === 1) {
-        marginBadge = `<span style="font-size:10.5px; font-weight:700; color:var(--tx-warn); background:rgba(255,149,0,0.1); padding:2px 7px; border-radius:6px;">1 left ⚠️</span>`;
-      } else if (rec.absencesLeft === 0) {
-        marginBadge = `<span style="font-size:10.5px; font-weight:800; color:var(--tx-warn); background:rgba(255,149,0,0.15); padding:2px 7px; border-radius:6px;">0 left (Limit)</span>`;
-      } else {
-        marginBadge = `<span style="font-size:10.5px; font-weight:800; color:#FF3B30; background:rgba(255,59,48,0.12); padding:2px 7px; border-radius:6px;">Exceeded (${rec.a}/2)</span>`;
-      }
-
+    records.forEach(rec => {
+      const pctColor = rec.pctHeld < 85 ? 'var(--tx-danger)' : 'var(--tx)';
       const typeBadge = rec.isCore 
-        ? `<span style="font-size:9.5px; font-weight:800; color:#007AFF; background:rgba(0,122,255,0.1); padding:1.5px 5px; border-radius:4px; margin-left:4px;">CORE</span>`
-        : `<span style="font-size:9.5px; font-weight:600; color:var(--tx3); background:var(--bg3); padding:1.5px 5px; border-radius:4px; margin-left:4px;">ELECTIVE</span>`;
+        ? '<span style="font-size:9px; background:var(--bg3); padding:2px 4px; border-radius:4px; margin-left:4px; color:var(--tx2);">CORE</span>'
+        : `<span style="font-size:9px; background:rgba(0,122,255,0.1); padding:2px 4px; border-radius:4px; margin-left:4px; color:#007AFF;">${rec.domain}</span>`;
+      
+      let marginHtml = '-';
+      if (rec.absencesLeft > 0) marginHtml = `<span style="color:#34C759; font-weight:600;">+${rec.absencesLeft}</span>`;
+      else if (rec.absencesLeft === 0) marginHtml = `<span style="color:var(--tx-warn); font-weight:600;">0</span>`;
+      else if (rec.absencesLeft < 0) marginHtml = `<span style="color:var(--tx-danger); font-weight:600;">${rec.absencesLeft}</span>`;
 
       html += `
-            <tr style="border-bottom:0.5px solid var(--bd);">
-              <td style="padding:9px 10px; line-height:1.35;">
-                <div style="font-weight:700; color:var(--tx); display:flex; align-items:center;">
-                  <span>${rec.code}</span> ${typeBadge}
-                </div>
-                <div style="font-size:11px; color:var(--tx2); margin-top:2px;">${rec.name}</div>
-              </td>
-              <td style="padding:9px 8px; text-align:center; font-weight:800; color:#34C759;">${rec.p}</td>
-              <td style="padding:9px 8px; text-align:center; font-weight:800; color:${rec.a > 0 ? '#FF3B30' : 'var(--tx3)'};">${rec.a}</td>
-              <td style="padding:9px 8px; text-align:center; font-weight:600; color:var(--tx2);">
-                ${rec.held} <span style="color:var(--tx3); font-size:10.5px;">/ 14</span>
-              </td>
-              <td style="padding:9px 10px; text-align:center;">
-                <div style="font-weight:800; color:${pctColor};">${rec.pctHeld}%</div>
-                <div style="font-size:9.5px; color:var(--tx3); margin-top:1px;">${rec.pctTotal}% of term</div>
-              </td>
-              <td style="padding:9px 10px; text-align:right;">
-                ${marginBadge}
-              </td>
-            </tr>`;
-    }
+        <tr style="border-bottom:0.5px solid var(--bd);">
+          <td style="padding:8px 10px;">
+            <div style="font-weight:600; color:var(--tx);">${rec.code}${typeBadge}</div>
+            <div style="font-size:10.5px; color:var(--tx2); margin-top:2px;">${rec.name}</div>
+          </td>
+          <td style="padding:8px 10px; text-align:center; font-weight:600; color:#34C759;">${rec.p}</td>
+          <td style="padding:8px 10px; text-align:center; font-weight:600; color:${rec.a > 0 ? '#FF3B30' : 'var(--tx2)'};">${rec.a}</td>
+          <td style="padding:8px 10px; text-align:center;">${marginHtml}</td>
+          <td style="padding:8px 10px; text-align:center; color:${pctColor};"><strong>${rec.pctHeld}%</strong></td>
+          <td style="padding:8px 10px; text-align:center; color:var(--tx2);">${rec.pctTotal}%</td>
+        </tr>
+      `;
+    });
 
     html += `
           </tbody>
         </table>
       </div>
-      <div style="font-size:10.5px; color:var(--tx3); margin-top:10px; line-height:1.4;">
-        ℹ️ IITM Policy: Attendance must stay at or above 85% (at most 2 absences out of 14 total classes per course). As you log attendance in Daily Agenda, your records update here instantly.
-      </div>
     </div>`;
+    return html;
+  };
 
-    container.style.display = 'block';
-    container.innerHTML = html;
-    return;
-  }
-
-  // Q5 Official cohort search
-  let foundStudentId = null;
-  let foundStudent = null;
-
-  let attDb = (typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB) ? CLASS_ATTENDANCE_DB : {};
-  if (window._cloudQ5Attendance) {
-    attDb = window._cloudQ5Attendance;
-  }
-  for (const [roll, data] of Object.entries(attDb)) {
-    if (roll.toUpperCase() === query || roll.toUpperCase().includes(query) || (data.name && data.name.toUpperCase().includes(query))) {
-      foundStudentId = roll;
-      foundStudent = data;
-      break;
+  // GENERATOR FOR Q5
+  const getQ5Html = () => {
+    let foundStudentId = null;
+    let foundStudent = null;
+    let attDb = (typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB) ? CLASS_ATTENDANCE_DB : {};
+    if (window._cloudQ5Attendance) {
+      attDb = window._cloudQ5Attendance;
     }
-  }
-
-  if (!foundStudent) {
-    container.style.display = 'block';
-    container.innerHTML = `<div class="cmp-empty" style="border-color: var(--bd-warn)">No student found matching "${query}". Check the Roll No or Name.</div>`;
-    return;
-  }
-
-  let html = `<div style="font-size: 13px; font-weight: 700; color: var(--tx-info); margin-bottom: 8px;">👤 ${foundStudent.name} (${foundStudentId}) · Official Q5 Record</div>`;
-  html += '<table style="width:100%; border-collapse: collapse; font-size: 12px; text-align: left; background: var(--bg); border: .5px solid var(--bd); border-radius:10px; overflow:hidden;">';
-  html += '<thead><tr style="border-bottom: 1px solid var(--bd); background: var(--bg2);">';
-  html += '<th style="padding: 8px 10px;">Subject</th>';
-  html += '<th style="padding: 8px 10px; text-align: center;">Present</th>';
-  html += '<th style="padding: 8px 10px; text-align: center;">Absent</th>';
-  html += '<th style="padding: 8px 10px; text-align: center;">Percentage</th>';
-  html += '</tr></thead><tbody>';
-
-  const subjectsToDisplay = Object.keys(foundStudent.attendance);
-
-  for (const attKey of subjectsToDisplay) {
-    const att = foundStudent.attendance[attKey];
-
-    let color = 'var(--tx)';
-    if (att.pct < 85) color = 'var(--tx-danger)';
-    else if (att.pct >= 85) color = 'var(--tx-success)';
-
-    let subjectName = "Unknown Subject";
-    for (let q of ['Q5', 'Q6', 'Q7']) {
-        if (DATA[q] && DATA[q].subjects) {
-            let found = DATA[q].subjects.find(s => s.code.includes(attKey) || attKey.includes(s.code));
-            if (found) {
-                subjectName = found.name;
-                break;
-            }
-        }
+    for (const [roll, data] of Object.entries(attDb)) {
+      if (roll.toUpperCase() === query || roll.toUpperCase().includes(query) || (data.name && data.name.toUpperCase().includes(query))) {
+        foundStudentId = roll;
+        foundStudent = data;
+        break;
+      }
     }
+    if (!foundStudent) return '';
 
-    html += `<tr style="border-bottom: .5px solid var(--bd);">`;
-    html += `<td style="padding: 8px 10px; line-height: 1.3;">
-                <span style="font-weight:700;">${attKey}</span><br>
-                <span style="font-size:11px; color:var(--tx2);">${subjectName}</span>
-             </td>`;
-    html += `<td style="padding: 8px 10px; text-align: center;">${att.p}</td>`;
-    html += `<td style="padding: 8px 10px; text-align: center;">${att.a}</td>`;
-    html += `<td style="padding: 8px 10px; text-align: center; color: ${color}; font-weight: 700;">${att.pct}%</td>`;
-    html += `</tr>`;
+    if (!studentName && foundStudent.name) studentName = foundStudent.name;
+    if (!studentRoll) studentRoll = foundStudentId;
+
+    let html = `<div style="font-size: 13px; font-weight: 700; color: var(--tx-info); margin-bottom: 8px;">📁 ${foundStudent.name} (${foundStudentId}) · Official Q5 Record</div>`;
+    html += '<table style="width:100%; border-collapse: collapse; font-size: 12px; text-align: left; background: var(--bg); border: .5px solid var(--bd); border-radius:10px; overflow:hidden; margin-bottom: 12px;">';
+    html += '<thead><tr style="border-bottom: 1px solid var(--bd); background: var(--bg2);">';
+    html += '<th style="padding: 8px 10px;">Subject</th>';
+    html += '<th style="padding: 8px 10px; text-align: center;">Present</th>';
+    html += '<th style="padding: 8px 10px; text-align: center;">Absent</th>';
+    html += '<th style="padding: 8px 10px; text-align: center;">Percentage</th>';
+    html += '</tr></thead><tbody>';
+
+    const subjectsToDisplay = Object.keys(foundStudent.attendance);
+    for (const attKey of subjectsToDisplay) {
+      const att = foundStudent.attendance[attKey];
+      
+      totalP += att.p;
+      totalA += att.a;
+      totalHeld += att.t;
+
+      let color = 'var(--tx)';
+      if (att.pct < 85) color = 'var(--tx-danger)';
+      else if (att.pct >= 90) color = '#34C759';
+
+      html += `<tr style="border-bottom: 1px solid var(--bd);">`;
+      html += `<td style="padding: 8px 10px; font-weight:600; color:var(--tx);">${attKey}</td>`;
+      html += `<td style="padding: 8px 10px; text-align: center; color: #34C759; font-weight:600;">${att.p}</td>`;
+      html += `<td style="padding: 8px 10px; text-align: center; color: ${att.a > 0 ? '#FF3B30' : 'var(--tx2)'}; font-weight:600;">${att.a}</td>`;
+      html += `<td style="padding: 8px 10px; text-align: center; font-weight: bold; color: ${color}">${att.pct}%</td>`;
+      html += `</tr>`;
+    }
+    html += '</tbody></table>';
+    return html;
+  };
+
+  let q6html = '';
+  let q5html = '';
+
+  if (term === 'Q6' || term === 'BOTH') {
+      q6html = getQ6Html();
+  }
+  if (term === 'Q5' || term === 'BOTH') {
+      q5html = getQ5Html();
   }
 
-  html += '</tbody></table>';
+  if (term === 'BOTH' && (q6html || q5html)) {
+      const combinedPct = totalHeld > 0 ? Math.round((totalP / totalHeld) * 100) : 100;
+      const combinedColor = combinedPct < 85 ? 'var(--tx-danger)' : '#34C759';
+      
+      htmlOutput += `
+      <div style="background:var(--bg2); border:1.5px solid #007AFF; border-radius:14px; padding:16px; margin-bottom:16px; box-shadow: 0 4px 12px rgba(0,122,255,0.15);">
+        <div style="font-size:16px; font-weight:800; color:#007AFF; margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+          <span>🏆</span> Grand Total Combined (Q5 + Q6)
+        </div>
+        <div style="font-size:12px; color:var(--tx2); margin-bottom:14px;">${studentName} (${studentRoll})</div>
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:10px;">
+          <div style="text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:var(--tx3); text-transform:uppercase;">Attended</div>
+            <div style="font-size:22px; font-weight:800; color:#34C759; margin-top:2px;">${totalP}</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:var(--tx3); text-transform:uppercase;">Absent</div>
+            <div style="font-size:22px; font-weight:800; color:${totalA > 0 ? '#FF3B30' : 'var(--tx2)'}; margin-top:2px;">${totalA}</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:var(--tx3); text-transform:uppercase;">Total Classes</div>
+            <div style="font-size:22px; font-weight:800; color:var(--tx); margin-top:2px;">${totalHeld}</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:var(--tx3); text-transform:uppercase;">Grand %</div>
+            <div style="font-size:22px; font-weight:800; color:${combinedColor}; margin-top:2px;">${combinedPct}%</div>
+          </div>
+        </div>
+      </div>
+      `;
+  }
+
+  if (q6html) htmlOutput += q6html;
+  else if (term === 'Q6') htmlOutput += `<div class="cmp-empty" style="border-color: var(--bd-warn)">No student found matching "${query}". Check the Roll No or Name.</div>`;
+
+  if (q5html) htmlOutput += q5html;
+  else if (term === 'Q5') htmlOutput += `<div class="cmp-empty" style="border-color: var(--bd-warn)">No student found matching "${query}". Check the Roll No or Name.</div>`;
+
+  if (term === 'BOTH' && !htmlOutput) {
+      htmlOutput = `<div class="cmp-empty" style="border-color: var(--bd-warn)">No student found matching "${query}". Check the Roll No or Name.</div>`;
+  }
 
   container.style.display = 'block';
-  container.innerHTML = html;
+  container.innerHTML = htmlOutput;
 }
+
 
 // ── INIT ────────────────────────────────────────────────────────────────────
 renderGoalDomChips();
