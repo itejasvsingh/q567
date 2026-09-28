@@ -3793,7 +3793,7 @@ window.renderAdminSlots = function(data, datesToLoad) {
               Cancel
             </label>
           </div>
-          <input type="text" id="${inputId}" value="${classStr}" placeholder="Class code (e.g. MS5529)" style="width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--bd); background:var(--bg); color:var(--tx); font-size:16px; font-weight:700; font-family:inherit; outline:none; box-sizing:border-box;">
+          <input type="text" id="${inputId}" value="${classStr}" placeholder="Tap here to type class code..." style="width:100%; padding:14px; border-radius:10px; border:2px solid var(--blue); background:var(--bg); color:var(--tx); font-size:16px; font-weight:800; font-family:inherit; outline:none; box-sizing:border-box; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
         </div>
       `;
     }
