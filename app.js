@@ -3866,11 +3866,16 @@ window.adminOpenShiftModal = function(oldDkId, oldT) {
                 <input type="date" id="admin-shift-date" value="${tmrwStr}" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--bd); background:var(--bg2); color:var(--tx); font-size:14px; outline:none;">
             </div>
             
-            <div style="margin-bottom:24px;">
-                <label style="display:block; font-size:12px; font-weight:700; color:var(--tx3); margin-bottom:4px;">Select New Time</label>
+            <div style="margin-bottom:12px;">
+                <label style="display:block; font-size:12px; font-weight:700; color:var(--tx3); margin-bottom:4px;">Select New Time Slot</label>
                 <select id="admin-shift-time" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--bd); background:var(--bg2); color:var(--tx); font-size:14px; outline:none;">
                     ${timeOptions}
                 </select>
+            </div>
+            
+            <div style="margin-bottom:24px;">
+                <label style="display:block; font-size:12px; font-weight:700; color:var(--tx3); margin-bottom:4px;">Custom Time Label (Optional)</label>
+                <input type="text" id="admin-shift-custom-time" placeholder="e.g. 8-11 or 9:30 AM - 12:30 PM" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--bd); background:var(--bg2); color:var(--tx); font-size:14px; outline:none; pointer-events:auto; user-select:auto;">
             </div>
             
             <div style="display:flex; gap:10px;">
@@ -3885,6 +3890,7 @@ window.adminOpenShiftModal = function(oldDkId, oldT) {
 window.adminConfirmShift = function(oldDkId, oldT) {
     const ymd = document.getElementById('admin-shift-date').value;
     const newT = document.getElementById('admin-shift-time').value;
+    const customTime = document.getElementById('admin-shift-custom-time').value.trim();
     if (!ymd || !newT) return;
     
     const newDk = getFullDateKey(ymd);
@@ -3895,14 +3901,14 @@ window.adminConfirmShift = function(oldDkId, oldT) {
             const dayData = snap.val() || {};
             window._adminDatesEditing.push(newDk);
             window._adminCurrentData[newDk] = dayData;
-            _executeShift(oldDkId, oldT, newDk, newT);
+            _executeShift(oldDkId, oldT, newDk, newT, customTime);
         });
     } else {
-        _executeShift(oldDkId, oldT, newDk, newT);
+        _executeShift(oldDkId, oldT, newDk, newT, customTime);
     }
 };
 
-window._executeShift = function(oldDkId, oldT, newDk, newT) {
+window._executeShift = function(oldDkId, oldT, newDk, newT, customTime) {
     for (const dk of window._adminDatesEditing) {
         for (const t of adminTimeOrder) {
             const inp = document.getElementById(`admin-slot-${dk.replace(/\s/g, '_')}-${t}`);
@@ -3947,6 +3953,11 @@ window._executeShift = function(oldDkId, oldT, newDk, newT) {
         window._adminCurrentData[newDk][newT] = extText + ' / ' + classToMove;
     } else {
         window._adminCurrentData[newDk][newT] = classToMove;
+    }
+    
+    if (customTime) {
+        if (!window._adminCurrentData[newDk].customTimes) window._adminCurrentData[newDk].customTimes = {};
+        window._adminCurrentData[newDk].customTimes[newT] = customTime;
     }
     
     renderAdminSlots(window._adminCurrentData, window._adminDatesEditing);
