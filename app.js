@@ -3755,7 +3755,7 @@ window.renderAdminSlots = function(data, datesToLoad) {
     const [ymd, dayName] = dk.split(' ');
     const shortDay = dayName.substring(0,3);
     const dd = ymd.split('-')[2];
-    tabsHtml += `<div onclick="switchAdminTab('${dk}')" id="admin-tab-${dk.replace(/\s/g, '_')}" style="padding:10px 16px; border-radius:12px; border:1px solid var(--bd); background:${index === 0 ? 'var(--blue)' : 'var(--bg2)'}; color:${index === 0 ? '#fff' : 'var(--tx)'}; text-align:center; min-width:65px; cursor:pointer; flex-shrink:0; transition:all 0.2s;">
+    tabsHtml += `<div onclick="switchAdminTab('${dk}')" id="admin-tab-${dk.replace(/\s/g, '_')}" style="padding:10px 16px; border-radius:12px; border:1px solid var(--bd); background:${index === 0 ? 'var(--tx-info)' : 'var(--bg2)'}; color:${index === 0 ? '#fff' : 'var(--tx)'}; text-align:center; min-width:65px; cursor:pointer; flex-shrink:0; transition:all 0.2s;">
       <div style="font-size:12px; font-weight:700; opacity:0.9;">${shortDay}</div>
       <div style="font-size:18px; font-weight:800;">${dd}</div>
     </div>`;
@@ -3809,7 +3809,7 @@ window.renderAdminSlots = function(data, datesToLoad) {
               </label>
             </div>
           </div>
-          <input type="text" id="${inputId}" value="${classStr}" placeholder="Tap here to type class code..." style="width:100%; padding:14px; border-radius:10px; border:2px solid var(--blue); background:var(--bg); color:var(--tx); font-size:16px; font-weight:800; font-family:inherit; outline:none; box-sizing:border-box; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+          <input type="text" id="${inputId}" value="${classStr}" placeholder="Tap here to type class code..." style="width:100%; padding:14px; border-radius:10px; border:2px solid var(--tx-info); background:var(--bg); color:var(--tx); font-size:16px; font-weight:800; font-family:inherit; outline:none; box-sizing:border-box; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
         </div>
       `;
     }
@@ -3827,7 +3827,7 @@ window.switchAdminTab = function(selectedDk) {
         const content = document.getElementById(`admin-content-${dkId}`);
         if(!tab || !content) return;
         if(dk === selectedDk) {
-            tab.style.background = 'var(--blue)';
+            tab.style.background = 'var(--tx-info)';
             tab.style.color = '#fff';
             content.style.display = 'block';
         } else {
@@ -3871,7 +3871,7 @@ window.adminShiftClass = function(selectEl, oldDkId, oldT) {
         }
         
         newInput.style.transition = 'all 0.3s';
-        newInput.style.background = 'var(--blue)';
+        newInput.style.background = 'var(--tx-info)';
         newInput.style.color = '#fff';
         setTimeout(() => {
             newInput.style.background = 'var(--bg)';
