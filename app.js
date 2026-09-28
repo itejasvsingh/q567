@@ -2238,7 +2238,10 @@ function searchCohortAttendance() {
   let foundStudentId = null;
   let foundStudent = null;
 
-  const attDb = (typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB) ? CLASS_ATTENDANCE_DB : {};
+  let attDb = (typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB) ? CLASS_ATTENDANCE_DB : {};
+  if (window._cloudQ5Attendance) {
+    attDb = window._cloudQ5Attendance;
+  }
   for (const [roll, data] of Object.entries(attDb)) {
     if (roll.toUpperCase() === query || roll.toUpperCase().includes(query) || (data.name && data.name.toUpperCase().includes(query))) {
       foundStudentId = roll;
@@ -2415,6 +2418,16 @@ window.refreshLiveSchedule = function(btnElement) {
         }
       }).catch(e => console.warn('Could not fetch cloud q6 attendance.', e));
 
+      fbDb.ref('q5_attendance').once('value').then(snap => {
+        const cloudQ5 = snap.val();
+        if (cloudQ5) {
+            window._cloudQ5Attendance = cloudQ5;
+            if (typeof searchCohortAttendance === 'function' && document.getElementById('cohort-att-table-container')) {
+                searchCohortAttendance();
+            }
+        }
+      }).catch(e => console.warn('Could not fetch cloud q5 attendance.', e));
+
       // 3. Roll Preferences Sync
       fbDb.ref('roll_preferences').once('value').then(snap => {
         const cloudPrefs = snap.val();
@@ -2485,6 +2498,16 @@ if (typeof fbDb !== 'undefined' && fbDb) {
       const cloudAtt = snap.val();
       if (cloudAtt) {
         window._cloudQ6Attendance = cloudAtt;
+        if (typeof searchCohortAttendance === 'function' && document.getElementById('cohort-att-table-container')) {
+          searchCohortAttendance();
+        }
+      }
+    });
+
+    fbDb.ref('q5_attendance').on('value', snap => {
+      const cloudQ5 = snap.val();
+      if (cloudQ5) {
+        window._cloudQ5Attendance = cloudQ5;
         if (typeof searchCohortAttendance === 'function' && document.getElementById('cohort-att-table-container')) {
           searchCohortAttendance();
         }
