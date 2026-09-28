@@ -3396,7 +3396,7 @@ function _renderDailyScheduleInner() {
 
   let liveIslandHtml = '';
   if (ongoingClassFound) {
-      const activeSlotLabel = SLOT_LABELS[ongoingClassFound.timeSlot] || ongoingClassFound.timeSlot;
+      const activeSlotLabel = (todaySlots.customTimes && todaySlots.customTimes[ongoingClassFound.timeSlot]) ? todaySlots.customTimes[ongoingClassFound.timeSlot] : (SLOT_LABELS[ongoingClassFound.timeSlot] || ongoingClassFound.timeSlot);
       liveIslandHtml = `
       <div class="ios-live-island">
           <div class="ios-island-left">
@@ -3554,7 +3554,7 @@ function _renderDailyScheduleInner() {
                   </div>`;
               }
 
-              const formattedSlot = SLOT_LABELS[b.t] || b.t.replace('-', ' – ');
+              const formattedSlot = (dailySlots.customTimes && dailySlots.customTimes[b.t]) ? dailySlots.customTimes[b.t] : (SLOT_LABELS[b.t] || b.t.replace('-', ' – '));
               const timeBadgeHtml = `<span class="ios-time-badge">🕒 ${formattedSlot}</span>`;
               let statusPillHtml = '';
               if (isHappeningNow) {
@@ -3789,7 +3789,10 @@ window.renderAdminSlots = function(data, datesToLoad) {
       contentHtml += `
         <div style="margin-bottom: 16px; padding:14px; background:var(--bg2); border:1px solid var(--bd); border-radius:16px; display:flex; flex-direction:column; gap:10px;">
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-            <div style="font-size:14px; font-weight:800; color:var(--tx-info);">🕒 ${adminSlotLabels[t]}</div>
+            <div style="display:flex; align-items:center; gap:4px; flex:1;">
+               <span style="font-size:14px;">🕒</span>
+               <input type="text" id="admin-time-${dk.replace(/\s/g, '_')}-${t}" value="${dayData.customTimes && dayData.customTimes[t] ? dayData.customTimes[t] : adminSlotLabels[t]}" title="Edit the time label" style="font-size:13px; font-weight:800; color:var(--tx-info); background:var(--bg); border:1px dashed var(--bd); padding:4px 6px; border-radius:6px; min-width:140px; outline:none; transition:all 0.2s;">
+            </div>
             <div style="display:flex; gap:8px;">
               <button id="shift-btn-${dk.replace(/\s/g, '_')}-${t}" onclick="adminOpenShiftModal('${dk.replace(/\s/g, '_')}', '${t}')" style="padding:6px 12px; border-radius:8px; border:none; background:var(--tx-info); color:#fff; font-size:12px; font-weight:700; cursor:pointer; opacity: ${isStrike ? '1' : '0.4'}; pointer-events: ${isStrike ? 'auto' : 'none'}; transition: all 0.2s;">Shift ➡️</button>
               <label style="display:flex; align-items:center; gap:4px; font-size:13px; color:var(--tx-warn); font-weight:700; background:var(--bg); padding:4px 8px; border-radius:6px; border:1px solid var(--bd);">
