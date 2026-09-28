@@ -1704,9 +1704,10 @@ function setAttQ(q) {
 }
 
 function renderAttQtabs() {
-  document.getElementById('att-qtabs').innerHTML = ['Q6','Q5','Q7'].map(q =>
-    `<button class="cmp-qtab${attQ===q?' on':''}" onclick="setAttQ('${q}')">${q}</button>`
-  ).join('');
+  const el = document.getElementById("att-qtabs");
+  if(el) {
+    el.innerHTML = ["Q6","Q5","Q7"].map(q => `<button class="cmp-qtab${attQ===q?" on":""}" onclick="setAttQ('${q}')">${q}</button>`).join("");
+  }
 }
 
 function updateAtt(code, type, delta) {

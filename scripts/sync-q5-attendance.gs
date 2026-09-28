@@ -111,3 +111,4 @@ function syncQ5AttendanceToFirebase() {
     Logger.log("❌ Firebase Error: " + e.message);
   }
 }
+
