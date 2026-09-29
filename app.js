@@ -3831,7 +3831,14 @@ window.renderAdminSlots = function(data, datesToLoad) {
         </div>
       `;
     }
-    contentHtml += `</div>`;
+    
+    const currentComments = dayData['Comments'] || '';
+    contentHtml += `
+        <div style="margin-top:20px;">
+           <label style="display:block; font-size:12px; font-weight:700; color:var(--tx3); margin-bottom:4px;">Daily Comments / Announcements</label>
+           <textarea id="admin-comments-${dk.replace(/\s/g, '_')}" placeholder="Add comments, exams, or notices here..." style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--bd); background:var(--bg2); color:var(--tx); font-size:14px; outline:none; resize:vertical; min-height:60px;">${currentComments}</textarea>
+        </div>
+      </div>`;
   });
   
   container.innerHTML = tabsHtml + contentHtml;
@@ -4074,8 +4081,15 @@ window.adminSaveSchedule = function() {
   const updates = {};
   
   for (const dk of window._adminDatesEditing) {
-      const dayPayload = {};
+      let dayPayload = {};
       let hasAnyData = false;
+      if (window._adminCurrentData && window._adminCurrentData[dk]) {
+          dayPayload = Object.assign({}, window._adminCurrentData[dk]);
+          for (const t of adminTimeOrder) {
+              delete dayPayload[t];
+          }
+          if (Object.keys(dayPayload).length > 0) hasAnyData = true;
+      }
       
       for (const t of adminTimeOrder) {
         const inputId = `admin-slot-${dk.replace(/\s/g, '_')}-${t}`;
@@ -4127,6 +4141,15 @@ window.adminSaveSchedule = function() {
         }
       }
       
+      const commentsId = `admin-comments-${dk.replace(/\s/g, '_')}`;
+      const commentsVal = document.getElementById(commentsId) ? document.getElementById(commentsId).value.trim() : '';
+      if (commentsVal) {
+          dayPayload['Comments'] = commentsVal;
+          hasAnyData = true;
+      } else if (dayPayload['Comments']) {
+          delete dayPayload['Comments'];
+      }
+
       if (hasAnyData) {
           updates[`schedule/daily/${dk}`] = dayPayload;
       } else {
