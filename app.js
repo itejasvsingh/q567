@@ -3883,15 +3883,8 @@ window.adminOpenShiftModal = function(oldDkId, oldT) {
                 <input type="date" id="admin-shift-date" value="${tmrwStr}" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--bd); background:var(--bg2); color:var(--tx); font-size:14px; outline:none;">
             </div>
             
-            <div style="margin-bottom:12px;">
-                <label style="display:block; font-size:12px; font-weight:700; color:var(--tx3); margin-bottom:4px;">Select New Time Slot</label>
-                <select id="admin-shift-time" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--bd); background:var(--bg2); color:var(--tx); font-size:14px; outline:none;">
-                    ${timeOptions}
-                </select>
-            </div>
-            
             <div style="margin-bottom:24px;">
-                <label style="display:block; font-size:12px; font-weight:700; color:var(--tx3); margin-bottom:4px;">Custom Time Label (Optional)</label>
+                <label style="display:block; font-size:12px; font-weight:700; color:var(--tx3); margin-bottom:4px;">Enter New Time</label>
                 <input type="text" id="admin-shift-custom-time" placeholder="e.g. 8-11 or 9:30 AM - 12:30 PM" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--bd); background:var(--bg2); color:var(--tx); font-size:14px; outline:none; pointer-events:auto; user-select:text; -webkit-user-select:text;">
             </div>
             
@@ -3906,9 +3899,20 @@ window.adminOpenShiftModal = function(oldDkId, oldT) {
 
 window.adminConfirmShift = function(oldDkId, oldT) {
     const ymd = document.getElementById('admin-shift-date').value;
-    const newT = document.getElementById('admin-shift-time').value;
     const customTime = document.getElementById('admin-shift-custom-time').value.trim();
-    if (!ymd || !newT) return;
+    if (!ymd || !customTime) return alert("Please enter a time!");
+    
+    let newT = '8am-10am';
+    const numMatch = customTime.match(/\d+/);
+    if (numMatch) {
+        const hour = parseInt(numMatch[0]);
+        if (hour === 8 || hour === 9) newT = '8am-10am';
+        else if (hour === 10 || hour === 11 || hour === 12) newT = '10am-12pm';
+        else if (hour === 1 || hour === 2 || hour === 13 || hour === 14) newT = '1pm-3pm';
+        else if (hour === 3 || hour === 4 || hour === 15 || hour === 16) newT = '3pm-5pm';
+        else if (hour >= 5 && hour <= 7) newT = '5pm-7pm';
+        else if (hour > 16 && hour < 20) newT = '5pm-7pm';
+    }
     
     const newDk = getFullDateKey(ymd);
     document.getElementById('admin-shift-modal').remove();
