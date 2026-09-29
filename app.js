@@ -3594,7 +3594,7 @@ function _renderDailyScheduleInner() {
                       <div class="ios-class-meta">
                           ${cancelled 
                               ? `<span class="ios-pill" style="color:#FF3B30; background:rgba(255,59,48,0.1); border-color:rgba(255,59,48,0.3); font-weight:800;">🚫 Cancelled</span>` 
-                              : `<span class="ios-pill" style="color:${domainColor}; background:var(--bg);">${domainIcon} ${domainLabel}</span>`
+                              : (b.data.isShifted ? `<span class="ios-pill" style="color:var(--tx-warn); background:var(--bg-warn); border-color:var(--bd-warn); font-weight:800;">🔄 Shifted Class</span>` : `<span class="ios-pill" style="color:${domainColor}; background:var(--bg);">${domainIcon} ${domainLabel}</span>`)
                           }
                       </div>
                   </div>
@@ -3602,7 +3602,7 @@ function _renderDailyScheduleInner() {
                       ${subjectName}
                   </div>
                   <div class="ios-class-sub">
-                      ${room && !cancelled ? `📍 Room ${room}` : (!cancelled ? '📍 Department' : 'Cancelled in schedule')}
+                      ${room && !cancelled ? `📍 Room ${room}` : (!cancelled ? '📍 Department' : (b.data.shiftedTo ? `🔄 ${b.data.shiftedTo}` : 'Cancelled in schedule'))}
                   </div>
                   ${attRowHtml}
               </div>`;
@@ -3955,25 +3955,28 @@ window._executeShift = function(oldDkId, oldT, newDk, newT, customTime) {
     
     const trueOldDk = oldDkId.replace(/_/g, ' ');
     if (window._adminCurrentData[trueOldDk] && window._adminCurrentData[trueOldDk][oldT]) {
+         const shiftMsg = `Shifted to ${newDk.split(' ')[0]}`;
          if (typeof window._adminCurrentData[trueOldDk][oldT] === 'string') {
-             window._adminCurrentData[trueOldDk][oldT] = { text: classToMove, strike: true };
+             window._adminCurrentData[trueOldDk][oldT] = { text: classToMove, strike: true, shiftedTo: shiftMsg };
          } else if (Array.isArray(window._adminCurrentData[trueOldDk][oldT])) {
-             window._adminCurrentData[trueOldDk][oldT] = window._adminCurrentData[trueOldDk][oldT].map(x => ({ text: (x.text || x), strike: true }));
+             window._adminCurrentData[trueOldDk][oldT] = window._adminCurrentData[trueOldDk][oldT].map(x => ({ text: (x.text || x), strike: true, shiftedTo: shiftMsg }));
          } else {
              window._adminCurrentData[trueOldDk][oldT].strike = true;
+             window._adminCurrentData[trueOldDk][oldT].shiftedTo = shiftMsg;
          }
     }
     
     const existing = window._adminCurrentData[newDk][newT];
     if (existing) {
-        let extText = '';
-        if (typeof existing === 'string') extText = existing;
-        else if (Array.isArray(existing)) extText = existing.map(x => x.text || x).join(' / ');
-        else extText = existing.text || '';
+        let extArr = [];
+        if (typeof existing === 'string') extArr = [{text: existing}];
+        else if (Array.isArray(existing)) extArr = existing.map(x => typeof x === 'string' ? {text: x} : x);
+        else extArr = [existing];
         
-        window._adminCurrentData[newDk][newT] = extText + ' / ' + classToMove;
+        extArr.push({ text: classToMove, isShifted: true });
+        window._adminCurrentData[newDk][newT] = extArr;
     } else {
-        window._adminCurrentData[newDk][newT] = classToMove;
+        window._adminCurrentData[newDk][newT] = { text: classToMove, isShifted: true };
     }
     
     if (customTime) {
