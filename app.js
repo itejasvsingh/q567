@@ -4056,33 +4056,59 @@ window.adminSaveSchedule = function() {
   
   for (const dk of window._adminDatesEditing) {
       const dayPayload = {};
-      let hasAnyClass = false;
+      let hasAnyData = false;
       
       for (const t of adminTimeOrder) {
         const inputId = `admin-slot-${dk.replace(/\s/g, '_')}-${t}`;
         const strikeId = `admin-strike-${dk.replace(/\s/g, '_')}-${t}`;
+        const timeId = `admin-time-${dk.replace(/\s/g, '_')}-${t}`;
         
-        const val = document.getElementById(inputId).value.trim();
-        const strike = document.getElementById(strikeId).checked;
+        const val = document.getElementById(inputId) ? document.getElementById(inputId).value.trim() : '';
+        const strike = document.getElementById(strikeId) ? document.getElementById(strikeId).checked : false;
+        const timeVal = document.getElementById(timeId) ? document.getElementById(timeId).value.trim() : '';
+        
+        if (timeVal && timeVal !== adminSlotLabels[t]) {
+            if (!dayPayload.customTimes) dayPayload.customTimes = {};
+            dayPayload.customTimes[t] = timeVal;
+            hasAnyData = true;
+        }
         
         if (val) {
-          hasAnyClass = true;
+          hasAnyData = true;
           const parts = val.split('/').map(s => s.trim()).filter(s => s);
+          
+          let existing = null;
+          if (window._adminCurrentData && window._adminCurrentData[dk]) {
+              existing = window._adminCurrentData[dk][t];
+          }
+          
+          const buildObj = (pText, index) => {
+              let obj = { text: pText };
+              if (strike) obj.strike = true;
+              
+              if (existing) {
+                  if (Array.isArray(existing) && existing[index] && typeof existing[index] === 'object') {
+                      if (existing[index].isShifted) obj.isShifted = true;
+                      if (existing[index].shiftedTo) obj.shiftedTo = existing[index].shiftedTo;
+                  } else if (typeof existing === 'object' && !Array.isArray(existing) && index === 0) {
+                      if (existing.isShifted) obj.isShifted = true;
+                      if (existing.shiftedTo) obj.shiftedTo = existing.shiftedTo;
+                  }
+              }
+              
+              if (Object.keys(obj).length === 1 && obj.text) return obj.text;
+              return obj;
+          };
+          
           if (parts.length === 1) {
-            if (strike) {
-              dayPayload[t] = { text: parts[0], strike: true };
-            } else {
-              dayPayload[t] = parts[0];
-            }
+             dayPayload[t] = buildObj(parts[0], 0);
           } else {
-            dayPayload[t] = parts.map(p => {
-              return strike ? { text: p, strike: true } : p;
-            });
+             dayPayload[t] = parts.map((p, idx) => buildObj(p, idx));
           }
         }
       }
       
-      if (hasAnyClass) {
+      if (hasAnyData) {
           updates[`schedule/daily/${dk}`] = dayPayload;
       } else {
           updates[`schedule/daily/${dk}`] = null; 
@@ -4090,33 +4116,38 @@ window.adminSaveSchedule = function() {
   }
   
   const btn = (typeof event !== "undefined" && event.target) ? event.target : document.querySelector("button[onclick='adminSaveSchedule()']");
-  const oldText = btn.innerHTML;
-  btn.innerHTML = '⏳ Saving...';
-  btn.disabled = true;
-  
-  fbDb.ref().update(updates).then(() => {
-    btn.innerHTML = '✅ Saved Successfully';
-    setTimeout(() => { btn.innerHTML = oldText; btn.disabled = false; }, 2000);
-    
-    if (typeof liveDailyCache !== 'undefined') {
-      for (const dk of window._adminDatesEditing) {
-          if (updates[`schedule/daily/${dk}`] === null) {
-              delete liveDailyCache[dk];
-          } else {
-              liveDailyCache[dk] = updates[`schedule/daily/${dk}`];
-          }
-      }
-      window.lastSyncedTime = new Date();
-      localStorage.setItem('mbaplanner_daily_cache', JSON.stringify({
-          data: liveDailyCache,
-          time: window.lastSyncedTime.getTime()
-      }));
-    }
-    
-  }).catch(e => {
-    btn.innerHTML = '❌ Error';
-    console.error(e);
-    alert("Failed to save: " + e.message);
-    setTimeout(() => { btn.innerHTML = oldText; btn.disabled = false; }, 2000);
-  });
+  if (!btn) {
+     console.error("Save button not found");
+  } else {
+     const oldText = btn.innerHTML;
+     btn.innerHTML = '⏳ Saving...';
+     btn.disabled = true;
+     
+     fbDb.ref().update(updates).then(() => {
+       btn.innerHTML = '✅ Saved Successfully';
+       setTimeout(() => { btn.innerHTML = oldText; btn.disabled = false; }, 2000);
+       
+       if (typeof liveDailyCache !== 'undefined') {
+         for (const dk of window._adminDatesEditing) {
+             if (updates[`schedule/daily/${dk}`] === null) {
+                 delete liveDailyCache[dk];
+             } else {
+                 liveDailyCache[dk] = updates[`schedule/daily/${dk}`];
+             }
+         }
+         window.lastSyncedTime = new Date();
+         localStorage.setItem('mbaplanner_daily_cache', JSON.stringify({
+             data: liveDailyCache,
+             time: window.lastSyncedTime.getTime()
+         }));
+         setTimeout(() => location.reload(), 500);
+       }
+       
+     }).catch(e => {
+       btn.innerHTML = '❌ Error';
+       console.error(e);
+       alert("Failed to save: " + e.message);
+       setTimeout(() => { btn.innerHTML = oldText; btn.disabled = false; }, 2000);
+     });
+  }
 };
