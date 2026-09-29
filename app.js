@@ -3820,6 +3820,7 @@ window.renderAdminSlots = function(data, datesToLoad) {
             </div>
             <div style="display:flex; gap:8px;">
               <button id="shift-btn-${dk.replace(/\s/g, '_')}-${t}" onclick="adminOpenShiftModal('${dk.replace(/\s/g, '_')}', '${t}')" style="padding:6px 12px; border-radius:8px; border:none; background:var(--tx-info); color:#fff; font-size:12px; font-weight:700; cursor:pointer; opacity: ${isStrike ? '1' : '0.4'}; pointer-events: ${isStrike ? 'auto' : 'none'}; transition: all 0.2s;">Shift ➡️</button>
+<button onclick="adminClearSlot('${dk.replace(/\s/g, '_')}', '${t}')" style="padding:6px; border-radius:8px; border:none; background:rgba(255,59,48,0.1); color:#FF3B30; font-size:12px; cursor:pointer;" title="Clear this slot">🗑️</button>
               <label style="display:flex; align-items:center; gap:4px; font-size:13px; color:var(--tx-warn); font-weight:700; background:var(--bg); padding:4px 8px; border-radius:6px; border:1px solid var(--bd);">
                 <input type="checkbox" id="${strikeId}" onchange="adminToggleShiftBtn('${dk.replace(/\s/g, '_')}', '${t}', this.checked)" ${isStrike ? 'checked' : ''} style="width:14px; height:14px; accent-color:red;">
                 Cancel
@@ -3903,6 +3904,16 @@ window.adminOpenShiftModal = function(oldDkId, oldT) {
         </div>
     `;
     document.body.appendChild(overlay);
+};
+
+
+window.adminClearSlot = function(dkId, t) {
+    const inp = document.getElementById(`admin-slot-${dkId}-${t}`);
+    const cb = document.getElementById(`admin-strike-${dkId}-${t}`);
+    const timeInp = document.getElementById(`admin-time-${dkId}-${t}`);
+    if (inp) inp.value = '';
+    if (cb) cb.checked = false;
+    if (timeInp) timeInp.value = adminSlotLabels[t];
 };
 
 window.adminConfirmShift = function(oldDkId, oldT) {
