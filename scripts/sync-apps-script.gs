@@ -105,55 +105,76 @@ function syncTimetableToFirebase() {
     
     var finalKey = dateKey + " " + dayStr;
     var slots = {};
+    var fbDay = (existingFirebaseData.daily && existingFirebaseData.daily[finalKey]) ? existingFirebaseData.daily[finalKey] : {};
+    
+    // Preserve custom times if any
+    if (fbDay.customTimes) {
+        slots.customTimes = fbDay.customTimes;
+    }
     
     for(var i=0; i<timeCols.length; i++){
       var tc = timeCols[i];
-      if(dIdx[tc] !== undefined){
-        var val = String(row[dIdx[tc]]).trim();
-        if(val && val.toLowerCase() !== 'nan') {
-          var isStrikethrough = dailyFontLines[r][dIdx[tc]] === 'line-through';
-          var normTc = tc.replace(' - ', '-').replace(' ', '');
-          
-          slots[normTc] = {
-            text: val,
-            strike: isStrikethrough
-          };
-        }
+      var normTc = tc.replace(' - ', '-').replace(' ', '');
+      
+      var fbSlot = fbDay[normTc];
+      var isProtected = false;
+      if (fbSlot) {
+          if (Array.isArray(fbSlot)) {
+              isProtected = true; // Any array (multiple classes in one slot) created by admin panel is protected
+          } else if (typeof fbSlot === 'object') {
+              isProtected = fbSlot.isShifted || fbSlot.shiftedTo;
+          }
       }
+      
+      if (isProtected) {
+          slots[normTc] = fbSlot;
+      } else {
+          if(dIdx[tc] !== undefined){
+            var val = String(row[dIdx[tc]]).trim();
+            if(val && val.toLowerCase() !== 'nan') {
+              var isStrikethrough = dailyFontLines[r][dIdx[tc]] === 'line-through';
+              slots[normTc] = { text: val, strike: isStrikethrough };
+            }
+          }
+      }
+    }
+    
+    // Also carry over any Admin Panel slots that Excel doesn't even have columns for, or that Excel left empty but are protected
+    for (var k in fbDay) {
+        if (k !== 'Comments' && k !== 'Birthdays' && k !== 'customTimes' && k !== 'manuallyEditedComments' && !slots[k]) {
+            if (Array.isArray(fbDay[k]) || (typeof fbDay[k] === 'object' && (fbDay[k].isShifted || fbDay[k].shiftedTo))) {
+                slots[k] = fbDay[k];
+            }
+        }
     }
     
     if(cIdx !== -1) {
       var comment = String(row[cIdx]).trim();
-      
-      // Backfill Comment if in merged range
       if (!comment) {
         var mergedValComment = getMergeValue(r, cIdx);
-        if (mergedValComment !== null) {
-          comment = String(mergedValComment).trim();
-          Logger.log("Row " + (r+1) + ": Backfilled missing Comment from merged range.");
-        }
+        if (mergedValComment !== null) comment = String(mergedValComment).trim();
       }
       
-      if(comment && comment.toLowerCase() !== 'nan') slots['Comments'] = comment;
+      if (fbDay.manuallyEditedComments && fbDay['Comments']) {
+          slots['Comments'] = fbDay['Comments'];
+          slots.manuallyEditedComments = true;
+      } else if (comment && comment.toLowerCase() !== 'nan') {
+          slots['Comments'] = comment;
+      }
+    } else if (fbDay.manuallyEditedComments && fbDay['Comments']) {
+        slots['Comments'] = fbDay['Comments'];
+        slots.manuallyEditedComments = true;
     }
     
     if(bIdx !== -1) {
       var birthday = String(row[bIdx]).trim();
       if(birthday && birthday.toLowerCase() !== 'nan') slots['Birthdays'] = birthday;
+    } else if (fbDay['Birthdays']) {
+        slots['Birthdays'] = fbDay['Birthdays'];
     }
     
     if(Object.keys(slots).length > 0) {
-      if (existingFirebaseData.daily && existingFirebaseData.daily[finalKey] && existingFirebaseData.daily[finalKey].manuallyEdited) {
-          dailyData[finalKey] = existingFirebaseData.daily[finalKey]; // Preserve the manually edited version from Firebase!
-          Logger.log("Row " + (r+1) + " Protected: Admin Panel edits preserved for " + finalKey);
-      } else {
-          dailyData[finalKey] = slots;
-      }
-    } else {
-      if (existingFirebaseData.daily && existingFirebaseData.daily[finalKey] && existingFirebaseData.daily[finalKey].manuallyEdited) {
-          dailyData[finalKey] = existingFirebaseData.daily[finalKey];
-      }
-      Logger.log("Row " + (r+1) + " Skipped: Zero populated slots/comments/birthdays.");
+      dailyData[finalKey] = slots;
     }
   }
   

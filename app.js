@@ -4145,13 +4145,14 @@ window.adminSaveSchedule = function() {
       const commentsVal = document.getElementById(commentsId) ? document.getElementById(commentsId).value.trim() : '';
       if (commentsVal) {
           dayPayload['Comments'] = commentsVal;
+          dayPayload.manuallyEditedComments = true;
           hasAnyData = true;
       } else if (dayPayload['Comments']) {
           delete dayPayload['Comments'];
+          delete dayPayload.manuallyEditedComments;
       }
 
       if (hasAnyData) {
-          dayPayload.manuallyEdited = true;
           updates[`schedule/daily/${dk}`] = dayPayload;
       } else {
           updates[`schedule/daily/${dk}`] = null; 
