@@ -3411,7 +3411,9 @@ function _renderDailyScheduleInner() {
 
   let liveIslandHtml = '';
   if (ongoingClassFound) {
-      const activeSlotLabel = (todaySlots.customTimes && todaySlots.customTimes[ongoingClassFound.timeSlot]) ? todaySlots.customTimes[ongoingClassFound.timeSlot] : (SLOT_LABELS[ongoingClassFound.timeSlot] || ongoingClassFound.timeSlot);
+      const _tk = dateKeys.find(k => k.startsWith(todayYmd));
+      const ts = _tk ? liveDailyCache[_tk] : {};
+      const activeSlotLabel = (ts.customTimes && ts.customTimes[ongoingClassFound.timeSlot]) ? ts.customTimes[ongoingClassFound.timeSlot] : (SLOT_LABELS[ongoingClassFound.timeSlot] || ongoingClassFound.timeSlot);
       liveIslandHtml = `
       <div class="ios-live-island">
           <div class="ios-island-left">
