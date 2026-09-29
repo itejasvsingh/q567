@@ -4151,6 +4151,7 @@ window.adminSaveSchedule = function() {
       }
 
       if (hasAnyData) {
+          dayPayload.manuallyEdited = true;
           updates[`schedule/daily/${dk}`] = dayPayload;
       } else {
           updates[`schedule/daily/${dk}`] = null; 

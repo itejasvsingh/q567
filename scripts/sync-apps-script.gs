@@ -11,6 +11,18 @@ function syncTimetableToFirebase() {
   
   var timeCols = ['8am - 10am', '10am - 12pm', '12pm-1pm', '1pm-3pm', '3pm-5pm', '5pm-7pm'];
   
+  // Fetch existing Firebase data to preserve Admin Panel overrides
+  var existingFirebaseData = { daily: {}, weekly: {} };
+  try {
+    var response = UrlFetchApp.fetch(firebaseUrl);
+    if (response.getResponseCode() === 200) {
+      var json = JSON.parse(response.getContentText());
+      if (json) existingFirebaseData = json;
+    }
+  } catch(e) {
+    Logger.log("Could not fetch existing Firebase data. Proceeding with full overwrite.");
+  }
+  
   // --- 1. PARSE DAILY AGENDA (Sheet 'Q6 Full') ---
   var dailySheet = ss.getSheetByName('Q6 Full');
   var dailyRange = dailySheet.getDataRange();
@@ -131,10 +143,27 @@ function syncTimetableToFirebase() {
     }
     
     if(Object.keys(slots).length > 0) {
-      dailyData[finalKey] = slots;
+      if (existingFirebaseData.daily && existingFirebaseData.daily[finalKey] && existingFirebaseData.daily[finalKey].manuallyEdited) {
+          dailyData[finalKey] = existingFirebaseData.daily[finalKey]; // Preserve the manually edited version from Firebase!
+          Logger.log("Row " + (r+1) + " Protected: Admin Panel edits preserved for " + finalKey);
+      } else {
+          dailyData[finalKey] = slots;
+      }
     } else {
+      if (existingFirebaseData.daily && existingFirebaseData.daily[finalKey] && existingFirebaseData.daily[finalKey].manuallyEdited) {
+          dailyData[finalKey] = existingFirebaseData.daily[finalKey];
+      }
       Logger.log("Row " + (r+1) + " Skipped: Zero populated slots/comments/birthdays.");
     }
+  }
+  
+  // Also carry over any manually edited days from Firebase that might not even exist in the Excel sheet!
+  if (existingFirebaseData.daily) {
+      for (var dk in existingFirebaseData.daily) {
+          if (existingFirebaseData.daily[dk].manuallyEdited && !dailyData[dk]) {
+              dailyData[dk] = existingFirebaseData.daily[dk];
+          }
+      }
   }
   
   // --- 2. PARSE WEEKLY SCHEDULE (Sheet 'Q6 Weekly') ---
