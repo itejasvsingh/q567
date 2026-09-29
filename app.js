@@ -3220,17 +3220,25 @@ function _renderDailyScheduleInner() {
 
           let classStr = '';
           let isStrikethrough = false;
+          let isShifted = false;
+          let shiftedTo = null;
+          
           if (Array.isArray(slotData)) {
               classStr = slotData.map(e => typeof e === 'object' && e ? (e.text||'') : String(e)).join(' / ');
               isStrikethrough = slotData.some(e => typeof e === 'object' && e ? e.strike : false);
+              isShifted = slotData.some(e => typeof e === 'object' && e ? e.isShifted : false);
+              shiftedTo = slotData.find(e => typeof e === 'object' && e && e.shiftedTo)?.shiftedTo || null;
           } else if (typeof slotData === 'object' && slotData !== null) {
               classStr = slotData.text || '';
               isStrikethrough = slotData.strike || false;
+              isShifted = slotData.isShifted || false;
+              shiftedTo = slotData.shiftedTo || null;
           } else {
               classStr = String(slotData);
           }
           if (!classStr) continue;
-          const cancelled = isStrikethrough || classStr.includes('~') || (classStr ? classStr.toLowerCase() : '').includes('cancel') || classStr.includes('<s>') || classStr.includes('<strike>');
+          
+          let cancelled = isStrikethrough || classStr.includes('~') || (classStr ? classStr.toLowerCase() : '').includes('cancel') || classStr.includes('<s>') || classStr.includes('<strike>');
 
           if (classStr.toUpperCase().includes('ICRC')) {
               let icrcCancelled = cancelled;
@@ -3238,7 +3246,7 @@ function _renderDailyScheduleInner() {
                   const icrcObj = slotData.find(e => typeof e === 'object' && e && e.text && e.text.toUpperCase().includes('ICRC'));
                   if (icrcObj) icrcCancelled = icrcObj.strike || icrcObj.text.includes('~') || (icrcObj && icrcObj.text ? icrcObj.text.toLowerCase() : '').includes('cancel');
               }
-              dayClasses[t] = { type: 'icrc', cancelled: icrcCancelled };
+              dayClasses[t] = { type: 'icrc', cancelled: icrcCancelled, isShifted, shiftedTo };
               hasCls = true;
               if (!icrcCancelled) hasActiveCls = true;
               continue;
@@ -3265,7 +3273,7 @@ function _renderDailyScheduleInner() {
                       ));
                       if (subjObj) subjCancelled = subjObj.strike || subjObj.text.includes('~') || (subjObj && subjObj.text ? subjObj.text.toLowerCase() : '').includes('cancel');
                   }
-                  dayClasses[t] = { type: 'class', subject: s, cancelled: subjCancelled, rawStr: classStr };
+                  dayClasses[t] = { type: 'class', subject: s, cancelled: subjCancelled, rawStr: classStr, isShifted, shiftedTo };
                   hasCls = true;
                   if (!subjCancelled) hasActiveCls = true;
                   break;
