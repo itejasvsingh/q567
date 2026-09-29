@@ -4116,7 +4116,7 @@ window.adminSaveSchedule = function() {
           }
           
           const buildObj = (pText, index) => {
-              let obj = { text: pText };
+              let obj = { text: pText, manuallyEdited: true };
               if (strike) obj.strike = true;
               
               if (existing) {

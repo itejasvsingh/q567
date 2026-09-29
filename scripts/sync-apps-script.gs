@@ -122,7 +122,7 @@ function syncTimetableToFirebase() {
           if (Array.isArray(fbSlot)) {
               isProtected = true; // Any array (multiple classes in one slot) created by admin panel is protected
           } else if (typeof fbSlot === 'object') {
-              isProtected = fbSlot.isShifted || fbSlot.shiftedTo;
+              isProtected = fbSlot.manuallyEdited || fbSlot.isShifted || fbSlot.shiftedTo;
           }
       }
       
@@ -142,7 +142,7 @@ function syncTimetableToFirebase() {
     // Also carry over any Admin Panel slots that Excel doesn't even have columns for, or that Excel left empty but are protected
     for (var k in fbDay) {
         if (k !== 'Comments' && k !== 'Birthdays' && k !== 'customTimes' && k !== 'manuallyEditedComments' && !slots[k]) {
-            if (Array.isArray(fbDay[k]) || (typeof fbDay[k] === 'object' && (fbDay[k].isShifted || fbDay[k].shiftedTo))) {
+            if (Array.isArray(fbDay[k]) || (typeof fbDay[k] === 'object' && (fbDay[k].manuallyEdited || fbDay[k].isShifted || fbDay[k].shiftedTo))) {
                 slots[k] = fbDay[k];
             }
         }
