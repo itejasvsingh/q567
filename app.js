@@ -2351,13 +2351,12 @@ function searchCohortAttendance() {
 // ── INIT ────────────────────────────────────────────────────────────────────
 
 // ADMIN LOGIC
+// The Admin tab is hidden. It only appears for the current visit when the page
+// is opened with ?admin=tej (nothing is remembered between visits).
 const urlParams = new URLSearchParams(window.location.search);
+localStorage.removeItem('isAdmin');
 if (urlParams.get('admin') === 'tej') {
-    localStorage.setItem('isAdmin', 'true');
-    // Remove it from URL so it doesn't stay in history
     window.history.replaceState({}, document.title, window.location.pathname);
-}
-if (localStorage.getItem('isAdmin') === 'true') {
     const tabs = document.querySelector('.view-tabs');
     if (tabs && !document.getElementById('vtab-admin')) {
         const btn = document.createElement('button');
