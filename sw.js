@@ -1,6 +1,6 @@
 // Bump this version string every time you deploy a new index.html so
 // returning visitors actually get the update instead of a stale cache.
-const CACHE_NAME = 'mba-planner-v26';
+const CACHE_NAME = 'mba-planner-v27';
 
 const SHELL_FILES = [
   './',
@@ -8,7 +8,7 @@ const SHELL_FILES = [
   './manifest.json',
   './styles.css',
   './app.js',
-  './app.js?v=15',
+  './app.js?v=16',
   './data.js',
   './icon-192.png',
   './icon-512.png',

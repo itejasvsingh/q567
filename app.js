@@ -3115,7 +3115,9 @@ window.syncClassAttendanceToAttData = function() {
     localStorage.setItem('mbaplanner_attendance', JSON.stringify(attData));
 };
 
-window.markClassAttendance = function(ymd, timeSlot, code, targetStatus) {
+// count = 2 for a double session: a twin entry `${ymd}_${slot}+2_${code}` is
+// kept in step with the main one, so every attendance counter sees 2 sessions.
+window.markClassAttendance = function(ymd, timeSlot, code, targetStatus, count) {
     let roll = getActiveRollNo();
     if (!roll) {
         const entered = prompt('Please enter your Roll Number to log attendance (e.g. MS25A071):');
@@ -3138,12 +3140,12 @@ window.markClassAttendance = function(ymd, timeSlot, code, targetStatus) {
 
     const sessionId = `${ymd}_${timeSlot}_${code}`;
 
-    let finalStatus = targetStatus;
-    if (classAtt[sessionId] === targetStatus) {
-        delete classAtt[sessionId];
-        finalStatus = null;
-    } else {
-        classAtt[sessionId] = targetStatus;
+    const finalStatus = classAtt[sessionId] === targetStatus ? null : targetStatus;
+    // [sessionId, status] pairs to write; the twin is cleared if it's no longer a double
+    const writes = [[sessionId, finalStatus], [`${ymd}_${timeSlot}+2_${code}`, count === 2 ? finalStatus : null]];
+    for (const [id, status] of writes) {
+        if (status) classAtt[id] = status;
+        else delete classAtt[id];
     }
 
     localStorage.setItem('mbaplanner_class_attendance', JSON.stringify(classAtt));
@@ -3152,13 +3154,10 @@ window.markClassAttendance = function(ymd, timeSlot, code, targetStatus) {
     const cleanRoll = roll.trim().toUpperCase();
     try {
         const rollAtt = JSON.parse(localStorage.getItem('mbaplanner_roll_attendance')) || {};
-        if (finalStatus) {
-            if (!rollAtt[cleanRoll]) rollAtt[cleanRoll] = {};
-            rollAtt[cleanRoll][sessionId] = finalStatus;
-        } else {
-            if (rollAtt[cleanRoll]) {
-                delete rollAtt[cleanRoll][sessionId];
-            }
+        if (!rollAtt[cleanRoll]) rollAtt[cleanRoll] = {};
+        for (const [id, status] of writes) {
+            if (status) rollAtt[cleanRoll][id] = status;
+            else delete rollAtt[cleanRoll][id];
         }
         localStorage.setItem('mbaplanner_roll_attendance', JSON.stringify(rollAtt));
     } catch(e) {}
@@ -3167,15 +3166,14 @@ window.markClassAttendance = function(ymd, timeSlot, code, targetStatus) {
     if (typeof fbDb !== 'undefined' && fbDb) {
         try {
             const safeRoll = cleanRoll.replace(/[.#$[\]]/g, '_');
-            const safeSessionId = sessionId.replace(/[.#$[\]]/g, '_');
-            if (finalStatus) {
-                fbDb.ref(`q6_attendance/${safeRoll}/${safeSessionId}`).set(finalStatus);
-            } else {
-                fbDb.ref(`q6_attendance/${safeRoll}/${safeSessionId}`).remove();
+            const updates = {};
+            for (const [id, status] of writes) {
+                updates[`q6_attendance/${safeRoll}/${id.replace(/[.#$[\]]/g, '_')}`] = status || null;
             }
+            fbDb.ref().update(updates);
             if (!window._fbConnected) {
                 const pendingAtt = loadOfflineCopy('mbaplanner_pending_q6_attendance') || {};
-                pendingAtt[`q6_attendance/${safeRoll}/${safeSessionId}`] = finalStatus || null;
+                Object.assign(pendingAtt, updates);
                 saveOfflineCopy('mbaplanner_pending_q6_attendance', pendingAtt);
             }
         } catch(err) {
@@ -3186,15 +3184,16 @@ window.markClassAttendance = function(ymd, timeSlot, code, targetStatus) {
     // Keep in-memory cloud attendance synced
     if (window._cloudQ6Attendance) {
         const safeRoll = cleanRoll.replace(/[.#$[\]]/g, '_');
-        const safeSessionId = sessionId.replace(/[.#$[\]]/g, '_');
         [cleanRoll, safeRoll].forEach(r => {
-            if (window._cloudQ6Attendance[r]) {
-                if (finalStatus) {
-                    window._cloudQ6Attendance[r][sessionId] = finalStatus;
-                    window._cloudQ6Attendance[r][safeSessionId] = finalStatus;
+            if (!window._cloudQ6Attendance[r]) return;
+            for (const [id, status] of writes) {
+                const safeId = id.replace(/[.#$[\]]/g, '_');
+                if (status) {
+                    window._cloudQ6Attendance[r][id] = status;
+                    window._cloudQ6Attendance[r][safeId] = status;
                 } else {
-                    delete window._cloudQ6Attendance[r][sessionId];
-                    delete window._cloudQ6Attendance[r][safeSessionId];
+                    delete window._cloudQ6Attendance[r][id];
+                    delete window._cloudQ6Attendance[r][safeId];
                 }
             }
         });
@@ -3292,7 +3291,7 @@ function applyClassUpdates(dayClasses, ymd, activeSubjects) {
       if (!subject) continue;
       const key = dayClasses[ch.toSlot] ? `${ch.toSlot}+${ch.code}` : ch.toSlot;
       dayClasses[key] = {
-        type: 'class', subject, cancelled: false, slot: ch.toSlot, movedIn: ch,
+        type: 'class', subject, cancelled: false, slot: ch.toSlot, movedIn: ch, double: Boolean(ch.double),
         timeInfo: (ch.start && ch.end) ? hhmmToTimeInfo(ch.start, ch.end) : ICS_TIME_MAP[ch.toSlot]
       };
     }
@@ -3309,6 +3308,7 @@ function applyClassUpdates(dayClasses, ymd, activeSubjects) {
       data.update = ch;
       if (ch.status === 'cancelled' || ch.status === 'moved') data.cancelled = true;
       if (ch.status === 'retimed' && ch.start && ch.end) data.timeInfo = hhmmToTimeInfo(ch.start, ch.end);
+      if (ch.double) data.double = true;
     }
     if (hidden[`${ymd}_${data.slot}_${data.subject.code}`]) data.hidden = true;
   }
@@ -3389,6 +3389,10 @@ window.openClassUpdateSheet = function(ymd, slot, code) {
       <input type="time" id="cu-end" class="cmp-input" style="min-width:0;" value="${baseTimes.end}">
     </div>
     <div id="cu-time-hint" style="display:none; font-size:11px; color:var(--tx3); margin:-4px 0 10px;">Adjust the times only if it's not the slot's usual timing.</div>
+    <label id="cu-double-row" style="display:none; align-items:center; gap:8px; font-size:12.5px; color:var(--tx); margin-bottom:10px; cursor:pointer;">
+      <input type="checkbox" id="cu-double" ${existing && existing.double ? 'checked' : ''} style="width:16px; height:16px;">
+      <span><strong>Double class</strong> — 2 classes taken in one go, counts as 2 attendance</span>
+    </label>
     <input type="text" id="cu-note" class="cmp-input" maxlength="120" placeholder="Note (optional) — e.g. room changed to 310" style="width:100%; box-sizing:border-box; margin-bottom:12px;" value="${existing && existing.note ? escHtml(existing.note) : ''}">
     <button class="cmp-btn" style="width:100%; padding:12px;" onclick="postClassUpdate('${ymd}','${slot}','${code}')">Post update for everyone</button>
     <div style="font-size:11px; color:var(--tx3); margin-top:6px; text-align:center;">Everyone taking ${escHtml(subject.name)} will see this, with your name on it.</div>
@@ -3418,6 +3422,7 @@ window.selectClassUpdateStatus = function(status, initial) {
   document.getElementById('cu-move-fields').style.display = status === 'moved' ? 'flex' : 'none';
   document.getElementById('cu-time-fields').style.display = (status === 'moved' || status === 'retimed') ? 'flex' : 'none';
   document.getElementById('cu-time-hint').style.display = status === 'moved' ? 'block' : 'none';
+  document.getElementById('cu-double-row').style.display = status === 'cancelled' ? 'none' : 'flex';
   if (initial) return;
   if (status === 'moved') syncMoveTimes();
   if (status === 'retimed') {
@@ -3447,6 +3452,7 @@ window.postClassUpdate = function(ymd, slot, code) {
   const normal = timeInfoToHHMM(ICS_TIME_MAP[slot] || { sh: 0, sm: 0, eh: 0, em: 0 });
   const rec = { code, ymd, slot, status, byRoll: author.roll, byName: author.name, at: firebase.database.ServerValue.TIMESTAMP };
   if (note) rec.note = note;
+  if (status !== 'cancelled' && document.getElementById('cu-double').checked) rec.double = true;
 
   if (status === 'moved') {
     rec.toYmd = document.getElementById('cu-to-date').value;
@@ -3460,10 +3466,11 @@ window.postClassUpdate = function(ymd, slot, code) {
     }
   } else if (status === 'retimed') {
     if (!start || !end || start >= end) { alert('Enter a valid start and end time.'); return; }
-    if (start === normal.start && end === normal.end) { alert("That's the normal timing — change the start or end time."); return; }
-    rec.start = start; rec.end = end;
-  } else if (status === 'note' && !note) {
-    alert('Write the note you want to share.');
+    const sameTiming = start === normal.start && end === normal.end;
+    if (sameTiming && !rec.double) { alert("That's the normal timing — change the start or end time."); return; }
+    if (!sameTiming) { rec.start = start; rec.end = end; }
+  } else if (status === 'note' && !note && !rec.double) {
+    alert('Write the note you want to share, or tick Double class.');
     return;
   }
 
@@ -3933,6 +3940,7 @@ function _renderDailyScheduleInner() {
               let updatePillHtml = '';
               if (upd && upd.status === 'moved') updatePillHtml = warnPill('↪️ Moved');
               else if (data.movedIn) updatePillHtml = warnPill('↪️ Rescheduled');
+              else if (data.double) updatePillHtml = warnPill('×2 Double class');
               else if (upd && upd.status === 'retimed') updatePillHtml = warnPill('⏱ New time');
 
               let subText = room && !cancelled ? `📍 Room ${room}` : (!cancelled ? '📍 Department' : (data.shiftedTo ? `🔄 ${data.shiftedTo}` : 'Cancelled in schedule'));
@@ -3963,19 +3971,20 @@ function _renderDailyScheduleInner() {
                           ? '<span style="color:#FF3B30; font-weight:700;">✕ Absent</span>' 
                           : '<span style="color:var(--tx3);">Not marked</span>');
 
+                  const attCount = data.double ? 2 : 1;
                   attRowHtml = `
                   <div class="ios-class-bottom">
                       <div class="ios-att-status-text">
-                          Attendance: ${attStatusLabel}
+                          Attendance${data.double ? ' <span style="color:var(--tx-warn);">(×2)</span>' : ''}: ${attStatusLabel}
                       </div>
                       <div class="ios-segmented">
                           <button class="ios-seg-btn ${currentStatus === 'P' ? 'active-p' : ''}" 
-                                  onclick="markClassAttendance('${ymd}', '${b.t}', '${data.subject.code}', 'P')" 
+                                  onclick="markClassAttendance('${ymd}', '${b.t}', '${data.subject.code}', 'P', ${attCount})" 
                                   title="Mark Present">
                               ✓ Present
                           </button>
                           <button class="ios-seg-btn ${currentStatus === 'A' ? 'active-a' : ''}" 
-                                  onclick="markClassAttendance('${ymd}', '${b.t}', '${data.subject.code}', 'A')" 
+                                  onclick="markClassAttendance('${ymd}', '${b.t}', '${data.subject.code}', 'A', ${attCount})" 
                                   title="Mark Absent">
                               ✕ Absent
                           </button>
@@ -4163,7 +4172,7 @@ window.renderAdminClassUpdates = function() {
     return `<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 0; border-bottom:.5px solid var(--bd); font-size:12px;">
       <div>
         <div style="font-weight:700; color:var(--tx);">${fmtDayLabel(ch.ymd)} · ${ch.slot} · ${escHtml(subj ? subj.name : ch.code)}</div>
-        <div style="color:var(--tx2);">${statusLabels[ch.status] || ch.status}${escHtml(detail)}${ch.note ? ' · ' + escHtml(ch.note) : ''}</div>
+        <div style="color:var(--tx2);">${statusLabels[ch.status] || ch.status}${escHtml(detail)}${ch.double ? ' · ×2 double class' : ''}${ch.note ? ' · ' + escHtml(ch.note) : ''}</div>
         <div style="color:var(--tx3); font-size:11px;">${escHtml(ch.byName)} (${escHtml(ch.byRoll)}) · ${timeAgo(ch.at)}</div>
       </div>
       <button class="ios-seg-btn" onclick="undoClassUpdate('${ch.ymd}','${ch.slot}','${ch.code}')" style="padding:5px 10px; font-size:11px; color:var(--tx-danger); font-weight:700;">Remove</button>
