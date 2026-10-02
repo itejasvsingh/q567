@@ -1,0 +1,11 @@
+# macOS
+.DS_Store
+
+# Dependencies
+node_modules/
+
+# Local AI/editor tool state
+.omc/
+.kilo/
+.kilocode/
+.claude/
