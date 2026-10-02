@@ -106,7 +106,12 @@ function applyPreferences(prefObj) {
     } catch(e) {}
   }
 
-  // 6. Student Name Sync
+  // 6. Classes hidden "for me only" in the agenda
+  if (prefObj.hiddenSessions && typeof prefObj.hiddenSessions === 'object') {
+    saveOfflineCopy('mbaplanner_hidden_sessions', prefObj.hiddenSessions);
+  }
+
+  // 7. Student Name Sync
   if (prefObj.studentName) {
     try {
       localStorage.setItem('mbaplanner_myname', prefObj.studentName);
@@ -146,6 +151,7 @@ function savePreferencesForRoll(roll) {
     reminder30m: localStorage.getItem('mbaplanner_reminder_30m') || 'on',
     theme: localStorage.getItem('mbaplanner_theme') || 'light',
     studentName: sName,
+    hiddenSessions: getHiddenSessions(),
     updatedAt: Date.now()
   };
 
@@ -168,6 +174,7 @@ function savePreferencesForRoll(roll) {
     try {
       const safeRoll = cleanRoll.replace(/[.#$[\]]/g, '_');
       fbDb.ref(`roll_preferences/${safeRoll}`).set(payload);
+      if (!window._fbConnected) localStorage.setItem('mbaplanner_pending_pref_sync', cleanRoll);
     } catch(err) {
       console.warn('Firebase roll_preferences set error:', err);
     }
@@ -1251,7 +1258,12 @@ function switchView(v){
   }
   if(v==='mess'){
     const f=document.getElementById('mess-iframe');
-    if(f && !f.src) f.src='https://mess-menu-iitm.vercel.app/';
+    if(f && !navigator.onLine && !f.getAttribute('src')){
+      f.srcdoc='<p style="font:14px -apple-system,sans-serif;color:#888;text-align:center;padding:40px 16px">📴 The mess menu needs an internet connection.</p>';
+    } else if(f && !f.getAttribute('src')){
+      f.removeAttribute('srcdoc');
+      f.src='https://mess-menu-iitm.vercel.app/';
+    }
   }
   if(v==='plan'){
     renderPlannerRollBanner();
@@ -2410,11 +2422,45 @@ if(savedAttNameInit && attSyncUserInp) {
 }
 
 if('serviceWorker' in navigator){
-  window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('SW registration failed', err));
-  });
+  // app.js is injected by index.html after the views load, so the window
+  // 'load' event has usually already fired by the time we get here.
+  const registerSW = ()=>navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('SW registration failed', err));
+  if (document.readyState === 'complete') registerSW();
+  else window.addEventListener('load', registerSW);
 }
 
+
+// --- OFFLINE SUPPORT ---
+// Last-known copies of cloud data, so every tab still has something to show
+// when the app is opened without internet.
+function saveOfflineCopy(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); }
+  catch(e) { console.warn('Could not store offline copy of', key, e); }
+}
+function loadOfflineCopy(key) {
+  try { return JSON.parse(localStorage.getItem(key)); }
+  catch(e) { return null; }
+}
+liveWeeklyCache = liveWeeklyCache || loadOfflineCopy('mbaplanner_weekly_cache');
+window._cloudQ6Attendance = window._cloudQ6Attendance || loadOfflineCopy('mbaplanner_cloud_q6_attendance');
+window._cloudQ5Attendance = window._cloudQ5Attendance || loadOfflineCopy('mbaplanner_cloud_q5_attendance');
+window._cloudRollPreferences = window._cloudRollPreferences || loadOfflineCopy('mbaplanner_cloud_roll_preferences');
+window._scheduleChanges = loadOfflineCopy('mbaplanner_cloud_schedule_changes') || {};
+
+function updateOfflineBanner() {
+  let el = document.getElementById('offline-banner');
+  if (navigator.onLine) { if (el) el.remove(); return; }
+  if (el) return;
+  el = document.createElement('div');
+  el.id = 'offline-banner';
+  el.style.cssText = 'position:fixed; bottom:26px; left:50%; transform:translateX(-50%); max-width:calc(100% - 150px); z-index:10000; text-align:center; padding:8px 14px; border-radius:20px; font-size:12px; font-weight:600; background:var(--bg-warn); color:var(--tx-warn); border:.5px solid var(--bd-warn); box-shadow:0 4px 10px rgba(0,0,0,0.15);';
+  el.textContent = '📴 Offline — showing saved data';
+  el.title = 'Changes you make will sync when you reconnect.';
+  document.body.appendChild(el);
+}
+window.addEventListener('online', updateOfflineBanner);
+window.addEventListener('offline', updateOfflineBanner);
+updateOfflineBanner();
 
 // --- FIREBASE LIVE SCHEDULE LISTENER ---
 window.lastSyncedTime = null;
@@ -2432,6 +2478,7 @@ window.refreshLiveSchedule = function(btnElement) {
         if(data) {
             liveDailyCache = data.daily;
             liveWeeklyCache = data.weekly;
+            saveOfflineCopy('mbaplanner_weekly_cache', liveWeeklyCache);
             window.lastSyncedTime = new Date();
             window._isOfflineFallback = false;
             
@@ -2463,6 +2510,7 @@ window.refreshLiveSchedule = function(btnElement) {
         const cloudAtt = snap.val();
         if (cloudAtt) {
             window._cloudQ6Attendance = cloudAtt;
+            saveOfflineCopy('mbaplanner_cloud_q6_attendance', cloudAtt);
             if (typeof searchCohortAttendance === 'function' && document.getElementById('cohort-att-table-container')) {
                 searchCohortAttendance();
             }
@@ -2476,6 +2524,7 @@ window.refreshLiveSchedule = function(btnElement) {
         const cloudQ5 = snap.val();
         if (cloudQ5) {
             window._cloudQ5Attendance = cloudQ5;
+            saveOfflineCopy('mbaplanner_cloud_q5_attendance', cloudQ5);
             if (typeof searchCohortAttendance === 'function' && document.getElementById('cohort-att-table-container')) {
                 searchCohortAttendance();
             }
@@ -2487,6 +2536,7 @@ window.refreshLiveSchedule = function(btnElement) {
         const cloudPrefs = snap.val();
         if (cloudPrefs) {
           window._cloudRollPreferences = cloudPrefs;
+          saveOfflineCopy('mbaplanner_cloud_roll_preferences', cloudPrefs);
           const activeRoll = getActiveRollNo();
           if (activeRoll && cloudPrefs[activeRoll]) {
             const allLocal = JSON.parse(localStorage.getItem('mbaplanner_roll_preferences')) || {};
@@ -2535,6 +2585,7 @@ if (typeof fbDb !== 'undefined' && fbDb) {
       if (data && data.daily) {
         liveDailyCache = data.daily;
         liveWeeklyCache = data.weekly;
+        saveOfflineCopy('mbaplanner_weekly_cache', liveWeeklyCache);
         window.lastSyncedTime = new Date();
         window._isOfflineFallback = false;
         localStorage.setItem('mbaplanner_daily_cache', JSON.stringify({
@@ -2552,6 +2603,7 @@ if (typeof fbDb !== 'undefined' && fbDb) {
       const cloudAtt = snap.val();
       if (cloudAtt) {
         window._cloudQ6Attendance = cloudAtt;
+        saveOfflineCopy('mbaplanner_cloud_q6_attendance', cloudAtt);
         if (typeof searchCohortAttendance === 'function' && document.getElementById('cohort-att-table-container')) {
           searchCohortAttendance();
         }
@@ -2562,9 +2614,19 @@ if (typeof fbDb !== 'undefined' && fbDb) {
       const cloudQ5 = snap.val();
       if (cloudQ5) {
         window._cloudQ5Attendance = cloudQ5;
+        saveOfflineCopy('mbaplanner_cloud_q5_attendance', cloudQ5);
         if (typeof searchCohortAttendance === 'function' && document.getElementById('cohort-att-table-container')) {
           searchCohortAttendance();
         }
+      }
+    });
+
+    fbDb.ref('schedule_changes').on('value', snap => {
+      window._scheduleChanges = snap.val() || {};
+      saveOfflineCopy('mbaplanner_cloud_schedule_changes', window._scheduleChanges);
+      if (typeof currentView !== 'undefined') {
+        if (currentView === 'daily') renderDailySchedule();
+        if (currentView === 'admin' && window.renderAdminClassUpdates) window.renderAdminClassUpdates();
       }
     });
 
@@ -2572,12 +2634,44 @@ if (typeof fbDb !== 'undefined' && fbDb) {
       const cloudPrefs = snap.val();
       if (cloudPrefs) {
         window._cloudRollPreferences = cloudPrefs;
+        saveOfflineCopy('mbaplanner_cloud_roll_preferences', cloudPrefs);
         if (typeof renderCompareView === 'function' && typeof currentView !== 'undefined' && currentView === 'compare') {
           renderCompareView();
         }
       }
     });
   } catch(e) {}
+
+  // Firebase only queues offline writes in memory, so anything changed while
+  // offline would be lost if the app is closed before reconnecting. Pending
+  // writes are also kept in localStorage and pushed on the next connection.
+  window._fbConnected = false;
+  fbDb.ref('.info/connected').on('value', snap => {
+    window._fbConnected = snap.val() === true;
+    if (window._fbConnected) flushPendingOfflineWrites();
+  });
+}
+
+function flushPendingOfflineWrites() {
+  const pendingRoll = localStorage.getItem('mbaplanner_pending_pref_sync');
+  if (pendingRoll) {
+    const local = (loadOfflineCopy('mbaplanner_roll_preferences') || {})[pendingRoll];
+    const safeRoll = pendingRoll.replace(/[.#$[\]]/g, '_');
+    const ref = fbDb.ref(`roll_preferences/${safeRoll}`);
+    ref.once('value').then(snap => {
+      const cloud = snap.val();
+      // Don't clobber a newer save made from another device.
+      if (local && (!cloud || (local.updatedAt || 0) > (cloud.updatedAt || 0))) return ref.set(local);
+    }).then(() => localStorage.removeItem('mbaplanner_pending_pref_sync'))
+      .catch(e => console.warn('Could not sync offline preference changes.', e));
+  }
+
+  const pendingAtt = loadOfflineCopy('mbaplanner_pending_q6_attendance');
+  if (pendingAtt && Object.keys(pendingAtt).length) {
+    fbDb.ref().update(pendingAtt)
+      .then(() => localStorage.removeItem('mbaplanner_pending_q6_attendance'))
+      .catch(e => console.warn('Could not sync offline attendance changes.', e));
+  }
 }
 
 // ── PWA INSTANT BOOT FROM CACHE + SIDE DRAWER INJECTION ─────────────────────
@@ -2859,9 +2953,9 @@ function scheduleClassNotifications(todaysClasses, ymdStr) {
     const utcMidnight = new Date(Date.UTC(y, m - 1, d));
     
     for (const [t, data] of Object.entries(todaysClasses)) {
-        if (data.type === 'free' || data.type === 'lunch' || data.cancelled) continue;
+        if (data.type === 'free' || data.type === 'lunch' || data.cancelled || data.hidden) continue;
         
-        const timeInfo = ICS_TIME_MAP[t];
+        const timeInfo = data.timeInfo || ICS_TIME_MAP[t];
         if (!timeInfo) continue;
         
         const classStartUTC = istToUTC(utcMidnight, timeInfo.sh, timeInfo.sm);
@@ -2893,7 +2987,9 @@ function renderMasterSchedule() {
   if (!area) return;
 
   if (!liveWeeklyCache) {
-      area.innerHTML = '<div class="empty-tt">Loading weekly schedule from database... ⏳</div>';
+      area.innerHTML = navigator.onLine
+        ? '<div class="empty-tt">Loading weekly schedule from database... ⏳</div>'
+        : '<div class="empty-tt">📴 You\'re offline and the weekly schedule hasn\'t been saved on this device yet. Open the app once with internet to make it available offline.</div>';
       return;
   }
 
@@ -3077,6 +3173,11 @@ window.markClassAttendance = function(ymd, timeSlot, code, targetStatus) {
             } else {
                 fbDb.ref(`q6_attendance/${safeRoll}/${safeSessionId}`).remove();
             }
+            if (!window._fbConnected) {
+                const pendingAtt = loadOfflineCopy('mbaplanner_pending_q6_attendance') || {};
+                pendingAtt[`q6_attendance/${safeRoll}/${safeSessionId}`] = finalStatus || null;
+                saveOfflineCopy('mbaplanner_pending_q6_attendance', pendingAtt);
+            }
         } catch(err) {
             console.warn('Firebase q6_attendance write error:', err);
         }
@@ -3118,6 +3219,269 @@ window.markClassAttendance = function(ymd, timeSlot, code, targetStatus) {
 window.selectAgendaDate = function(dateKey) {
     window._selectedAgendaDate = dateKey;
     renderDailySchedule();
+};
+
+// --- CLASS UPDATES (cancel / move / new time / note) ---
+// Shared updates live in Firebase at schedule_changes/{ymd}/{slot}_{code},
+// separate from schedule/daily so the Google Sheet sync can never wipe them.
+// They're layered on top of the official schedule when the agenda renders.
+// "Hide for me" is personal and saved with the roll-number preferences.
+
+const CLASS_UPDATE_SLOTS = ['8am-10am', '10am-12pm', '1pm-3pm', '3pm-5pm', '5pm-7pm'];
+
+function escHtml(str) {
+  return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function fmtClock(h, m) {
+  const suffix = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${suffix}`;
+}
+
+function hhmmToTimeInfo(start, end) {
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  return { sh, sm, eh, em };
+}
+
+function timeInfoToHHMM(ti) {
+  const p = n => String(n).padStart(2, '0');
+  return { start: `${p(ti.sh)}:${p(ti.sm)}`, end: `${p(ti.eh)}:${p(ti.em)}` };
+}
+
+function fmtDayLabel(ymd) {
+  const d = new Date(ymd + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function timeAgo(ms) {
+  if (!ms) return '';
+  const mins = Math.round((Date.now() - ms) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.round(hrs / 24)}d ago`;
+}
+
+function getHiddenSessions() {
+  return loadOfflineCopy('mbaplanner_hidden_sessions') || {};
+}
+
+window.toggleHideClass = function(sessionId) {
+  const hidden = getHiddenSessions();
+  if (hidden[sessionId]) delete hidden[sessionId];
+  else hidden[sessionId] = true;
+  saveOfflineCopy('mbaplanner_hidden_sessions', hidden);
+  savePreferencesForRoll();
+  closeClassUpdateSheet();
+  renderDailySchedule();
+};
+
+// Layer shared updates + personal hides onto a day's parsed classes.
+// Every entry gets .slot and .timeInfo so callers never need ICS_TIME_MAP.
+function applyClassUpdates(dayClasses, ymd, activeSubjects) {
+  const allChanges = window._scheduleChanges || {};
+
+  // Classes moved INTO this day from elsewhere
+  for (const byDay of Object.values(allChanges)) {
+    for (const ch of Object.values(byDay || {})) {
+      if (!ch || ch.status !== 'moved' || ch.toYmd !== ymd) continue;
+      const subject = activeSubjects.find(s => s.code === ch.code);
+      if (!subject) continue;
+      const key = dayClasses[ch.toSlot] ? `${ch.toSlot}+${ch.code}` : ch.toSlot;
+      dayClasses[key] = {
+        type: 'class', subject, cancelled: false, slot: ch.toSlot, movedIn: ch,
+        timeInfo: (ch.start && ch.end) ? hhmmToTimeInfo(ch.start, ch.end) : ICS_TIME_MAP[ch.toSlot]
+      };
+    }
+  }
+
+  const dayChanges = allChanges[ymd] || {};
+  const hidden = getHiddenSessions();
+  for (const [key, data] of Object.entries(dayClasses)) {
+    if (!data.slot) data.slot = key;
+    if (!data.timeInfo) data.timeInfo = ICS_TIME_MAP[data.slot] || null;
+    if (data.type !== 'class' || !data.subject) continue;
+    const ch = dayChanges[`${data.slot}_${data.subject.code}`];
+    if (ch) {
+      data.update = ch;
+      if (ch.status === 'cancelled' || ch.status === 'moved') data.cancelled = true;
+      if (ch.status === 'retimed' && ch.start && ch.end) data.timeInfo = hhmmToTimeInfo(ch.start, ch.end);
+    }
+    if (hidden[`${ymd}_${data.slot}_${data.subject.code}`]) data.hidden = true;
+  }
+}
+
+// Display label for a class's time, honouring updates and admin custom times.
+function classTimeLabel(data, dailySlots, slotLabels) {
+  const ti = data.timeInfo;
+  const hasCustomTime = (data.update && data.update.status === 'retimed') || (data.movedIn && data.movedIn.start);
+  if (hasCustomTime && ti) return `${fmtClock(ti.sh, ti.sm)} – ${fmtClock(ti.eh, ti.em)}`;
+  if (dailySlots && dailySlots.customTimes && dailySlots.customTimes[data.slot]) return dailySlots.customTimes[data.slot];
+  return slotLabels[data.slot] || data.slot;
+}
+
+function getClassUpdateAuthor() {
+  const roll = getActiveRollNo();
+  let name = '';
+  if (roll && typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB[roll]) name = CLASS_ATTENDANCE_DB[roll].name || '';
+  return { roll, name: name || localStorage.getItem('mbaplanner_myname') || roll };
+}
+
+function closeClassUpdateSheet() {
+  const bg = document.getElementById('class-update-modal');
+  if (bg) bg.classList.remove('open');
+}
+window.closeClassUpdateSheet = closeClassUpdateSheet;
+
+window.openClassUpdateSheet = function(ymd, slot, code) {
+  const quarter = (typeof cQ !== 'undefined' && cQ) ? cQ : 'Q6';
+  const subject = (DATA[quarter].subjects || []).find(s => s.code === code);
+  if (!subject) return;
+  const existing = ((window._scheduleChanges || {})[ymd] || {})[`${slot}_${code}`] || null;
+  const sessionId = `${ymd}_${slot}_${code}`;
+  const isHidden = !!getHiddenSessions()[sessionId];
+  const baseTimes = timeInfoToHHMM(
+    (existing && existing.start && existing.end) ? hhmmToTimeInfo(existing.start, existing.end) : (ICS_TIME_MAP[slot] || { sh: 8, sm: 0, eh: 10, em: 0 })
+  );
+
+  let bg = document.getElementById('class-update-modal');
+  if (!bg) {
+    bg = document.createElement('div');
+    bg.id = 'class-update-modal';
+    bg.className = 'modal-bg';
+    bg.style.zIndex = '10001';
+    bg.addEventListener('click', e => { if (e.target === bg) closeClassUpdateSheet(); });
+    document.body.appendChild(bg);
+  }
+
+  const statusLabels = { cancelled: '🚫 Cancelled', moved: '↪️ Moved', retimed: '⏱ New time', note: '📝 Note' };
+  const existingHtml = existing ? `
+    <div style="background:var(--bg2); border:.5px solid var(--bd); border-radius:10px; padding:10px 12px; margin-bottom:14px; font-size:12px; color:var(--tx2);">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+        <span><strong style="color:var(--tx);">Current update: ${statusLabels[existing.status] || ''}</strong><br>
+        by ${escHtml(existing.byName)} · ${timeAgo(existing.at)}</span>
+        <button class="ios-seg-btn" onclick="undoClassUpdate('${ymd}','${slot}','${code}')" style="padding:5px 10px; font-size:11px; color:var(--tx-danger); font-weight:700;">Undo</button>
+      </div>
+    </div>` : '';
+
+  const slotOptions = CLASS_UPDATE_SLOTS.map(s =>
+    `<option value="${s}" ${existing && existing.toSlot === s ? 'selected' : ''}>${TLABELS[TIMESLOTS.indexOf(s)]}</option>`
+  ).join('');
+
+  bg.innerHTML = `
+  <div class="modal">
+    <h3>✏️ Update this class</h3>
+    <p>${escHtml(subject.name)} · ${fmtDayLabel(ymd)}</p>
+    ${existingHtml}
+    <div class="ios-segmented" id="cu-status" style="width:100%; margin-bottom:12px;">
+      ${['cancelled', 'moved', 'retimed', 'note'].map(s => `<button class="ios-seg-btn ${(existing ? existing.status : 'cancelled') === s ? 'active-p' : ''}" data-status="${s}" onclick="selectClassUpdateStatus('${s}')" style="flex:1; padding:7px 4px; font-size:11px;">${statusLabels[s]}</button>`).join('')}
+    </div>
+    <div id="cu-move-fields" style="display:none; gap:8px; margin-bottom:10px;">
+      <input type="date" id="cu-to-date" class="cmp-input" style="min-width:0;" value="${existing && existing.toYmd ? existing.toYmd : ''}">
+      <select id="cu-to-slot" class="cmp-input" style="min-width:0;" onchange="syncMoveTimes()">${slotOptions}</select>
+    </div>
+    <div id="cu-time-fields" style="display:none; gap:8px; align-items:center; margin-bottom:10px; font-size:12px; color:var(--tx2);">
+      <input type="time" id="cu-start" class="cmp-input" style="min-width:0;" value="${baseTimes.start}">
+      <span>to</span>
+      <input type="time" id="cu-end" class="cmp-input" style="min-width:0;" value="${baseTimes.end}">
+    </div>
+    <div id="cu-time-hint" style="display:none; font-size:11px; color:var(--tx3); margin:-4px 0 10px;">Adjust the times only if it's not the slot's usual timing.</div>
+    <input type="text" id="cu-note" class="cmp-input" maxlength="120" placeholder="Note (optional) — e.g. room changed to 310" style="width:100%; box-sizing:border-box; margin-bottom:12px;" value="${existing && existing.note ? escHtml(existing.note) : ''}">
+    <button class="cmp-btn" style="width:100%; padding:12px;" onclick="postClassUpdate('${ymd}','${slot}','${code}')">Post update for everyone</button>
+    <div style="font-size:11px; color:var(--tx3); margin-top:6px; text-align:center;">Everyone taking ${escHtml(subject.name)} will see this, with your name on it.</div>
+    <div style="border-top:.5px solid var(--bd); margin:14px 0 0; padding-top:12px;">
+      <button class="modal-close" style="margin-top:0;" onclick="toggleHideClass('${sessionId}')">${isHidden ? '👁 Show this class again' : "🙈 Hide this class for me only (I'm not attending)"}</button>
+    </div>
+    <button class="modal-close" onclick="closeClassUpdateSheet()">Close</button>
+  </div>`;
+
+  bg.dataset.baseStart = baseTimes.start;
+  bg.dataset.baseEnd = baseTimes.end;
+  selectClassUpdateStatus(existing ? existing.status : 'cancelled', true);
+  if (existing && existing.status === 'moved' && !existing.start) syncMoveTimes();
+  bg.classList.add('open');
+};
+
+// Moving a class: the time fields follow the chosen slot's usual timing.
+window.syncMoveTimes = function() {
+  const t = timeInfoToHHMM(ICS_TIME_MAP[document.getElementById('cu-to-slot').value]);
+  document.getElementById('cu-start').value = t.start;
+  document.getElementById('cu-end').value = t.end;
+};
+
+window.selectClassUpdateStatus = function(status, initial) {
+  document.querySelectorAll('#cu-status .ios-seg-btn').forEach(b => b.classList.toggle('active-p', b.dataset.status === status));
+  document.getElementById('cu-status').dataset.value = status;
+  document.getElementById('cu-move-fields').style.display = status === 'moved' ? 'flex' : 'none';
+  document.getElementById('cu-time-fields').style.display = (status === 'moved' || status === 'retimed') ? 'flex' : 'none';
+  document.getElementById('cu-time-hint').style.display = status === 'moved' ? 'block' : 'none';
+  if (initial) return;
+  if (status === 'moved') syncMoveTimes();
+  if (status === 'retimed') {
+    const bg = document.getElementById('class-update-modal');
+    document.getElementById('cu-start').value = bg.dataset.baseStart;
+    document.getElementById('cu-end').value = bg.dataset.baseEnd;
+  }
+};
+
+window.postClassUpdate = function(ymd, slot, code) {
+  if (!navigator.onLine || !fbDb) {
+    alert("You're offline. Class updates need internet so everyone else sees them — try again once you're connected.");
+    return;
+  }
+  let author = getClassUpdateAuthor();
+  if (!author.roll) {
+    const entered = prompt('Enter your Roll Number (e.g. MS25A071) — your name is shown on updates you post:');
+    if (!entered || !entered.trim()) return;
+    localStorage.setItem('mbaplanner_roll_no', entered.trim().toUpperCase());
+    author = getClassUpdateAuthor();
+  }
+
+  const status = document.getElementById('cu-status').dataset.value;
+  const note = document.getElementById('cu-note').value.trim().slice(0, 120);
+  const start = document.getElementById('cu-start').value;
+  const end = document.getElementById('cu-end').value;
+  const normal = timeInfoToHHMM(ICS_TIME_MAP[slot] || { sh: 0, sm: 0, eh: 0, em: 0 });
+  const rec = { code, ymd, slot, status, byRoll: author.roll, byName: author.name, at: firebase.database.ServerValue.TIMESTAMP };
+  if (note) rec.note = note;
+
+  if (status === 'moved') {
+    rec.toYmd = document.getElementById('cu-to-date').value;
+    rec.toSlot = document.getElementById('cu-to-slot').value;
+    if (!rec.toYmd) { alert('Pick the new date for this class.'); return; }
+    if (rec.toYmd === ymd && rec.toSlot === slot) { alert("That's the same date and time slot — pick where the class moved to."); return; }
+    const slotNormal = timeInfoToHHMM(ICS_TIME_MAP[rec.toSlot]);
+    if (start && end && (start !== slotNormal.start || end !== slotNormal.end)) {
+      if (start >= end) { alert('The end time must be after the start time.'); return; }
+      rec.start = start; rec.end = end;
+    }
+  } else if (status === 'retimed') {
+    if (!start || !end || start >= end) { alert('Enter a valid start and end time.'); return; }
+    if (start === normal.start && end === normal.end) { alert("That's the normal timing — change the start or end time."); return; }
+    rec.start = start; rec.end = end;
+  } else if (status === 'note' && !note) {
+    alert('Write the note you want to share.');
+    return;
+  }
+
+  fbDb.ref(`schedule_changes/${ymd}/${slot}_${code}`).set(rec).then(() => {
+    fbDb.ref('schedule_changes_log').push(Object.assign({ action: 'post' }, rec));
+    closeClassUpdateSheet();
+  }).catch(e => alert('Could not post the update: ' + e.message));
+};
+
+window.undoClassUpdate = function(ymd, slot, code) {
+  if (!navigator.onLine || !fbDb) { alert("You're offline — try again once you're connected."); return; }
+  if (!confirm('Remove this update for everyone?')) return;
+  const author = getClassUpdateAuthor();
+  fbDb.ref(`schedule_changes/${ymd}/${slot}_${code}`).remove().then(() => {
+    fbDb.ref('schedule_changes_log').push({ action: 'undo', code, ymd, slot, byRoll: author.roll || '', byName: author.name || '', at: firebase.database.ServerValue.TIMESTAMP });
+    closeClassUpdateSheet();
+    if (currentView === 'admin' && window.renderAdminClassUpdates) window.renderAdminClassUpdates();
+  }).catch(e => alert('Could not remove the update: ' + e.message));
 };
 
 // --- DAILY AGENDA LOGIC ---
@@ -3207,13 +3571,12 @@ function _renderDailyScheduleInner() {
   else if (currentMins >= 17*60 && currentMins < 19*60) currentSlot = '5pm-7pm';
 
   // Helper to parse day's classes
-  const parseDayClasses = (dailySlots) => {
+  const parseDayClasses = (dailySlots, dateKey) => {
       const dayClasses = {};
       let hasCls = false;
       let hasActiveCls = false;
-      if (!dailySlots) return { dayClasses, hasCls, hasActiveCls };
 
-      for (const t of timeOrder) {
+      for (const t of (dailySlots ? timeOrder : [])) {
           if (t === '12pm-1pm') continue;
           const slotData = dailySlots[t];
           if (!slotData) continue;
@@ -3280,6 +3643,9 @@ function _renderDailyScheduleInner() {
               }
           }
       }
+      applyClassUpdates(dayClasses, dateKey ? dateKey.split(' ')[0] : '', activeSubjects);
+      hasCls = Object.keys(dayClasses).length > 0;
+      hasActiveCls = Object.values(dayClasses).some(d => !d.cancelled && !d.hidden);
       return { dayClasses, hasCls, hasActiveCls };
   };
 
@@ -3317,7 +3683,7 @@ function _renderDailyScheduleInner() {
       const shortDay = dayName ? dayName.substring(0,3) : '';
       const dd = ymd ? ymd.split('-')[2] : '';
       const isSelected = dateString === currentDateKey;
-      const { hasCls, hasActiveCls } = parseDayClasses(liveDailyCache[dateString]);
+      const { hasCls, hasActiveCls } = parseDayClasses(liveDailyCache[dateString], dateString);
       
       capsulesHtml += `
       <div id="capsule-${dateString.replace(/\s/g, '-')}" 
@@ -3386,25 +3752,25 @@ function _renderDailyScheduleInner() {
   let ongoingClassFound = null;
   let nextClassFound = null;
   const todayKey = dateKeys.find(k => k.startsWith(todayYmd));
-  if (todayKey && liveDailyCache[todayKey]) {
-      const todaySlots = liveDailyCache[todayKey];
-      const { dayClasses: todayDayClasses } = parseDayClasses(todaySlots);
+  if (todayKey) {
+      const todaySlots = liveDailyCache[todayKey] || {};
+      const { dayClasses: todayDayClasses } = parseDayClasses(todaySlots, todayKey);
       
       scheduleClassNotifications(todayDayClasses, todayYmd);
 
-      for (const t of timeOrder) {
-          if (t === '12pm-1pm' || !todayDayClasses[t]) continue;
-          const bData = todayDayClasses[t];
-          if (bData.cancelled) continue;
-
-          const isHappeningNow = currentSlot === t;
+      const todayList = Object.values(todayDayClasses)
+          .filter(d => !d.cancelled && !d.hidden && d.timeInfo)
+          .sort((a, b) => (a.timeInfo.sh * 60 + a.timeInfo.sm) - (b.timeInfo.sh * 60 + b.timeInfo.sm));
+      for (const bData of todayList) {
+          const ti = bData.timeInfo;
+          const isHappeningNow = currentMins >= ti.sh * 60 + ti.sm && currentMins < ti.eh * 60 + ti.em;
           const subjectName = bData.type === 'icrc' ? 'ICRC Placement Prep' : bData.subject.name;
           const room = bData.type === 'icrc' ? null : bData.subject.room;
 
           if (isHappeningNow) {
-              ongoingClassFound = { name: subjectName, room, timeSlot: t };
+              ongoingClassFound = { name: subjectName, room, label: classTimeLabel(bData, todaySlots, SLOT_LABELS) };
           } else if (!nextClassFound) {
-              const timeInfo = ICS_TIME_MAP[t];
+              const timeInfo = ti;
               if (timeInfo) {
                   const [y, m, d] = todayYmd.split('-');
                   const utcMidnight = new Date(Date.UTC(parseInt(y), parseInt(m)-1, parseInt(d)));
@@ -3419,9 +3785,7 @@ function _renderDailyScheduleInner() {
 
   let liveIslandHtml = '';
   if (ongoingClassFound) {
-      const _tk = dateKeys.find(k => k.startsWith(todayYmd));
-      const ts = _tk ? liveDailyCache[_tk] : {};
-      const activeSlotLabel = (ts.customTimes && ts.customTimes[ongoingClassFound.timeSlot]) ? ts.customTimes[ongoingClassFound.timeSlot] : (SLOT_LABELS[ongoingClassFound.timeSlot] || ongoingClassFound.timeSlot);
+      const activeSlotLabel = ongoingClassFound.label;
       liveIslandHtml = `
       <div class="ios-live-island">
           <div class="ios-island-left">
@@ -3472,7 +3836,7 @@ function _renderDailyScheduleInner() {
       if (isExam) comment = examText;
   }
 
-  const { dayClasses, hasCls } = parseDayClasses(dailySlots);
+  const { dayClasses, hasCls } = parseDayClasses(dailySlots, currentDateKey);
   const [ymd, dayName] = currentDateKey ? currentDateKey.split(' ') : ['', ''];
   const isToday = ymd === todayYmd;
   const isTomorrow = ymd === tomorrowYmd;
@@ -3484,14 +3848,25 @@ function _renderDailyScheduleInner() {
               finalBlocks.push({ type: 'lunch', t });
               continue;
           }
-          if (dayClasses[t]) {
-              finalBlocks.push({ type: 'class', t, data: dayClasses[t] });
+          const slotClasses = Object.values(dayClasses).filter(d => d.slot === t);
+          if (slotClasses.length) {
+              slotClasses.forEach(d => finalBlocks.push({ type: 'class', t, data: d }));
           } else {
               const last = finalBlocks[finalBlocks.length - 1];
+              const slotTi = ICS_TIME_MAP[t];
               if (last && last.type === 'free') {
                   last.end = t.split('-')[1];
+                  last.endMins = slotTi.eh * 60 + slotTi.em;
               } else {
-                  finalBlocks.push({ type: 'free', start: t.split('-')[0], end: t.split('-')[1] });
+                  const block = { type: 'free', start: t.split('-')[0], end: t.split('-')[1], endMins: slotTi.eh * 60 + slotTi.em };
+                  // A class that ran over (new time) eats into the following free time
+                  const prevTi = last && last.type === 'class' && !last.data.cancelled && !last.data.hidden ? last.data.timeInfo : null;
+                  const prevEnd = prevTi ? prevTi.eh * 60 + prevTi.em : 0;
+                  if (prevEnd > slotTi.sh * 60 + slotTi.sm) {
+                      block.startMins = prevEnd;
+                      block.startLabel = fmtClock(Math.floor(prevEnd / 60), prevEnd % 60);
+                  }
+                  finalBlocks.push(block);
               }
           }
       }
@@ -3506,7 +3881,7 @@ function _renderDailyScheduleInner() {
   if (hasCls) {
       timelineEventsHtml += `<div class="ios-classes-list">`;
       for (const b of finalBlocks) {
-          const isHappeningNow = isToday && currentSlot === b.t;
+          let isHappeningNow = isToday && currentSlot === b.t;
           
           if (b.type === 'lunch') {
               timelineEventsHtml += `
@@ -3515,7 +3890,8 @@ function _renderDailyScheduleInner() {
                   <span>Campus Lunch Break · <strong style="color:var(--tx); font-weight:700;">12:00 PM – 1:00 PM</strong></span>
               </div>`;
           } else if (b.type === 'free') {
-              const freeStart = (b.start||'').replace('am', ':00 AM').replace('pm', ':00 PM');
+              if (b.startMins && b.startMins >= b.endMins) continue;
+              const freeStart = b.startLabel || (b.start||'').replace('am', ':00 AM').replace('pm', ':00 PM');
               const freeEnd = (b.end||'').replace('am', ':00 AM').replace('pm', ':00 PM');
               timelineEventsHtml += `
               <div class="ios-divider-break">
@@ -3525,6 +3901,16 @@ function _renderDailyScheduleInner() {
           } else if (b.type === 'class') {
               const data = b.data;
               const isIcrc = data.type === 'icrc';
+
+              if (data.hidden) {
+                  timelineEventsHtml += `
+                  <div class="ios-divider-break">
+                      <span>🙈</span>
+                      <span>${data.subject.name} · hidden for you</span>
+                      <button class="ios-seg-btn" onclick="toggleHideClass('${ymd}_${data.slot}_${data.subject.code}')" style="padding:2px 8px; font-size:11px; margin-left:auto;">Show</button>
+                  </div>`;
+                  continue;
+              }
               const cancelled = data.cancelled;
               const subjectName = isIcrc ? 'ICRC Placement Prep' : data.subject.name;
               const room = isIcrc ? null : data.subject.room;
@@ -3536,17 +3922,35 @@ function _renderDailyScheduleInner() {
               const domainColor = isCore ? '#007AFF' : (DCOL[domain] || 'var(--tx-info)');
               const domainLabel = isCore ? 'Core' : domain;
 
-              // Check if class has already finished earlier today
-              let isDone = false;
-              if (isToday && !isHappeningNow) {
-                  const timeInfo = ICS_TIME_MAP[b.t];
-                  if (timeInfo) {
-                      const [cy, cm, cd] = ymd.split('-');
-                      const utcMidnight = new Date(Date.UTC(parseInt(cy), parseInt(cm)-1, parseInt(cd)));
-                      const classEndUTC = istToUTC(utcMidnight, timeInfo.eh, timeInfo.em);
-                      if (Date.now() > classEndUTC.getTime()) isDone = true;
-                  }
+              // Live / finished state follows the class's (possibly updated) timing
+              const ti = data.timeInfo;
+              if (ti) isHappeningNow = isToday && currentMins >= ti.sh * 60 + ti.sm && currentMins < ti.eh * 60 + ti.em;
+              const isDone = Boolean(isToday && !isHappeningNow && ti && currentMins >= ti.eh * 60 + ti.em);
+
+              // Shared class updates (cancel / move / new time / note)
+              const upd = data.update;
+              const warnPill = label => `<span class="ios-pill" style="color:var(--tx-warn); background:var(--bg-warn); border-color:var(--bd-warn); font-weight:800;">${label}</span>`;
+              let updatePillHtml = '';
+              if (upd && upd.status === 'moved') updatePillHtml = warnPill('↪️ Moved');
+              else if (data.movedIn) updatePillHtml = warnPill('↪️ Rescheduled');
+              else if (upd && upd.status === 'retimed') updatePillHtml = warnPill('⏱ New time');
+
+              let subText = room && !cancelled ? `📍 Room ${room}` : (!cancelled ? '📍 Department' : (data.shiftedTo ? `🔄 ${data.shiftedTo}` : 'Cancelled in schedule'));
+              if (upd && upd.status === 'moved') {
+                  const toTi = upd.start ? hhmmToTimeInfo(upd.start, upd.end) : ICS_TIME_MAP[upd.toSlot];
+                  subText = `↪️ Moved to ${fmtDayLabel(upd.toYmd)} · ${fmtClock(toTi.sh, toTi.sm)} – ${fmtClock(toTi.eh, toTi.em)}`;
+              } else if (upd && upd.status === 'cancelled') {
+                  subText = 'Cancelled';
               }
+              if (data.movedIn) subText += ` · moved from ${fmtDayLabel(data.movedIn.ymd)}`;
+
+              const updSrc = upd || data.movedIn;
+              const updateInfoHtml = updSrc
+                  ? `<div style="font-size:11px; color:var(--tx3); margin-bottom:6px;">${updSrc.note ? `📝 <span style="color:var(--tx2);">${escHtml(updSrc.note)}</span> — ` : 'Updated by '}${escHtml(updSrc.byName)} · ${timeAgo(updSrc.at)}</div>`
+                  : '';
+              const editBtnHtml = data.subject
+                  ? `<button class="ios-seg-btn" onclick="openClassUpdateSheet('${ymd}','${data.slot}','${data.subject.code}')" title="Update this class (cancelled, moved, new time…)" style="padding:2px 8px; font-size:11px;">✏️</button>`
+                  : '';
 
               // Attendance Row (only when class is not cancelled and has a valid academic subject)
               let attRowHtml = '';
@@ -3579,7 +3983,7 @@ function _renderDailyScheduleInner() {
                   </div>`;
               }
 
-              const formattedSlot = (dailySlots.customTimes && dailySlots.customTimes[b.t]) ? dailySlots.customTimes[b.t] : (SLOT_LABELS[b.t] || b.t.replace('-', ' – '));
+              const formattedSlot = classTimeLabel(data, dailySlots, SLOT_LABELS);
               const timeBadgeHtml = `<span class="ios-time-badge">🕒 ${formattedSlot}</span>`;
               let statusPillHtml = '';
               if (isHappeningNow) {
@@ -3600,18 +4004,18 @@ function _renderDailyScheduleInner() {
                           ${statusPillHtml}
                       </div>
                       <div class="ios-class-meta">
-                          ${cancelled 
+                          ${updatePillHtml || (cancelled 
                               ? `<span class="ios-pill" style="color:#FF3B30; background:rgba(255,59,48,0.1); border-color:rgba(255,59,48,0.3); font-weight:800;">🚫 Cancelled</span>` 
-                              : (b.data.isShifted ? `<span class="ios-pill" style="color:var(--tx-warn); background:var(--bg-warn); border-color:var(--bd-warn); font-weight:800;">🔄 Shifted Class</span>` : `<span class="ios-pill" style="color:${domainColor}; background:var(--bg);">${domainIcon} ${domainLabel}</span>`)
+                              : (b.data.isShifted ? warnPill('🔄 Shifted Class') : `<span class="ios-pill" style="color:${domainColor}; background:var(--bg);">${domainIcon} ${domainLabel}</span>`))
                           }
+                          ${editBtnHtml}
                       </div>
                   </div>
                   <div class="ios-class-title" ${cancelled ? 'style="text-decoration:line-through; opacity:0.6;"' : ''}>
                       ${subjectName}
                   </div>
-                  <div class="ios-class-sub">
-                      ${room && !cancelled ? `📍 Room ${room}` : (!cancelled ? '📍 Department' : (b.data.shiftedTo ? `🔄 ${b.data.shiftedTo}` : 'Cancelled in schedule'))}
-                  </div>
+                  <div class="ios-class-sub">${subText}</div>
+                  ${updateInfoHtml}
                   ${attRowHtml}
               </div>`;
           }
@@ -3735,8 +4139,41 @@ function getFullDateKey(dateStr) {
     return `${dateStr} ${dayName}`;
 }
 
+window.renderAdminClassUpdates = function() {
+  const el = document.getElementById('admin-class-updates');
+  if (!el) return;
+  const nowIST = new Date(new Date().toLocaleString('en-US', {timeZone: 'Asia/Kolkata'}));
+  const todayYmd = `${nowIST.getFullYear()}-${String(nowIST.getMonth()+1).padStart(2,'0')}-${String(nowIST.getDate()).padStart(2,'0')}`;
+  const statusLabels = { cancelled: '🚫 Cancelled', moved: '↪️ Moved', retimed: '⏱ New time', note: '📝 Note' };
+  const rows = [];
+  for (const [ymd, byDay] of Object.entries(window._scheduleChanges || {})) {
+    for (const ch of Object.values(byDay || {})) {
+      if (ch && (ymd >= todayYmd || (ch.toYmd && ch.toYmd >= todayYmd))) rows.push(ch);
+    }
+  }
+  rows.sort((a, b) => (a.ymd + a.slot).localeCompare(b.ymd + b.slot));
+  if (!rows.length) {
+    el.innerHTML = '<div style="font-size:12px; color:var(--tx3);">No upcoming class updates.</div>';
+    return;
+  }
+  el.innerHTML = rows.map(ch => {
+    const subj = (DATA.Q6.subjects || []).find(s => s.code === ch.code);
+    const detail = ch.status === 'moved' ? ` → ${fmtDayLabel(ch.toYmd)} ${ch.start ? ch.start + '–' + ch.end : ch.toSlot}`
+      : (ch.status === 'retimed' ? ` → ${ch.start}–${ch.end}` : '');
+    return `<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 0; border-bottom:.5px solid var(--bd); font-size:12px;">
+      <div>
+        <div style="font-weight:700; color:var(--tx);">${fmtDayLabel(ch.ymd)} · ${ch.slot} · ${escHtml(subj ? subj.name : ch.code)}</div>
+        <div style="color:var(--tx2);">${statusLabels[ch.status] || ch.status}${escHtml(detail)}${ch.note ? ' · ' + escHtml(ch.note) : ''}</div>
+        <div style="color:var(--tx3); font-size:11px;">${escHtml(ch.byName)} (${escHtml(ch.byRoll)}) · ${timeAgo(ch.at)}</div>
+      </div>
+      <button class="ios-seg-btn" onclick="undoClassUpdate('${ch.ymd}','${ch.slot}','${ch.code}')" style="padding:5px 10px; font-size:11px; color:var(--tx-danger); font-weight:700;">Remove</button>
+    </div>`;
+  }).join('');
+};
+
 window.initAdminView = function() {
   document.getElementById('admin-editor-container').style.display = 'block';
+  window.renderAdminClassUpdates();
   
   const nowIST = new Date(new Date().toLocaleString('en-US', {timeZone: 'Asia/Kolkata'}));
   
