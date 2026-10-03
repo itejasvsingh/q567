@@ -1,6 +1,6 @@
 // Bump this version string every time you deploy a new index.html so
 // returning visitors actually get the update instead of a stale cache.
-const CACHE_NAME = 'mba-planner-v29';
+const CACHE_NAME = 'mba-planner-v30';
 
 const SHELL_FILES = [
   './',
@@ -68,24 +68,31 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // Our own files: network first, so a deploy shows up on the very next load.
+  // The cache is only the offline fallback. Pinned CDN libraries never change,
+  // so those stay cache first.
+  const networkFirst = isSameOrigin;
+
+  const fromNetwork = () => fetch(event.request).then(res => {
+    // CDN script tags are no-cors, so their responses are opaque (status 0).
+    if (res.ok || res.type === 'opaque') {
+      const copy = res.clone();
+      caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+    }
+    return res;
+  });
+
+  const offlineFallback = () => {
+    // For a page navigation, fall back to the cached shell rather than the
+    // browser's default error page.
+    if (event.request.mode === 'navigate') return caches.match('./index.html');
+    // e.g. app.js?v=15 after a version bump — serve whichever copy we have.
+    return caches.match(event.request, { ignoreSearch: true });
+  };
+
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
-      return fetch(event.request).then(res => {
-        // Cache a copy of any new asset we haven't seen before. CDN script
-        // tags are no-cors, so their responses are opaque (status 0).
-        if (res.ok || res.type === 'opaque') {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
-        }
-        return res;
-      }).catch(() => {
-        // Offline and not cached: for a page navigation, fall back to the
-        // cached shell rather than showing the browser's default error page.
-        if (event.request.mode === 'navigate') return caches.match('./index.html');
-        // e.g. app.js?v=15 after a version bump — serve whichever copy we have.
-        return caches.match(event.request, { ignoreSearch: true });
-      });
-    })
+    networkFirst
+      ? fromNetwork().catch(() => caches.match(event.request).then(c => c || offlineFallback()))
+      : caches.match(event.request).then(cached => cached || fromNetwork().catch(offlineFallback))
   );
 });
