@@ -57,13 +57,14 @@ const DATA={
     {slot:'PP',code:'MS5550',name:'Operations Research Applications',instructor:'Usha Mohan',v:'Ops'},
     {slot:'TT',code:'MS5680',name:'International Finance',instructor:'Madhumathi R',v:'Finance'},
     {slot:'SS',code:'MS5715',name:'Marketing at BoP',instructor:'Varisha Rehman',v:'Marketing'},
-    {slot:'WW',code:'MS6710',name:'Financial Risk Management',instructor:'Krishna Prasana P',v:'Finance'},
-    {slot:'WW',code:'MS6590',name:'Customer Relationship Marketing',instructor:'Richa Agrawal',v:'Marketing'},
+    {slot:'UU',code:'MS6710',name:'Financial Risk Management',instructor:'Krishna Prasana P',v:'Finance'},
+    {slot:'UU',code:'MS6590',name:'Customer Relationship Marketing',instructor:'Richa Agrawal',v:'Marketing'},
     {slot:'VV',code:'MS5112',name:'Sustainable Operations',instructor:'Vipin B',v:'Ops'},
     {slot:'VV',code:'MS5642',name:'Managing the Future: AI & Cybersecurity',instructor:'Prof Kandaswamy',v:'Integrative'},
     {slot:'XX',code:'MS5729',name:'Social Media Computing',instructor:'Nargis Pervin',v:'IS'},
     {slot:'XX',code:'MS5754',name:'Nurturing the Inner You',instructor:'Viji',v:'HR'},
-    {slot:'UU',code:'MS5011B',name:'Strategic Human Resource Management',instructor:'Lata Dyaram',v:'HR'},
+    {slot:'XX',code:'MS6720',name:'Industrial and Service Marketing',instructor:'Prathamesh',v:'Marketing'},
+    {slot:'RR',code:'TBA-RR',name:'Service Failure and Complaint Management',instructor:'Vaibhav',v:'Marketing'},
     {slot:'ZZ',code:'MS6930',name:'Introduction to Entrepreneurship',instructor:'C B Rao',v:'Integrative'},
   ]}
 };
