@@ -65,5 +65,6 @@ const DATA={
     {slot:'XX',code:'MS5754',name:'Nurturing the Inner You',instructor:'Viji',v:'HR'},
     {slot:'XX',code:'MS6720',name:'Industrial and Service Marketing',instructor:'Prathamesh',v:'Marketing'},
     {slot:'RR',code:'TBA-RR',name:'Service Failure and Complaint Management',instructor:'Vaibhav',v:'Marketing'},
+    {slot:'ZZ',code:'MS6930',name:'Introduction to Entrepreneurship',instructor:'C B Rao',v:'Integrative'},
   ]}
 };
