@@ -2942,11 +2942,12 @@ function scheduleClassNotifications(todaysClasses, ymdStr) {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     if (localStorage.getItem('mbaplanner_reminder_30m') === 'off') return;
     
-    // Clear pending timeouts
-    if (window._activeNotifications) {
-        window._activeNotifications.forEach(id => clearTimeout(id));
-        window._activeNotifications = [];
-    }
+    // Clear pending timeouts. renderDailySchedule() can run while app.js is
+    // still loading, before the declaration below has executed, so make sure
+    // the list exists here instead of relying on that.
+    if (!Array.isArray(window._activeNotifications)) window._activeNotifications = [];
+    window._activeNotifications.forEach(id => clearTimeout(id));
+    window._activeNotifications = [];
 
     const [y, m, d] = ymdStr.split('-');
     const utcMidnight = new Date(Date.UTC(y, m - 1, d));

@@ -1,6 +1,6 @@
 // Bump this version string every time you deploy a new index.html so
 // returning visitors actually get the update instead of a stale cache.
-const CACHE_NAME = 'mba-planner-v33';
+const CACHE_NAME = 'mba-planner-v34';
 
 const SHELL_FILES = [
   './',
@@ -8,7 +8,7 @@ const SHELL_FILES = [
   './manifest.json',
   './styles.css',
   './app.js',
-  './app.js?v=17',
+  './app.js?v=18',
   './data.js',
   './icon-192.png',
   './icon-512.png',
@@ -73,7 +73,20 @@ self.addEventListener('fetch', event => {
   // so those stay cache first.
   const networkFirst = isSameOrigin;
 
-  const fromNetwork = () => fetch(event.request).then(res => {
+  // A weak connection can leave a request hanging for a minute. Give our own
+  // files a few seconds, then use the saved copy so the app still opens.
+  const NETWORK_TIMEOUT_MS = 4000;
+  const fetchWithTimeout = () => new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('network timeout')), NETWORK_TIMEOUT_MS);
+    fetch(event.request).then(
+      res => { clearTimeout(timer); resolve(res); },
+      err => { clearTimeout(timer); reject(err); }
+    );
+  });
+
+  const fromNetwork = () => (networkFirst ? fetchWithTimeout() : fetch(event.request)).then(res => {
+    // A server error is no use to the app; treat it like being offline.
+    if (networkFirst && res.status >= 500) throw new Error('server error ' + res.status);
     // CDN script tags are no-cors, so their responses are opaque (status 0).
     if (res.ok || res.type === 'opaque') {
       const copy = res.clone();
