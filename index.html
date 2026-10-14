@@ -43,6 +43,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="firebase-config.js"></script>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -83,7 +85,24 @@
 
 <script src="data.js"></script>
 <script>
+  // Sign in anonymously before app.js attaches its database listeners: the
+  // database rules require a signed-in user, and a listener attached too early
+  // is rejected instead of retried. A returning user is restored from storage
+  // almost instantly, so this also works offline.
+  function signInFirst() {
+    return new Promise(resolve => {
+      try {
+        firebase.initializeApp(FIREBASE_CONFIG);
+        const auth = firebase.auth();
+        const stop = auth.onAuthStateChanged(user => { if (user) { stop(); resolve(); } });
+        auth.signInAnonymously().catch(err => { console.warn('Anonymous sign-in failed', err); resolve(); });
+      } catch (e) { console.warn('Firebase auth unavailable', e); resolve(); }
+      setTimeout(resolve, 4000);
+    });
+  }
+
   async function initApp() {
+    await signInFirst();
     const fetchView = async (url) => {
       try {
         const res = await fetch(url);

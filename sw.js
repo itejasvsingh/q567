@@ -1,6 +1,6 @@
 // Bump this version string every time you deploy a new index.html so
 // returning visitors actually get the update instead of a stale cache.
-const CACHE_NAME = 'mba-planner-v34';
+const CACHE_NAME = 'mba-planner-v35';
 
 const SHELL_FILES = [
   './',
@@ -10,6 +10,7 @@ const SHELL_FILES = [
   './app.js',
   './app.js?v=18',
   './data.js',
+  './firebase-config.js',
   './icon-192.png',
   './icon-512.png',
   './views/plan.html',
@@ -30,6 +31,7 @@ const CDN_FILES = [
   'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
   'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js',
   'https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js',
+  'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js',
 ];
 const CDN_ORIGINS = ['https://cdnjs.cloudflare.com', 'https://www.gstatic.com'];
 

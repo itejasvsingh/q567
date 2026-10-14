@@ -88,6 +88,7 @@ function syncQ5AttendanceToFirebase() {
   var options = {
     method: 'put',
     contentType: 'application/json',
+    headers: firebaseAuthHeaders(),
     payload: JSON.stringify(outputDb)
   };
   
@@ -97,4 +98,11 @@ function syncQ5AttendanceToFirebase() {
   } catch(e) {
     Logger.log("❌ Firebase Error: " + e.message);
   }
+}
+
+// The database rules block anonymous writes to the schedule. Authenticating
+// with this script owner's Google token bypasses the rules, so the sync keeps
+// working. The owner needs access to the Firebase project.
+function firebaseAuthHeaders() {
+  return { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() };
 }

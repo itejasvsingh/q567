@@ -1,0 +1,89 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "schedule": {
+      ".read": "auth != null",
+      ".write": "auth.token.email === 'REPLACE_WITH_ADMIN_EMAIL' && auth.token.email_verified === true"
+    },
+
+    "q5_attendance": {
+      ".read": "auth != null",
+      ".write": false
+    },
+
+    "q6_attendance": {
+      ".read": "auth != null",
+      "$roll": {
+        ".validate": "$roll.length <= 40",
+        "$session": {
+          ".write": "auth != null",
+          ".validate": "newData.val() === 'P' || newData.val() === 'A'"
+        }
+      }
+    },
+
+    "roll_preferences": {
+      ".read": "auth != null",
+      "$roll": {
+        ".write": "auth != null",
+        ".validate": "$roll.length <= 40 && newData.child('updatedAt').isNumber()"
+      }
+    },
+
+    "attendance_trackers": {
+      ".read": "auth != null",
+      "$key": {
+        ".write": "auth != null",
+        ".validate": "$key.length <= 60 && newData.hasChildren()"
+      }
+    },
+
+    "groups": {
+      ".read": "auth != null",
+      "$code": {
+        ".validate": "$code.length <= 40",
+        "members": {
+          "$name": {
+            ".write": "auth != null",
+            ".validate": "$name.length <= 40"
+          }
+        }
+      }
+    },
+
+    "schedule_changes": {
+      ".read": "auth != null",
+      "$ymd": {
+        ".validate": "$ymd.matches(/^\\d{4}-\\d{2}-\\d{2}$/)",
+        "$change": {
+          ".write": "auth != null",
+          ".validate": "newData.hasChildren(['code', 'ymd', 'slot', 'status', 'byRoll', 'at'])",
+          "code": { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "ymd": { ".validate": "newData.isString() && newData.val().matches(/^\\d{4}-\\d{2}-\\d{2}$/)" },
+          "slot": { ".validate": "newData.isString() && newData.val().length <= 12" },
+          "status": { ".validate": "newData.val() === 'cancelled' || newData.val() === 'moved' || newData.val() === 'retimed' || newData.val() === 'note'" },
+          "byRoll": { ".validate": "newData.isString() && newData.val().length <= 40" },
+          "byName": { ".validate": "newData.isString() && newData.val().length <= 80" },
+          "at": { ".validate": "newData.isNumber()" },
+          "note": { ".validate": "newData.isString() && newData.val().length <= 120" },
+          "toYmd": { ".validate": "newData.isString() && newData.val().matches(/^\\d{4}-\\d{2}-\\d{2}$/)" },
+          "toSlot": { ".validate": "newData.isString() && newData.val().length <= 12" },
+          "start": { ".validate": "newData.isString() && newData.val().matches(/^\\d{2}:\\d{2}$/)" },
+          "end": { ".validate": "newData.isString() && newData.val().matches(/^\\d{2}:\\d{2}$/)" },
+          "double": { ".validate": "newData.isBoolean()" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+
+    "schedule_changes_log": {
+      ".read": "auth.token.email === 'REPLACE_WITH_ADMIN_EMAIL' && auth.token.email_verified === true",
+      "$id": {
+        ".write": "auth != null && !data.exists()",
+        ".validate": "newData.hasChildren(['action', 'at'])"
+      }
+    }
+  }
+}

@@ -1155,16 +1155,6 @@ function loadFromURL(){
   }catch(e){return false;}
 }
 
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyBFZ2NfMxFApWvbswSiL9uLNpeoc-aALUA",
-  authDomain: "q567mba.firebaseapp.com",
-  databaseURL: "https://q567mba-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "q567mba",
-  storageBucket: "q567mba.firebasestorage.app",
-  messagingSenderId: "935454311755",
-  appId: "1:935454311755:web:9c0b44191e8a84026fd4ce",
-  measurementId: "G-C2T1TH06GB"
-};
 let myName='';
 let myGroupCode='';
 let roster={}; 
@@ -1189,7 +1179,7 @@ function sanitizeKey(name){
 function initFirebase(){
   if(fbApp){ return true; } 
   try{
-    fbApp=firebase.initializeApp(FIREBASE_CONFIG);
+    fbApp=firebase.apps.length ? firebase.app() : firebase.initializeApp(FIREBASE_CONFIG);
     fbDb=firebase.database();
     return true;
   }catch(e){
@@ -4180,9 +4170,24 @@ window.renderAdminClassUpdates = function() {
   }).join('');
 };
 
+// Schedule edits are admin-only in the database rules, which check the Google
+// account. Everyone else is signed in anonymously.
+window.ensureAdminSignedIn = function() {
+  const user = firebase.auth().currentUser;
+  if (user && !user.isAnonymous) return Promise.resolve(user);
+  return firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider()).then(r => r.user);
+};
+
 window.initAdminView = function() {
   document.getElementById('admin-editor-container').style.display = 'block';
   window.renderAdminClassUpdates();
+  window.ensureAdminSignedIn().then(loadAdminSchedule).catch(e => {
+    const titleEl = document.getElementById('admin-editing-title');
+    if (titleEl) titleEl.textContent = 'Admin sign-in failed: ' + e.message;
+  });
+};
+
+function loadAdminSchedule() {
   
   const nowIST = new Date(new Date().toLocaleString('en-US', {timeZone: 'Asia/Kolkata'}));
   
@@ -4217,7 +4222,7 @@ window.initAdminView = function() {
     if(titleEl) titleEl.textContent = 'Error loading from database.';
     console.error(e);
   });
-};
+}
 
 window.renderAdminSlots = function(data, datesToLoad) {
   const container = document.getElementById('admin-slots-container');
@@ -4613,7 +4618,7 @@ window.adminSaveSchedule = function() {
      btn.innerHTML = '⏳ Saving...';
      btn.disabled = true;
      
-     fbDb.ref().update(updates).then(() => {
+     ensureAdminSignedIn().then(() => fbDb.ref().update(updates)).then(() => {
        btn.innerHTML = '✅ Saved Successfully';
        setTimeout(() => { btn.innerHTML = oldText; btn.disabled = false; }, 2000);
        

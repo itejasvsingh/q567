@@ -14,7 +14,7 @@ function syncTimetableToFirebase() {
   // Fetch existing Firebase data to preserve Admin Panel overrides
   var existingFirebaseData = { daily: {}, weekly: {} };
   try {
-    var response = UrlFetchApp.fetch(firebaseUrl);
+    var response = UrlFetchApp.fetch(firebaseUrl, { headers: firebaseAuthHeaders() });
     if (response.getResponseCode() === 200) {
       var json = JSON.parse(response.getContentText());
       if (json) existingFirebaseData = json;
@@ -238,7 +238,7 @@ function syncTimetableToFirebase() {
   
   // --- 3. PUSH TO FIREBASE ---
   var payload = { daily: dailyData, weekly: weeklyData };
-  var options = { method: 'put', contentType: 'application/json', payload: JSON.stringify(payload) };
+  var options = { method: 'put', contentType: 'application/json', headers: firebaseAuthHeaders(), payload: JSON.stringify(payload) };
   
   try {
     UrlFetchApp.fetch(firebaseUrl, options);
@@ -246,4 +246,11 @@ function syncTimetableToFirebase() {
   } catch(e) {
     Logger.log("❌ Firebase Error: " + e.message);
   }
+}
+
+// The database rules block anonymous writes to the schedule. Authenticating
+// with this script owner's Google token bypasses the rules, so the sync keeps
+// working. The owner needs access to the Firebase project.
+function firebaseAuthHeaders() {
+  return { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() };
 }
