@@ -5,7 +5,7 @@
 
     "schedule": {
       ".read": "auth != null",
-      ".write": "auth.token.email === 'REPLACE_WITH_ADMIN_EMAIL' && auth.token.email_verified === true"
+      ".write": "auth.token.email === 'tejasvsingh001@gmail.com' && auth.token.email_verified === true"
     },
 
     "q5_attendance": {
@@ -79,7 +79,7 @@
     },
 
     "schedule_changes_log": {
-      ".read": "auth.token.email === 'REPLACE_WITH_ADMIN_EMAIL' && auth.token.email_verified === true",
+      ".read": "auth.token.email === 'tejasvsingh001@gmail.com' && auth.token.email_verified === true",
       "$id": {
         ".write": "auth != null && !data.exists()",
         ".validate": "newData.hasChildren(['action', 'at'])"
