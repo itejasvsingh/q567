@@ -5,7 +5,7 @@ function syncQ5AttendanceToFirebase() {
   try {
     var ss = SpreadsheetApp.openById(sheetId);
   } catch(e) {
-    Logger.log("Error: Could not open the sheet. Make sure you have the right ID.");
+    Logger.log("Error: Could not open the sheet. Make sure you have the right ID. Real error: " + e.message);
     return;
   }
   

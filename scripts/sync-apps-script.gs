@@ -5,7 +5,7 @@ function syncTimetableToFirebase() {
   try {
     var ss = SpreadsheetApp.openById(sheetId);
   } catch(e) {
-    Logger.log("Error: Could not open the sheet. Make sure you are logged in with your Uni ID.");
+    Logger.log("Error: Could not open the sheet. Make sure you are logged in with your Uni ID. Real error: " + e.message);
     return;
   }
   
