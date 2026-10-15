@@ -3,7 +3,7 @@ const TIMESLOTS=['8am-10am','10am-12pm','12pm-1pm','1pm-3pm','3pm-5pm','5pm-7pm'
 const TLABELS=['8–10 am','10–12 pm','Lunch','1–3 pm','3–5 pm','5–7 pm'];
 const DOMS=['Finance','HR','Marketing','IS','Ops','Strategy','Integrative'];
 const CDOMS=['Finance','HR','Marketing','IS','Ops','Strategy']; // core (non-integrative)
-const DCOL={Finance:'#185fa5',HR:'#0f6e56',Marketing:'#854f0b',IS:'#534ab7',Ops:'#993c1d',Strategy:'#993556',Integrative:'#777'};
+const DCOL={Finance:'#2b6cb0',HR:'#0e7c86',Marketing:'#c2761b',IS:'#6b52ae',Ops:'#b4492e',Strategy:'#a23b66',Integrative:'#6b7a70'};
 const VC={Finance:'vF',HR:'vH',Marketing:'vM',IS:'vI',Ops:'vO',Strategy:'vS',Integrative:'vX'};
 
 let cQ='Q6';
@@ -589,7 +589,7 @@ function renderGrid(){
     return `<div class="${cls}" onclick="toggleSubject('${s.code}')">
       <div class="schk">${s.isCore?'🔒':(isSel?'✓':'')}</div>
       <div style="flex:1;min-width:0">
-        <div class="sname">${s.name} ${s.isCore?'<span style="font-size:9px;background:#185fa5;color:#fff;padding:2px 5px;border-radius:4px;margin-left:4px;vertical-align:middle;font-weight:700">MANDATORY CORE</span>':''}</div>
+        <div class="sname">${s.name} ${s.isCore?'<span style="font-size:9px;background:var(--tx-info);color:#fff;padding:2px 5px;border-radius:4px;margin-left:4px;vertical-align:middle;font-weight:700">MANDATORY CORE</span>':''}</div>
         <div class="smeta">
           <span class="slotb">Slot ${s.slot}</span>
           ${s.room?`<span class="roomb">📍 Room ${s.room}</span>`:''}
@@ -653,7 +653,7 @@ window.renderPlannerRollBanner = function() {
         ${studentName ? `<span style="font-weight:600; color:var(--tx2);">· ${studentName}</span>` : ''}
         <span class="plan-student-badge">✓ Auto-Saving</span>
       </div>
-      <button class="ios-seg-btn" onclick="changePlannerRollNo()" style="padding:4px 10px; font-size:11px; color:#007AFF;">Change</button>
+      <button class="ios-seg-btn" onclick="changePlannerRollNo()" style="padding:4px 10px; font-size:11px; color:var(--tx-info);">Change</button>
     </div>`;
   } else {
     container.innerHTML = `
@@ -663,7 +663,7 @@ window.renderPlannerRollBanner = function() {
           <span style="font-size:16px;">🎓</span>
           <span style="font-size:13px; font-weight:700; color:var(--tx);">Auto-Save to your Roll Number</span>
         </div>
-        <span style="font-size:10.5px; font-weight:700; color:#007AFF; background:rgba(0,122,255,0.1); padding:2px 7px; border-radius:6px;">Auto-Sync</span>
+        <span style="font-size:10.5px; font-weight:700; color:var(--tx-info); background:rgba(30,122,75,0.1); padding:2px 7px; border-radius:6px;">Auto-Sync</span>
       </div>
       <div style="font-size:11.5px; color:var(--tx2); margin-bottom:10px; line-height:1.4;">
         Enter your Roll No (e.g. <code>MS25A071</code>) so all your chosen electives, goals, daily schedule and attendance automatically save to your profile.
@@ -779,7 +779,7 @@ window.updatePwaDrawerStudent = function() {
     }
     el.innerHTML = `🎓 <strong>${roll}</strong> ${name ? `· ${name}` : ''}`;
   } else {
-    el.innerHTML = `<span onclick="changePlannerRollNo()" style="color:#007AFF; cursor:pointer;">+ Set Roll Number</span>`;
+    el.innerHTML = `<span onclick="changePlannerRollNo()" style="color:var(--tx-info); cursor:pointer;">+ Set Roll Number</span>`;
   }
 };
 
@@ -837,8 +837,8 @@ async function exportImage(q){
       .tcell.has{border-color:rgba(24,95,165,.30);background:#e6f1fb}
       .tc-slot{font-size:9px;color:#9b9b98;margin-bottom:2px}
       .tc-room{font-size:9px;font-weight:700;color:#7a4a00;margin-bottom:2px}
-      .tc-name{font-size:10px;font-weight:700;color:#185fa5;line-height:1.3}
-      .tc-instr{font-size:9px;color:#185fa5;opacity:.7;margin-top:2px}
+      .tc-name{font-size:10px;font-weight:700;color:#1e7a4b;line-height:1.3}
+      .tc-instr{font-size:9px;color:#1e7a4b;opacity:.7;margin-top:2px}
       .lc{border-radius:6px;border:.5px dashed rgba(0,0,0,.10);min-height:64px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#9b9b98;font-style:italic}
     </style>
     ${html}
@@ -1111,7 +1111,7 @@ let compareQ='Q6';
 let compareFilter='all'; 
 let currentView='plan';
 
-const CMP_PALETTE=['#185fa5','#0f6e56','#993556','#854f0b','#534ab7','#993c1d','#1a6b3c','#a32d2d','#0c6478','#6b4f9e'];
+const CMP_PALETTE=['#2b6cb0','#0f6e56','#993556','#854f0b','#534ab7','#993c1d','#1a6b3c','#a32d2d','#0c6478','#6b4f9e'];
 function cmpColorFor(key){
   let h=0;
   for(let i=0;i<key.length;i++) h=(h*31+key.charCodeAt(i))>>>0;
@@ -2094,7 +2094,7 @@ function searchCohortAttendance() {
             <span>🟢</span> <span>${name ? `${name} · ` : ''}<strong>${roll}</strong></span>
             ${(roll === getActiveRollNo()) 
               ? '<span class="agenda-autosave-badge" style="font-size:10.5px; font-weight:700; color:#34C759; background:rgba(52,199,89,0.12); border:0.5px solid rgba(52,199,89,0.3); padding:2px 8px; border-radius:8px;">✓ Auto-Saving</span>' 
-              : `<button class="ios-seg-btn" onclick="setRollNumber('${roll}')" style="padding:2px 8px; font-size:11px; color:#007AFF; font-weight:700;">Set as My Profile</button>`}
+              : `<button class="ios-seg-btn" onclick="setRollNumber('${roll}')" style="padding:2px 8px; font-size:11px; color:var(--tx-info); font-weight:700;">Set as My Profile</button>`}
           </div>
           <div style="font-size:11px; color:var(--tx2); margin-top:2px;">
             Q6 Active Attendance Record · 14 Classes Planned Per Course
@@ -2145,7 +2145,7 @@ function searchCohortAttendance() {
       const pctColor = rec.pctHeld < 85 ? 'var(--tx-danger)' : 'var(--tx)';
       const typeBadge = rec.isCore 
         ? '<span style="font-size:9px; background:var(--bg3); padding:2px 4px; border-radius:4px; margin-left:4px; color:var(--tx2);">CORE</span>'
-        : `<span style="font-size:9px; background:rgba(0,122,255,0.1); padding:2px 4px; border-radius:4px; margin-left:4px; color:#007AFF;">${rec.domain}</span>`;
+        : `<span style="font-size:9px; background:rgba(30,122,75,0.1); padding:2px 4px; border-radius:4px; margin-left:4px; color:var(--tx-info);">${rec.domain}</span>`;
       
       let marginHtml = '-';
       if (rec.absencesLeft > 0) marginHtml = `<span style="color:#34C759; font-weight:600;">+${rec.absencesLeft}</span>`;
@@ -2242,8 +2242,8 @@ function searchCohortAttendance() {
       const combinedColor = combinedPct < 85 ? 'var(--tx-danger)' : '#34C759';
       
       htmlOutput += `
-      <div style="background:var(--bg2); border:1.5px solid #007AFF; border-radius:14px; padding:16px; margin-bottom:16px; box-shadow: 0 4px 12px rgba(0,122,255,0.15);">
-        <div style="font-size:16px; font-weight:800; color:#007AFF; margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+      <div style="background:var(--bg2); border:1.5px solid var(--tx-info); border-radius:14px; padding:16px; margin-bottom:16px; box-shadow: 0 4px 12px rgba(30,122,75,0.15);">
+        <div style="font-size:16px; font-weight:800; color:var(--tx-info); margin-bottom:12px; display:flex; align-items:center; gap:6px;">
           <span>🏆</span> Grand Total Combined (Q5 + Q6)
         </div>
         <div style="font-size:12px; color:var(--tx2); margin-bottom:14px;">${studentName} (${studentRoll})</div>
@@ -3646,13 +3646,13 @@ function _renderDailyScheduleInner() {
               <span style="color:var(--tx2);">Roll:</span>
               <strong style="color:var(--tx);">${savedRoll}</strong>
               ${studentName ? `<span style="color:var(--tx3); font-size:11.5px;">· ${studentName}</span>` : ''}
-              <button class="ios-seg-btn" onclick="changeAgendaRollNo()" style="padding:2px 8px; font-size:11px; color:#007AFF; font-weight:700;">Edit</button>
+              <button class="ios-seg-btn" onclick="changeAgendaRollNo()" style="padding:2px 8px; font-size:11px; color:var(--tx-info); font-weight:700;">Edit</button>
           </div>
           ${websiteAlertBtn}
       </div>`;
   } else {
       rollBannerHtml = `
-      <div style="background:rgba(0,122,255,0.05); border:0.5px solid rgba(0,122,255,0.2); border-radius:14px; padding:12px 14px; margin-bottom:12px;">
+      <div style="background:rgba(30,122,75,0.05); border:0.5px solid rgba(30,122,75,0.2); border-radius:14px; padding:12px 14px; margin-bottom:12px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
               <div style="display:flex; align-items:center; gap:8px;">
                   <span style="font-size:16px;">🎓</span>
@@ -3721,7 +3721,7 @@ function _renderDailyScheduleInner() {
       liveIslandHtml = `
       <div class="ios-live-island">
           <div class="ios-island-left">
-              <span class="ios-island-dot" style="background:#007AFF; box-shadow:0 0 8px rgba(0,122,255,0.6);"></span>
+              <span class="ios-island-dot" style="background:var(--tx-info); box-shadow:0 0 8px rgba(30,122,75,0.6);"></span>
               <span class="ios-island-badge up-next">Up Next</span>
               <span class="ios-island-title">${nextClassFound.name}</span>
           </div>
@@ -3841,7 +3841,7 @@ function _renderDailyScheduleInner() {
               const isCore = !isIcrc && Boolean(data.subject && data.subject.isCore);
               const domain = isIcrc ? 'Placement' : (data.subject.v || (isCore ? 'Core' : 'Elective'));
               const domainIcon = isCore ? '🔒' : (DOMAIN_ICONS[domain] || '📚');
-              const domainColor = isCore ? '#007AFF' : (DCOL[domain] || 'var(--tx-info)');
+              const domainColor = isCore ? 'var(--tx-info)' : (DCOL[domain] || 'var(--tx-info)');
               const domainLabel = isCore ? 'Core' : domain;
 
               // Live / finished state follows the class's (possibly updated) timing
