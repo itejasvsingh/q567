@@ -64,11 +64,7 @@ function applyPreferences(prefObj) {
   }
 
   // 2. Academic Goals
-  if (prefObj.goals) Object.assign(goals, prefObj.goals);
-  if (prefObj.goalMinorDom !== undefined) goalMinorDom = prefObj.goalMinorDom;
-  if (prefObj.goalMajorDom !== undefined) goalMajorDom = prefObj.goalMajorDom;
-  if (prefObj.goalDualD1 !== undefined) goalDualD1 = prefObj.goalDualD1;
-  if (prefObj.goalDualD2 !== undefined) goalDualD2 = prefObj.goalDualD2;
+  // Goals UI was removed: ignore saved goals so a stale one can't keep showing banners and warnings.
 
   // 3. Personal Attendance Counters (attData)
   if (prefObj.attData && typeof prefObj.attData === 'object') {
@@ -293,34 +289,6 @@ try {
   console.warn("Could not parse saved selections from localStorage.", e);
 }
 
-function toggleGoal(g){
-  goals[g]=!goals[g];
-  document.getElementById('g-'+g).classList.toggle('on',goals[g]);
-  document.getElementById('gs-'+g).classList.toggle('show',goals[g]);
-  if(!goals[g]){
-    if(g==='minor')goalMinorDom='';
-    if(g==='major')goalMajorDom='';
-    if(g==='dual'){goalDualD1='';goalDualD2='';}
-  }
-  renderGoalDomChips(); 
-  render();
-  savePreferencesForRoll();
-}
-
-function setMinorDom(d){goalMinorDom=(goalMinorDom===d?'':d);renderGoalDomChips();render();savePreferencesForRoll();}
-function setMajorDom(d){goalMajorDom=(goalMajorDom===d?'':d);renderGoalDomChips();render();savePreferencesForRoll();}
-function setDualD1(d){goalDualD1=(goalDualD1===d?'':d);goalDualD2='';renderGoalDomChips();render();savePreferencesForRoll();}
-function setDualD2(d){goalDualD2=(goalDualD2===d?'':d);renderGoalDomChips();render();savePreferencesForRoll();}
-
-function renderGoalDomChips(){
-  const mk=(arr,selDom,fn,excl)=>arr.filter(d=>d!==excl).map(d=>`<button class="chip${selDom===d?' on':''}" onclick="${fn}('${d}')">${d}</button>`).join('');
-  document.getElementById('minor-doms').innerHTML=mk(CDOMS,goalMinorDom,'setMinorDom','');
-  document.getElementById('major-doms').innerHTML=mk(CDOMS,goalMajorDom,'setMajorDom','');
-  document.getElementById('dual-d1').innerHTML=mk(CDOMS,goalDualD1,'setDualD1','');
-  const d2r=document.getElementById('dual-d2-row');
-  if(goalDualD1){d2r.style.display='block';document.getElementById('dual-d2').innerHTML=mk(CDOMS,goalDualD2,'setDualD2',goalDualD1);}
-  else d2r.style.display='none';
-}
 
 function getGoalHighlights(q){
   const targets=new Set();
@@ -374,6 +342,7 @@ function buildSuggestions(){
   }
 
   const box=document.getElementById('sug-area');
+  if(!box)return;
   if(!msgs.length){box.innerHTML='';return;}
   const anyActive=goals.minor||goals.major||goals.dual;
   if(!anyActive){box.innerHTML='';return;}
@@ -545,14 +514,11 @@ function switchQ(q){
   render();
 }
 function setFilter(d){fDom=(fDom===d?'All':d);fFromTracker=(fDom!=='All'?fDom:'');render();}
-function onSearchInput(v){searchQuery=v;document.getElementById('search-clear-x').classList.toggle('show',!!v);renderGrid();}
-function clearSearch(){searchQuery='';document.getElementById('courseSearch').value='';document.getElementById('search-clear-x').classList.remove('show');renderGrid();}
 function matchesSearch(s,q){
   if(!q)return true;
   q=q.trim().toLowerCase();
   return (s.name ? s.name.toLowerCase() : '').includes(q)||(s.code ? s.code.toLowerCase() : '').includes(q)||s.instructor.toLowerCase().includes(q);
 }
-function toggleRules(){const b=document.getElementById('rbody'),a=document.getElementById('rarrow');b.classList.toggle('open');a.textContent=b.classList.contains('open')?'▼':'▶';}
 
 function buildTTHtml(q,compact,interactive){
   const ss=Object.values(sel[q]);
@@ -665,7 +631,6 @@ function render(){
   renderCalendar();
   renderTracker();
   buildSuggestions();
-  renderGoalDomChips();
   renderSupply();
   renderPlannerRollBanner();
 }
@@ -680,31 +645,15 @@ window.renderPlannerRollBanner = function() {
     if (typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB[savedRoll]) {
       studentName = CLASS_ATTENDANCE_DB[savedRoll].name;
     }
-    const q6Count = Object.values(sel['Q6'] || {}).filter(s => !s.isCore).length;
 
     container.innerHTML = `
-    <div class="plan-student-bar">
-      <div class="plan-student-left">
-        <span class="plan-student-icon">🎓</span>
-        <div>
-          <div class="plan-student-title">
-            <span>${savedRoll}</span>
-            ${studentName ? `<span style="font-weight:600; color:var(--tx2);">· ${studentName}</span>` : ''}
-            <span class="plan-student-badge">✓ Auto-Saving</span>
-          </div>
-          <div class="plan-student-sub">
-            All electives, goals & attendance auto-saved to ${savedRoll} · ${q6Count}/4 Q6 electives chosen
-          </div>
-        </div>
+    <div class="plan-student-bar" style="padding:7px 12px; margin-bottom:12px;">
+      <div class="plan-student-title" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:12px;">
+        <span>🎓</span><span>${savedRoll}</span>
+        ${studentName ? `<span style="font-weight:600; color:var(--tx2);">· ${studentName}</span>` : ''}
+        <span class="plan-student-badge">✓ Auto-Saving</span>
       </div>
-      <div style="display:flex; align-items:center; gap:6px;">
-        <button class="ios-seg-btn active-p" onclick="switchView('daily')" style="padding:4px 10px; font-size:11px;">
-          📅 Daily Agenda
-        </button>
-        <button class="ios-seg-btn" onclick="changePlannerRollNo()" style="padding:4px 10px; font-size:11px; color:#007AFF;">
-          Change Roll No
-        </button>
-      </div>
+      <button class="ios-seg-btn" onclick="changePlannerRollNo()" style="padding:4px 10px; font-size:11px; color:#007AFF;">Change</button>
     </div>`;
   } else {
     container.innerHTML = `
@@ -2337,7 +2286,6 @@ function searchCohortAttendance() {
 
 // ── INIT ────────────────────────────────────────────────────────────────────
 
-renderGoalDomChips();
 const wasShared=loadFromURL();
 render();
 if(wasShared) document.getElementById('shared-banner').classList.add('show');

@@ -1283,3 +1283,12 @@ body {
   border-radius: 14px;
   padding: 12px 14px;
 }
+
+/* Planner: collapsible tracker + availability */
+.trk-sum,.supply-panel>summary{list-style:none;cursor:pointer}
+.trk-sum::-webkit-details-marker,.supply-panel>summary::-webkit-details-marker{display:none}
+.trk-sum{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.trk-sum .total-pill{margin-bottom:0;text-transform:none;letter-spacing:0}
+.tracker[open]>.trk-sum{margin-bottom:9px}
+.supply-panel>summary.supply-header{margin-bottom:0}
+.supply-panel[open]>summary.supply-header{margin-bottom:10px}
