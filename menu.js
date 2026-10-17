@@ -14,7 +14,7 @@
   const MEAL_ENDS = { breakfast: 10.5, lunch: 15, snacks: 18.5, dinner: 22.5 };
   const PREF_KEY = 'mbaplanner_mess_pref';
 
-  const state = { mess: 'north', diet: 'veg', week: null, day: null };
+  const state = { mess: 'north', diet: 'veg', date: null };
 
   function loadPref() {
     try {
@@ -46,13 +46,6 @@
     const weeks = Math.round((mondayOf(date) - new Date(y, m - 1, d)) / (7 * 864e5));
     return WEEKS[(((WEEKS.indexOf(a.week) + weeks) % 4) + 4) % 4];
   }
-  // Monday of the next time `week` runs (this week if it's the current one).
-  function nextStart(week, from) {
-    const cur = weekOn(from);
-    const ahead = (WEEKS.indexOf(week) - WEEKS.indexOf(cur) + 4) % 4;
-    return addDays(mondayOf(from), ahead * 7);
-  }
-
   function dietsFor(mess) { return Object.keys(window.MESS_MENU.data[mess] || {}); }
   function ensureValid() {
     if (!window.MESS_MENU.data[state.mess]) state.mess = 'north';
@@ -78,36 +71,39 @@
     }).join('');
   }
 
-  window.renderMenu = function () {
+  const dayKeyOf = d => DAYS[(d.getDay() + 6) % 7];
+  const parseYmd = t => { const [y, m, d] = t.split('-').map(Number); return new Date(y, m - 1, d); };
+  const menuFor = d => (((window.MESS_MENU.data[state.mess] || {})[state.diet] || {})[weekOn(d)]) || null;
+
+  window.renderMenu = function (center) {
     const root = document.getElementById('menu-root');
     if (!root || !window.MESS_MENU) return;
     ensureValid();
     const now = nowIST();
-    const currentWeek = weekOn(now);
-    if (!state.week) state.week = currentWeek;
-    const viewingCurrent = state.week === currentWeek;
-    const todayIdx = (now.getDay() + 6) % 7;
-    if (state.day === null) state.day = todayIdx;
+    const today = ymd(now);
+    if (!state.date) { state.date = today; center = true; }
+    const sel = parseYmd(state.date);
+    const week = weekOn(sel);
+    const isToday = state.date === today;
+    const menu = menuFor(sel);
+
+    // one long strip: 2 weeks back to 10 weeks ahead, week letter shown on each Monday
+    const first = addDays(mondayOf(now), -14);
+    const caps = Array.from({ length: 13 * 7 }, (_, i) => {
+      const d = addDays(first, i), k = ymd(d), mon = i % 7 === 0;
+      return `<div class="capsule${k === state.date ? ' selected' : ''}" onclick="menuSet('date','${k}')">
+        <span class="dow">${dayKeyOf(d).slice(0, 3).toUpperCase()}</span><span class="num">${d.getDate()}</span>
+        <span class="mm-wk">${mon ? 'Wk ' + weekOn(d) : (d.getDate() === 1 ? d.toLocaleDateString('en-GB', { month: 'short' }) : '')}</span>
+        <span class="dot-indicator" style="opacity:${k === today ? 1 : 0}"></span></div>`;
+    }).join('');
 
     const diets = dietsFor(state.mess);
-    const menu = window.MESS_MENU.data[state.mess][state.diet][state.week];
-    const start = nextStart(state.week, now);
-    const dayDates = DAYS.map((_, i) => addDays(start, i));
-    const rangeText = viewingCurrent ? `This week · ${fmt(start)} – ${fmt(addDays(start, 6))}` : `Next runs ${fmt(start)} – ${fmt(addDays(start, 6))}`;
-
     const messBtns = Object.keys(MESS_LABELS).filter(k => window.MESS_MENU.data[k]).map(k =>
       `<button class="ios-seg-btn${state.mess === k ? ' active-p' : ''}" onclick="menuSet('mess','${k}')">${MESS_LABELS[k]}</button>`).join('');
     const dietChips = diets.length > 1 ? diets.map(d =>
       `<button class="chip${state.diet === d ? ' on' : ''}" onclick="menuSet('diet','${d}')">${DIET_LABELS[d]}</button>`).join('') : '';
-    const weekChips = WEEKS.map(w =>
-      `<button class="chip mm-week${state.week === w ? ' on' : ''}" onclick="menuSet('week','${w}')">Week ${w}${w === currentWeek ? '<i class="mm-dot" title="This week"></i>' : ''}</button>`).join('');
-    const caps = DAYS.map((d, i) => {
-      const isToday = viewingCurrent && i === todayIdx;
-      return `<div class="capsule${state.day === i ? ' selected' : ''}" onclick="menuSet('day',${i})">
-        <span class="dow">${d.slice(0, 3).toUpperCase()}</span><span class="num">${dayDates[i].getDate()}</span>
-        <span class="dot-indicator" style="opacity:${isToday ? 1 : 0}"></span></div>`;
-    }).join('');
 
+    const oldStrip = root.querySelector('.date-capsules'), keep = oldStrip ? oldStrip.scrollLeft : 0;
     root.innerHTML = `
       <div class="mm-top">
         <div>
@@ -118,26 +114,39 @@
       </div>
       <div class="ios-segmented mm-seg">${messBtns}</div>
       ${dietChips ? `<div class="chip-row mm-row">${dietChips}</div>` : ''}
-      <div class="chip-row mm-row">${weekChips}</div>
-      <div class="mm-range">${rangeText}${viewingCurrent ? '' : ' · <a href="#" onclick="menuToday();return false">back to this week</a>'}</div>
       <div class="date-capsules">${caps}</div>
-      <div class="mm-day-title">${DAYS[state.day][0].toUpperCase() + DAYS[state.day].slice(1)}, ${fmt(dayDates[state.day])}${viewingCurrent && state.day === todayIdx ? ' <span class="mm-pill">Today</span>' : ''}</div>
-      ${dayCard(menu, DAYS[state.day], viewingCurrent && state.day === todayIdx, now)}
+      <div class="mm-day-title">${dayKeyOf(sel)[0].toUpperCase() + dayKeyOf(sel).slice(1)}, ${fmt(sel)} <span class="mm-pill">Week ${week}</span>${isToday ? ' <span class="mm-pill">Today</span>' : ''}</div>
+      ${menu ? dayCard(menu, dayKeyOf(sel), isToday, now) : '<div class="mm-none">No menu for this day.</div>'}
       <div class="mm-foot">Source: official IITM mess menu PDFs 2026-27. Weeks repeat A → B → C → D.</div>`;
-    // keep the selected day in view in the horizontal strip
-    const strip = root.querySelector('.date-capsules'), sel = strip && strip.querySelector('.selected');
-    if (strip && sel) strip.scrollLeft = sel.offsetLeft - (strip.clientWidth - sel.offsetWidth) / 2;
+    const strip = root.querySelector('.date-capsules'), cur = strip.querySelector('.selected');
+    strip.scrollLeft = center && cur ? cur.offsetLeft - (strip.clientWidth - cur.offsetWidth) / 2 : keep;
   };
 
   window.menuSet = function (k, v) {
     state[k] = v;
-    if (k === 'mess') { state.diet = state.diet; ensureValid(); }
-    if (k === 'mess' || k === 'diet') savePref();
+    if (k === 'mess') ensureValid();
+    if (k === 'mess' || k === 'diet') { savePref(); if (typeof renderDailySchedule === 'function') renderDailySchedule(); }
     renderMenu();
   };
-  window.menuToday = function () {
-    state.week = null; state.day = null;
-    renderMenu();
+  window.menuToday = function () { state.date = null; renderMenu(true); };
+  // used by the Agenda's "Open full menu" link
+  window.openMenuOn = function (k) { state.date = k; switchView('menu'); renderMenu(true); };
+
+  // Compact collapsible card for one day, shown inside the Daily Agenda.
+  window.messMenuCardHtml = function (k) {
+    if (!window.MESS_MENU) return '';
+    ensureValid();
+    const d = parseYmd(k), menu = menuFor(d);
+    if (!menu) return '';
+    const rows = MEALS.map(m => {
+      const items = (menu.menu[dayKeyOf(d)] || {})[m.key] || [];
+      return items.length ? `<div class="mm-ag-row"><b>${m.icon} ${m.label}</b><span>${items.map(esc).join(' · ')}</span></div>` : '';
+    }).join('');
+    return `<details class="mm-agenda"${window._mmAgendaOpen ? ' open' : ''} ontoggle="window._mmAgendaOpen=this.open">
+      <summary>🥘 Mess menu · ${MESS_LABELS[state.mess]}${DIET_LABELS[state.diet] ? ' ' + DIET_LABELS[state.diet] : ''} · Week ${weekOn(d)}</summary>
+      ${rows}
+      <a class="mm-ag-link" href="#" onclick="openMenuOn('${k}');return false">Open full menu →</a>
+    </details>`;
   };
 
   loadPref();

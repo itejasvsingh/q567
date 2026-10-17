@@ -3995,6 +3995,7 @@ function _renderDailyScheduleInner() {
       ${commentHtml}
       ${birthdayHtml}
       ${timelineEventsHtml}
+      ${typeof messMenuCardHtml === 'function' ? messMenuCardHtml(ymd) : ''}
   </div>`;
 
   area.innerHTML = `
