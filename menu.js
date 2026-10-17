@@ -14,7 +14,7 @@
   const MEAL_ENDS = { breakfast: 10.5, lunch: 15, snacks: 18.5, dinner: 22.5 };
   const PREF_KEY = 'mbaplanner_mess_pref';
 
-  const state = { mess: 'north', diet: 'veg', date: null };
+  const state = { mess: null, diet: null, date: null, draftMess: null };
 
   function loadPref() {
     try {
@@ -47,8 +47,9 @@
     return WEEKS[(((WEEKS.indexOf(a.week) + weeks) % 4) + 4) % 4];
   }
   function dietsFor(mess) { return Object.keys(window.MESS_MENU.data[mess] || {}); }
+  const hasPref = () => Boolean(state.mess && window.MESS_MENU.data[state.mess]);
   function ensureValid() {
-    if (!window.MESS_MENU.data[state.mess]) state.mess = 'north';
+    if (!hasPref()) return;
     const diets = dietsFor(state.mess);
     if (!diets.includes(state.diet)) state.diet = diets.includes('veg') ? 'veg' : diets[0];
   }
@@ -73,12 +74,38 @@
 
   const dayKeyOf = d => DAYS[(d.getDay() + 6) % 7];
   const parseYmd = t => { const [y, m, d] = t.split('-').map(Number); return new Date(y, m - 1, d); };
-  const menuFor = d => (((window.MESS_MENU.data[state.mess] || {})[state.diet] || {})[weekOn(d)]) || null;
+  const menuFor = d => !hasPref() ? null : (((window.MESS_MENU.data[state.mess] || {})[state.diet] || {})[weekOn(d)]) || null;
+
+  // First-run choice, shared by the Menu tab and the Daily Agenda. Nothing is shown until a mess is picked.
+  function pickerHtml() {
+    const m = state.draftMess, data = window.MESS_MENU.data;
+    if (!m) {
+      return `<div class="mm-pick-t">Which mess do you eat at?</div><div class="mm-pick-row">${Object.keys(MESS_LABELS).filter(k => data[k]).map(k =>
+        `<button class="chip" onclick="pickMess('${k}')">${MESS_LABELS[k]}</button>`).join('')}</div>`;
+    }
+    return `<div class="mm-pick-t">${MESS_LABELS[m]} mess: which menu?</div><div class="mm-pick-row">${dietsFor(m).map(d =>
+      `<button class="chip" onclick="pickDiet('${d}')">${DIET_LABELS[d]}</button>`).join('')}<button class="chip" onclick="pickMess(null)">‹ Back</button></div>`;
+  }
+  function refreshAll() { renderMenu(true); if (typeof renderDailySchedule === 'function') renderDailySchedule(); }
+  window.pickMess = function (k) {
+    state.draftMess = null;
+    if (k) {
+      const diets = dietsFor(k);
+      if (diets.length === 1) { state.mess = k; state.diet = diets[0]; savePref(); }
+      else state.draftMess = k;
+    }
+    refreshAll();
+  };
+  window.pickDiet = function (d) { state.mess = state.draftMess; state.diet = d; state.draftMess = null; savePref(); refreshAll(); };
 
   window.renderMenu = function (center) {
     const root = document.getElementById('menu-root');
     if (!root || !window.MESS_MENU) return;
     ensureValid();
+    if (!hasPref()) {
+      root.innerHTML = `<div class="mm-top"><div><h2 class="mm-h">🥘 Mess menu</h2><div class="mm-sub">IIT Madras</div></div></div><div class="mm-pick">${pickerHtml()}</div>`;
+      return;
+    }
     const now = nowIST();
     const today = ymd(now);
     if (!state.date) { state.date = today; center = true; }
@@ -136,6 +163,7 @@
   window.messMenuCardHtml = function (k) {
     if (!window.MESS_MENU) return '';
     ensureValid();
+    if (!hasPref()) return `<div class="mm-agenda mm-pick"><div class="mm-ag-h">🥘 Mess menu</div>${pickerHtml()}</div>`;
     const d = parseYmd(k), menu = menuFor(d);
     if (!menu) return '';
     const rows = MEALS.map(m => {

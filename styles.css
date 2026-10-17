@@ -1322,3 +1322,7 @@ body {
 .mm-ag-row b{font-size:12px}
 .mm-ag-row span{color:var(--tx2)}
 .mm-ag-link{display:inline-block;margin-top:6px;font-size:12px;font-weight:700;color:var(--tx-info)}
+.mm-pick{background:var(--bg2);border:.5px solid var(--bd);border-radius:var(--rl);padding:14px}
+.mm-pick-t{font-size:14px;font-weight:700;color:var(--tx);margin-bottom:10px}
+.mm-pick-row{display:flex;flex-wrap:wrap;gap:8px}
+.mm-ag-h{font-size:13px;font-weight:700;color:var(--tx);margin-bottom:8px}
