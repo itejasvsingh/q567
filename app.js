@@ -3140,6 +3140,13 @@ window.openAgendaDate = function(ymd) {
     window.scrollTo(0, 0);
 };
 
+// "Today" button: jump to today's date and centre it in the strip.
+window.agendaToday = function() {
+    window._selectedAgendaDate = null;
+    window._agendaCenter = true;
+    renderDailySchedule();
+};
+
 window.selectAgendaDate = function(dateKey) {
     window._selectedAgendaDate = dateKey;
     renderDailySchedule();
@@ -4015,7 +4022,10 @@ function _renderDailyScheduleInner() {
       ${typeof messMenuCardHtml === 'function' ? messMenuCardHtml(ymd) : ''}
   </div>`;
 
+  const oldStrip = area.querySelector('.date-capsules');
+  const keepScroll = oldStrip ? oldStrip.scrollLeft : null;
   area.innerHTML = `
+    <div style="display:flex; justify-content:flex-end; margin-bottom:6px;"><button class="mm-today" onclick="agendaToday()">Today</button></div>
     ${capsulesHtml}
     ${liveIslandHtml}
     ${rollBannerHtml}
@@ -4043,11 +4053,20 @@ function _renderDailyScheduleInner() {
       if (window._nextClassInterval) clearInterval(window._nextClassInterval);
   }
 
-  // Smooth scroll selected capsule into center
-  setTimeout(() => {
-      const capEl = document.getElementById(`capsule-${currentDateKey.replace(/\s/g, '-')}`);
-      if (capEl) {
-          capEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  // Scroll the date strip: centre only on first load or when "Today" is pressed. Tapping a date keeps the
+  // strip where it is; the arrows only scroll enough to keep the selected date in view.
+  const strip = area.querySelector('.date-capsules');
+  const cur = document.getElementById(`capsule-${currentDateKey.replace(/\s/g, '-')}`);
+  if (strip && cur) {
+      const delta = cur.getBoundingClientRect().left - strip.getBoundingClientRect().left;
+      if (window._agendaCenter || keepScroll === null) {
+          strip.scrollLeft += delta - (strip.clientWidth - cur.offsetWidth) / 2;
+          window._agendaCenter = false;
+      } else {
+          strip.scrollLeft = keepScroll;
+          const d = cur.getBoundingClientRect().left - strip.getBoundingClientRect().left;
+          if (d < 0) strip.scrollLeft += d - 8;
+          else if (d + cur.offsetWidth > strip.clientWidth) strip.scrollLeft += d + cur.offsetWidth - strip.clientWidth + 8;
       }
-  }, 50);
+  }
 }
