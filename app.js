@@ -145,7 +145,7 @@ function savePreferencesForRoll(roll) {
     attData: (typeof attData !== 'undefined' && attData) ? attData : {},
     classAttendance: classAtt,
     reminder30m: localStorage.getItem('mbaplanner_reminder_30m') || 'on',
-    theme: localStorage.getItem('mbaplanner_theme') || 'light',
+    theme: localStorage.getItem('mbaplanner_theme') || 'system',
     studentName: sName,
     hiddenSessions: getHiddenSessions(),
     updatedAt: Date.now()
@@ -1916,12 +1916,14 @@ window.getQ6AttendanceForRoll = function(query) {
     } catch(e) {}
   }
 
-  // 3. Count Present (P) and Absent (A) per subject code
+  // 3. Count Present (P) and Absent (A) per subject code (and remember which dates were missed)
   const counts = {};
+  const absentByCode = {};
   for (const [sessionId, status] of Object.entries(rollAttMap)) {
     const parts = sessionId.split('_');
     if (parts.length >= 3) {
       const code = parts.slice(2).join('_');
+      if (status === 'A') (absentByCode[code] = absentByCode[code] || new Set()).add(parts[0]);
       if (!counts[code]) counts[code] = { p: 0, a: 0 };
       if (status === 'P') counts[code].p++;
       else if (status === 'A') counts[code].a++;
@@ -2000,6 +2002,7 @@ window.getQ6AttendanceForRoll = function(query) {
       domain: subj.v || (subj.isCore ? 'Core' : 'Elective'),
       p,
       a,
+      absentDates: [...(absentByCode[code] || [])].sort(),
       held,
       remaining,
       totalPlanned: totalPlannedPerCourse,
@@ -2069,7 +2072,7 @@ function searchCohortAttendance() {
   const getQ6Html = () => {
     const res = getQ6AttendanceForRoll(query);
     if (!res) return '';
-    const { roll, name, records, summary } = res;
+    const { roll, name, records, summary, isCurrentStudent } = res;
     
     totalP += summary.totalAttended;
     totalA += summary.totalAbsent;
@@ -2149,6 +2152,12 @@ function searchCohortAttendance() {
           <td style="padding:8px 10px;">
             <div style="font-weight:600; color:var(--tx);">${rec.code}${typeBadge}</div>
             <div style="font-size:10.5px; color:var(--tx2); margin-top:2px;">${rec.name}</div>
+            ${rec.absentDates.length ? `<div style="font-size:10.5px; margin-top:5px; color:var(--tx-danger); line-height:1.7;">Absent: ${rec.absentDates.map(d => {
+              const label = new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+              return isCurrentStudent
+                ? `<a href="#" onclick="openAgendaDate('${d}'); return false" style="color:var(--tx-danger); font-weight:700; text-decoration:underline; margin-right:8px; white-space:nowrap;">${label}</a>`
+                : `<span style="margin-right:8px; white-space:nowrap;">${label}</span>`;
+            }).join('')}</div>` : ''}
           </td>
           <td style="padding:8px 10px; text-align:center; font-weight:600; color:#34C759;">${rec.p}</td>
           <td style="padding:8px 10px; text-align:center; font-weight:600; color:${rec.a > 0 ? '#FF3B30' : 'var(--tx2)'};">${rec.a}</td>
@@ -2163,6 +2172,7 @@ function searchCohortAttendance() {
           </tbody>
         </table>
       </div>
+      ${isCurrentStudent && records.some(r => r.absentDates.length) ? '<div style="font-size:11px; color:var(--tx3); margin-top:8px;">Tap a missed date to open it in the Agenda and change it.</div>' : ''}
     </div>`;
     return html;
   };
@@ -2642,19 +2652,21 @@ function flushPendingOfflineWrites() {
           <span style="color:var(--tx3); font-size:18px;">›</span>
         </div>
 
-        <!-- Dark Mode Toggle -->
-        <div class="drawer-setting-row">
+        <!-- Appearance: System / Light / Dark -->
+        <div class="drawer-setting-row" style="flex-direction:column; align-items:stretch; gap:8px;">
           <div class="drawer-setting-info">
-            <span class="drawer-setting-title">🌓 Dark Mode</span>
-            <span class="drawer-setting-sub">Toggle appearance</span>
+            <span class="drawer-setting-title">🌓 Appearance</span>
+            <span class="drawer-setting-sub">System follows your phone</span>
           </div>
-          <label class="ios-switch">
-            <input type="checkbox" id="drawer-theme-checkbox" onchange="toggleTheme(); updateDrawerSettingsUI();">
-            <span class="ios-slider"></span>
-          </label>
+          <div class="ios-segmented" style="width:100%; display:flex;">
+            <button class="ios-seg-btn" data-theme-mode="system" onclick="setThemeMode('system')" style="flex:1;">System</button>
+            <button class="ios-seg-btn" data-theme-mode="light" onclick="setThemeMode('light')" style="flex:1;">Light</button>
+            <button class="ios-seg-btn" data-theme-mode="dark" onclick="setThemeMode('dark')" style="flex:1;">Dark</button>
+          </div>
         </div>
       </nav>`;
       document.body.insertAdjacentHTML('afterbegin', drawerHTML);
+      applyTheme();
     }
 
     // 2. Try loading cached schedule immediately
@@ -2703,10 +2715,7 @@ window.updateDrawerSettingsUI = function() {
         studentHeader.textContent = roll ? `🎓 ${roll}${studentName ? ` · ${studentName}` : ''}` : '';
     }
 
-    const themeCb = document.getElementById('drawer-theme-checkbox');
-    if (themeCb) {
-        themeCb.checked = document.documentElement.getAttribute('data-theme') === 'dark';
-    }
+    document.querySelectorAll('[data-theme-mode]').forEach(b => b.classList.toggle('active-p', b.dataset.themeMode === themeMode()));
 };
 
 window.toggle30mAlertFromDrawer = function(checked) {
@@ -3121,6 +3130,14 @@ window.markClassAttendance = function(ymd, timeSlot, code, targetStatus, count) 
     if (typeof searchCohortAttendance === 'function' && document.getElementById('cohort-att-table-container')) {
         searchCohortAttendance();
     }
+};
+
+// Jump to a date in the Daily Agenda (used by the missed-class links in Attendance).
+window.openAgendaDate = function(ymd) {
+    const day = new Date(ymd + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' });
+    window._selectedAgendaDate = `${ymd} ${day}`;
+    switchView('daily');
+    window.scrollTo(0, 0);
 };
 
 window.selectAgendaDate = function(dateKey) {

@@ -44,14 +44,29 @@
     return LOOSE.test(item) ? 'sabzi' : null;
   }
   // Breakfast: the egg/oats choice and the hot dish (kachori, dosa, idli, poha...) - not jam, chutney or sprouts.
-  const EGGCHOICE = /\b(egg|omelet|omelette|oats|cornflakes)\b/i;
+  const EGGCHOICE = /egg|omelet/i;
+  const CEREAL = /^(oats|cornflakes|corn flakes|chocos|cornfalkes)$/i;
   const HOT = /kachori|dosa|adai|idli|idly|idiappam|idiyappam|upma|poha|paratha|parotta|puri\b|poori|pongal|uthappam|utthappam|uttapam|uthapam|utthapam|pesarattu|khichdi|khichidi|kichdi|kichidi|bhath|pav bhaji|vada|bonda|punugulu|puttu|chilla|pulihora|kurma|dalia|luchi|natu rava|rava\b|aloo|sabji|sabzi|curry|masala|stew|cutlet|bhurji|burji|soya chunks|pakwaan/i;
   function breakfastKind(item) {
-    if (HOT.test(item)) return 'hot';
-    return EGGCHOICE.test(item) ? 'egg' : null;
+    if (EGGCHOICE.test(item)) return 'egg';
+    return HOT.test(item) ? 'hot' : null;
+  }
+  // "Fried Egg/Oats/Chocos" -> the egg is the news; oats/chocos/cornflakes are always there, so they go to "Also served".
+  function breakfastSplit(items) {
+    const out = [], cereals = [], jams = [];
+    items.forEach(it => {
+      if (/\bjam\b/i.test(it)) { jams.push(it); return; }
+      const tokens = it.split('/').map(t => t.trim()).filter(Boolean);
+      if (!tokens.some(t => EGGCHOICE.test(t) || CEREAL.test(t))) { out.push(it); return; }
+      const eggs = tokens.filter(t => EGGCHOICE.test(t));
+      tokens.filter(t => CEREAL.test(t)).forEach(t => { if (!cereals.some(c => c.toLowerCase() === t.toLowerCase())) cereals.push(t); });
+      if (eggs.length) out.push(eggs.join(' / '));
+      tokens.filter(t => !EGGCHOICE.test(t) && !CEREAL.test(t)).forEach(t => out.push(t));
+    });
+    return { items: out, cereals, jams };
   }
   const kindFor = (item, mealKey) => mealKey === 'breakfast' ? breakfastKind(item) : mealKey === 'snacks' ? 'snack' : dishKind(item);
-  const KIND_LABEL = { dal: 'Dal', sabzi: 'Sabzi', rice: 'Rice dish', egg: 'Egg / Oats', hot: 'Hot dish', sweet: 'Sweet', bread: 'Puri / Bread', snack: 'Snack' };
+  const KIND_LABEL = { dal: 'Dal', sabzi: 'Sabzi', rice: 'Rice dish', egg: 'Egg', hot: 'Hot dish', sweet: 'Sweet', bread: 'Puri / Bread', snack: 'Snack' };
   const keyDishes = (items, mealKey) => items.filter(i => kindFor(i, mealKey));
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const pad = n => String(n).padStart(2, '0');
@@ -88,14 +103,16 @@
     return MEALS.map(m => {
       let items = (menu.menu[dayKey] || {})[m.key] || [];
       let common = (menu.common[m.key] || []).filter(Boolean);
-      // Jam is served every morning: list it under "Also served" (it replaces a generic "Jam" there).
+      // Breakfast: egg stays in the list; jam and the always-there cereals move to "Also served"
+      // (a generic "Jam" in the common line is replaced by the specific jam).
       if (m.key === 'breakfast') {
-        const jams = items.filter(i => /\bjam\b/i.test(i));
-        if (jams.length) {
-          items = items.filter(i => !jams.includes(i));
-          const name = jams.join(' / ');
+        const sp = breakfastSplit(items);
+        items = sp.items;
+        if (sp.jams.length) {
+          const name = sp.jams.join(' / ');
           common = common.some(c => /\bJam\b/.test(c)) ? common.map(c => c.replace(/\bJam\b/, name)) : [...common, name];
         }
+        if (sp.cereals.length) common = [...common, sp.cereals.join(' / ')];
       }
       const isLive = isToday && live && live.key === m.key;
       const isNext = isToday && upNext && upNext.key === m.key;
@@ -211,15 +228,18 @@
     const now = nowIST(), h = now.getHours() + now.getMinutes() / 60;
     const live = k === ymd(now) ? MEALS.find(m => h >= m.from && h < m.to) : null;
     const rows = MEALS.map(m => {
-      const items = (menu.menu[dayKeyOf(d)] || {})[m.key] || [];
-      return items.length ? `<div class="mm-ag-row${live && live.key === m.key ? ' mm-ag-live' : ''}"><b>${m.icon} ${m.label} <i>${m.time}</i>${live && live.key === m.key ? ' <em class="mm-pill">Now</em>' : ''}</b><span>${items.map(i => kindFor(i, m.key) ? `<strong class="mm-ag-k">${esc(i)}</strong>` : esc(i)).join(' · ')}</span></div>` : '';
+      let items = (menu.menu[dayKeyOf(d)] || {})[m.key] || [];
+      let plain = '';
+      if (m.key === 'breakfast') { const sp = breakfastSplit(items); items = sp.items.concat(sp.jams); plain = sp.cereals.join(' / '); }
+      return items.length ? `<div class="mm-ag-row${live && live.key === m.key ? ' mm-ag-live' : ''}"><b>${m.icon} ${m.label} <i>${m.time}</i>${live && live.key === m.key ? ' <em class="mm-pill">Now</em>' : ''}</b><span>${items.map(i => kindFor(i, m.key) ? `<strong class="mm-ag-k">${esc(i)}</strong>` : esc(i)).join(' · ')}${plain ? ' · ' + esc(plain) : ''}</span></div>` : '';
     }).join('');
     // always-visible line: dal + sabzi of the lunch/dinner that is on or coming next (both meals on other days)
     const isToday = k === ymd(now);
     const KEYMEALS = MEALS;
     const meals = (isToday ? [live && KEYMEALS.includes(live) ? live : KEYMEALS.find(m => m.from > h)] : KEYMEALS).filter(Boolean);
     const keyLine = meals.map(m => {
-      const kd = keyDishes((menu.menu[dayKeyOf(d)] || {})[m.key] || [], m.key);
+      const raw = (menu.menu[dayKeyOf(d)] || {})[m.key] || [];
+      const kd = keyDishes(m.key === 'breakfast' ? breakfastSplit(raw).items : raw, m.key);
       return kd.length ? `<span class="mm-ag-key"><b>${m.icon} ${isToday && live && live.key === m.key ? m.label + ' now' : (isToday && m.key === 'dinner' ? 'Tonight' : m.label)}:</b> ${kd.map(esc).join(' · ')}</span>` : '';
     }).join('');
     return `<details class="mm-agenda"${window._mmAgendaOpen ? ' open' : ''} ontoggle="window._mmAgendaOpen=this.open">

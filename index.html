@@ -9,29 +9,41 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" id="meta-theme-color" content="#ffffff">
 <script>
-  (function() {
-    var storedTheme = localStorage.getItem('mbaplanner_theme');
-    var isDark = storedTheme === 'dark' || (!storedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    if (isDark) {
-      document.documentElement.setAttribute('data-theme', 'dark');
-      document.getElementById('meta-theme-color').setAttribute('content', '#000000');
-    }
-  })();
-  function toggleTheme() {
-    var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    if (isDark) {
-      document.documentElement.removeAttribute('data-theme');
-      document.getElementById('meta-theme-color').setAttribute('content', '#ffffff');
-      localStorage.setItem('mbaplanner_theme', 'light');
-    } else {
-      document.documentElement.setAttribute('data-theme', 'dark');
-      document.getElementById('meta-theme-color').setAttribute('content', '#000000');
-      localStorage.setItem('mbaplanner_theme', 'dark');
-    }
-    if (typeof savePreferencesForRoll === 'function') {
-      savePreferencesForRoll();
-    }
+  // Appearance: "system" (follow the phone, live), "light" or "dark". Default is system.
+  var THEME_ICONS = { system: '🖥️', light: '☀️', dark: '🌙' };
+  function themeMode() {
+    var t = localStorage.getItem('mbaplanner_theme');
+    return t === 'light' || t === 'dark' ? t : 'system';
   }
+  function applyTheme() {
+    var mode = themeMode();
+    var dark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+    else document.documentElement.removeAttribute('data-theme');
+    document.getElementById('meta-theme-color').setAttribute('content', dark ? '#000000' : '#ffffff');
+    ['theme-toggle', 'pwa-theme-inline'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) { el.textContent = THEME_ICONS[mode]; el.title = 'Appearance: ' + mode + ' (tap to change)'; }
+    });
+  }
+  function setThemeMode(mode) {
+    localStorage.setItem('mbaplanner_theme', mode);
+    applyTheme();
+    if (typeof savePreferencesForRoll === 'function') savePreferencesForRoll();
+    if (typeof updateDrawerSettingsUI === 'function') updateDrawerSettingsUI();
+  }
+  function toggleTheme() {
+    var order = ['system', 'light', 'dark'];
+    setThemeMode(order[(order.indexOf(themeMode()) + 1) % 3]);
+  }
+  applyTheme();
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+    if (themeMode() === 'system') applyTheme();
+  });
+  // Some browsers (and iPhone home-screen apps) skip the change event; re-check when the app comes back into view.
+  document.addEventListener('visibilitychange', function() {
+    if (!document.hidden && themeMode() === 'system') applyTheme();
+  });
 </script>
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -82,6 +94,7 @@
 <!-- EXPORT MODAL -->
 <div id="export-modal-container"></div>
 
+<script>applyTheme();</script>
 <script src="data.js"></script>
 <script src="mess-menu.js"></script>
 <script src="menu.js"></script>
@@ -124,7 +137,7 @@
     document.getElementById('export-modal-container').innerHTML = await fetchView('components/export-modal.html');
     
     const script = document.createElement('script');
-    script.src = 'app.js?v=34';
+    script.src = 'app.js?v=37';
     document.body.appendChild(script);
   }
   initApp();
