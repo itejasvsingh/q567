@@ -1342,3 +1342,14 @@ body {
 .mm-ag-k{color:var(--tx);background:var(--bg-success);border-radius:5px;padding:0 4px}
 .mm-k-rice{background:var(--bg-pink);border-radius:8px;padding-left:8px!important;padding-right:8px!important;border-top-color:transparent!important}
 .mm-k-rice .mm-tag{color:var(--tx-pink);border:.5px solid var(--bd-pink)}
+.mm-k-egg{background:var(--bg-warn);border-radius:8px;padding-left:8px!important;padding-right:8px!important;border-top-color:transparent!important}
+.mm-k-egg .mm-tag{color:var(--tx-warn);border:.5px solid var(--bd-warn)}
+.mm-k-hot{background:var(--bg-info);border-radius:8px;padding-left:8px!important;padding-right:8px!important;border-top-color:transparent!important}
+.mm-k-hot .mm-tag{color:var(--tx-info);border:.5px solid var(--bd-info)}
+.mm-k-sweet,.mm-k-bread,.mm-k-snack{border-radius:8px;padding-left:8px!important;padding-right:8px!important;border-top-color:transparent!important}
+.mm-k-sweet{background:rgba(107,82,174,.12)}.mm-k-sweet .mm-tag{color:#6b52ae;border:.5px solid rgba(107,82,174,.4)}
+.mm-k-bread{background:rgba(180,73,46,.12)}.mm-k-bread .mm-tag{color:#b4492e;border:.5px solid rgba(180,73,46,.4)}
+.mm-k-snack{background:rgba(43,108,176,.12)}.mm-k-snack .mm-tag{color:#2b6cb0;border:.5px solid rgba(43,108,176,.4)}
+html[data-theme="dark"] .mm-k-sweet .mm-tag{color:#c4b5f5}
+html[data-theme="dark"] .mm-k-bread .mm-tag{color:#ff8a65}
+html[data-theme="dark"] .mm-k-snack .mm-tag{color:#7aa7e8}

@@ -25,23 +25,34 @@
   }
 
   // Main dishes worth calling out at lunch and dinner: dal, sabzi/curry items, and rice mains (biryani, khichdi, pulao, fried rice).
-  const SWEET = /halwa|kheer|payasam|jalebi|custard|cake|jam\b|kesari|jamun|tukda|meetha|meeta|pak\b/i;
+  const SWEET = /halwa|kheer|payasam|jalebi|custard|cake|jam\b|kesari|jamun|tukda|meetha|meeta|pak\b|lassi|ice cream|rasgulla|gajar/i;
+  const BREAD = /puri\b|poori|bhature|kulcha|paratha|parotta|luchi|naan/i;
   const DAL = /\bdal\b|dhal|dalma|kadhi|pappu|\bpapu\b/i;
   const RICEY = /biryani|pulao|pulav|khichdi|kichidi|fried rice|\bbath\b/i;
   const STRONG = /curry|sabzi|sabji|kofta|koftha|bhurji|dalna|kurma|korma|stew|roast|gravy|tikka|mughalai|mughlai|butter masala|chole|rajma|chicken|mutton|fish|paneer/i;
   const STAPLE = /rice|roti|phulka|chapa?th?i|paratha|parotta|puri\b|poori|dosa|idli|idly|upma|poha|milk|juice|curd|raita|salad|pickle|papad|fryums|fruit|egg\b|oats|cornflakes|chutney|sambar|sambhar|rasam|lassi|rusk|biscuit|samosa|puff|vada|bonda|chaat|popcorn|water|drink|bhature|kulcha|thoviyal|pachadi|podi|salan|salna|sherva|boondi/i;
   const LOOSE = /masala|\bfry\b|\bdry\b|poriyal|kootu|aloo|gobi|bhindi|baingan|baigan|brinjal|cabbage|beans|peas|matar|mutter|karela|palak|mushroom|soya|manchurian|bhaji|saag|tindly|tinde|pumpkin|gourd|lauki|methi|chokha|bharta|kuzhambu|pakora|pakoda|chana|channa|kadai|mix(ed)? veg|saturated|cauliflower|capsicum|spinach|carrot/i;
   function dishKind(item) {
-    if (SWEET.test(item)) return null;
+    if (SWEET.test(item)) return 'sweet';
     if (DAL.test(item)) return 'dal';
     if (RICEY.test(item)) return 'rice';
     if (/thoviyal|chutney|pachadi|podi\b/i.test(item)) return null;
+    if (/chole bhature/i.test(item)) return 'sabzi';
+    if (BREAD.test(item)) return 'bread';
     if (STRONG.test(item)) return 'sabzi';
     if (STAPLE.test(item)) return null;
     return LOOSE.test(item) ? 'sabzi' : null;
   }
-  const KIND_LABEL = { dal: 'Dal', sabzi: 'Sabzi', rice: 'Rice dish' };
-  const keyDishes = items => items.filter(i => dishKind(i));
+  // Breakfast: the egg/oats choice and the hot dish (kachori, dosa, idli, poha...) - not jam, chutney or sprouts.
+  const EGGCHOICE = /\b(egg|omelet|omelette|oats|cornflakes)\b/i;
+  const HOT = /kachori|dosa|adai|idli|idly|idiappam|idiyappam|upma|poha|paratha|parotta|puri\b|poori|pongal|uthappam|utthappam|uttapam|uthapam|utthapam|pesarattu|khichdi|khichidi|kichdi|kichidi|bhath|pav bhaji|vada|bonda|punugulu|puttu|chilla|pulihora|kurma|dalia|luchi|natu rava|rava\b|aloo|sabji|sabzi|curry|masala|stew|cutlet|bhurji|burji|soya chunks|pakwaan/i;
+  function breakfastKind(item) {
+    if (HOT.test(item)) return 'hot';
+    return EGGCHOICE.test(item) ? 'egg' : null;
+  }
+  const kindFor = (item, mealKey) => mealKey === 'breakfast' ? breakfastKind(item) : mealKey === 'snacks' ? 'snack' : dishKind(item);
+  const KIND_LABEL = { dal: 'Dal', sabzi: 'Sabzi', rice: 'Rice dish', egg: 'Egg / Oats', hot: 'Hot dish', sweet: 'Sweet', bread: 'Puri / Bread', snack: 'Snack' };
+  const keyDishes = (items, mealKey) => items.filter(i => kindFor(i, mealKey));
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const pad = n => String(n).padStart(2, '0');
   const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -75,8 +86,17 @@
     const live = MEALS.find(m => h >= m.from && h < m.to);
     const upNext = live ? null : MEALS.find(m => m.from > h);
     return MEALS.map(m => {
-      const items = (menu.menu[dayKey] || {})[m.key] || [];
-      const common = (menu.common[m.key] || []).filter(Boolean);
+      let items = (menu.menu[dayKey] || {})[m.key] || [];
+      let common = (menu.common[m.key] || []).filter(Boolean);
+      // Jam is served every morning: list it under "Also served" (it replaces a generic "Jam" there).
+      if (m.key === 'breakfast') {
+        const jams = items.filter(i => /\bjam\b/i.test(i));
+        if (jams.length) {
+          items = items.filter(i => !jams.includes(i));
+          const name = jams.join(' / ');
+          common = common.some(c => /\bJam\b/.test(c)) ? common.map(c => c.replace(/\bJam\b/, name)) : [...common, name];
+        }
+      }
       const isLive = isToday && live && live.key === m.key;
       const isNext = isToday && upNext && upNext.key === m.key;
       return `
@@ -86,7 +106,7 @@
           ${isLive ? '<span class="mm-pill">Now</span>' : isNext ? '<span class="mm-pill">Up next</span>' : ''}
         </div>
         <ul class="mm-items">${items.length ? items.map(i => {
-          const k = (m.key === 'lunch' || m.key === 'dinner') ? dishKind(i) : null;
+          const k = kindFor(i, m.key);
           return k ? `<li class="mm-k mm-k-${k}">${esc(i)}<span class="mm-tag">${KIND_LABEL[k]}</span></li>` : `<li>${esc(i)}</li>`;
         }).join('') : '<li class="mm-none">Not listed</li>'}</ul>
         ${common.length ? `<div class="mm-common"><b>Also served:</b> ${esc(common.join(' · '))}</div>` : ''}
@@ -192,13 +212,14 @@
     const live = k === ymd(now) ? MEALS.find(m => h >= m.from && h < m.to) : null;
     const rows = MEALS.map(m => {
       const items = (menu.menu[dayKeyOf(d)] || {})[m.key] || [];
-      return items.length ? `<div class="mm-ag-row${live && live.key === m.key ? ' mm-ag-live' : ''}"><b>${m.icon} ${m.label} <i>${m.time}</i>${live && live.key === m.key ? ' <em class="mm-pill">Now</em>' : ''}</b><span>${items.map(i => (m.key === 'lunch' || m.key === 'dinner') && dishKind(i) ? `<strong class="mm-ag-k">${esc(i)}</strong>` : esc(i)).join(' · ')}</span></div>` : '';
+      return items.length ? `<div class="mm-ag-row${live && live.key === m.key ? ' mm-ag-live' : ''}"><b>${m.icon} ${m.label} <i>${m.time}</i>${live && live.key === m.key ? ' <em class="mm-pill">Now</em>' : ''}</b><span>${items.map(i => kindFor(i, m.key) ? `<strong class="mm-ag-k">${esc(i)}</strong>` : esc(i)).join(' · ')}</span></div>` : '';
     }).join('');
     // always-visible line: dal + sabzi of the lunch/dinner that is on or coming next (both meals on other days)
     const isToday = k === ymd(now);
-    const meals = (isToday ? [live && (live.key === 'lunch' || live.key === 'dinner') ? live : MEALS.find(m => (m.key === 'lunch' || m.key === 'dinner') && m.from > h)] : [MEALS[1], MEALS[3]]).filter(Boolean);
+    const KEYMEALS = MEALS;
+    const meals = (isToday ? [live && KEYMEALS.includes(live) ? live : KEYMEALS.find(m => m.from > h)] : KEYMEALS).filter(Boolean);
     const keyLine = meals.map(m => {
-      const kd = keyDishes((menu.menu[dayKeyOf(d)] || {})[m.key] || []);
+      const kd = keyDishes((menu.menu[dayKeyOf(d)] || {})[m.key] || [], m.key);
       return kd.length ? `<span class="mm-ag-key"><b>${m.icon} ${isToday && live && live.key === m.key ? m.label + ' now' : (isToday && m.key === 'dinner' ? 'Tonight' : m.label)}:</b> ${kd.map(esc).join(' · ')}</span>` : '';
     }).join('');
     return `<details class="mm-agenda"${window._mmAgendaOpen ? ' open' : ''} ontoggle="window._mmAgendaOpen=this.open">
