@@ -24,6 +24,22 @@
     try { localStorage.setItem(PREF_KEY, JSON.stringify({ mess: state.mess, diet: state.diet })); } catch (e) {}
   }
 
+  // Main dishes worth calling out at lunch and dinner: dal, and sabzi/curry items.
+  const SWEET = /halwa|kheer|payasam|jalebi|custard|cake|jam\b|kesari|jamun|tukda|meetha|meeta|pak\b/i;
+  const DAL = /\bdal\b|dhal|dalma|kadhi|pappu|\bpapu\b/i;
+  const RICEY = /biryani|pulao|pulav|khichdi|kichidi|fried rice|\bbath\b|pongal/i;
+  const STRONG = /curry|sabzi|sabji|kofta|koftha|bhurji|dalna|kurma|korma|stew|roast|gravy|tikka|mughalai|mughlai|butter masala|chole|rajma|chicken|mutton|fish|paneer/i;
+  const STAPLE = /rice|roti|phulka|chapa?th?i|paratha|parotta|puri\b|poori|dosa|idli|idly|upma|poha|milk|juice|curd|raita|salad|pickle|papad|fryums|fruit|egg\b|oats|cornflakes|chutney|sambar|sambhar|rasam|lassi|rusk|biscuit|samosa|puff|vada|bonda|chaat|popcorn|water|drink|bhature|kulcha|thoviyal|pachadi|podi|salan|salna|sherva|boondi/i;
+  const LOOSE = /masala|\bfry\b|\bdry\b|poriyal|kootu|aloo|gobi|bhindi|baingan|baigan|brinjal|cabbage|beans|peas|matar|mutter|karela|palak|mushroom|soya|manchurian|bhaji|saag|tindly|tinde|pumpkin|gourd|lauki|methi|chokha|bharta|kuzhambu|pakora|pakoda|chana|channa|kadai|mix(ed)? veg|saturated|cauliflower|capsicum|spinach|carrot/i;
+  function dishKind(item) {
+    if (SWEET.test(item)) return null;
+    if (DAL.test(item)) return 'dal';
+    if (RICEY.test(item) || /thoviyal|chutney|pachadi|podi\b/i.test(item)) return null;
+    if (STRONG.test(item)) return 'sabzi';
+    if (STAPLE.test(item)) return null;
+    return LOOSE.test(item) ? 'sabzi' : null;
+  }
+  const keyDishes = items => items.filter(i => dishKind(i));
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const pad = n => String(n).padStart(2, '0');
   const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -67,7 +83,10 @@
           <span class="mm-meal-title"><span>${m.icon}</span>${m.label}<span class="mm-time">${m.time}</span></span>
           ${isLive ? '<span class="mm-pill">Now</span>' : isNext ? '<span class="mm-pill">Up next</span>' : ''}
         </div>
-        <ul class="mm-items">${items.length ? items.map(i => `<li>${esc(i)}</li>`).join('') : '<li class="mm-none">Not listed</li>'}</ul>
+        <ul class="mm-items">${items.length ? items.map(i => {
+          const k = (m.key === 'lunch' || m.key === 'dinner') ? dishKind(i) : null;
+          return k ? `<li class="mm-k mm-k-${k}">${esc(i)}<span class="mm-tag">${k === 'dal' ? 'Dal' : 'Sabzi'}</span></li>` : `<li>${esc(i)}</li>`;
+        }).join('') : '<li class="mm-none">Not listed</li>'}</ul>
         ${common.length ? `<div class="mm-common"><b>Also served:</b> ${esc(common.join(' · '))}</div>` : ''}
       </div>`;
     }).join('');
@@ -171,10 +190,17 @@
     const live = k === ymd(now) ? MEALS.find(m => h >= m.from && h < m.to) : null;
     const rows = MEALS.map(m => {
       const items = (menu.menu[dayKeyOf(d)] || {})[m.key] || [];
-      return items.length ? `<div class="mm-ag-row${live && live.key === m.key ? ' mm-ag-live' : ''}"><b>${m.icon} ${m.label} <i>${m.time}</i>${live && live.key === m.key ? ' <em class="mm-pill">Now</em>' : ''}</b><span>${items.map(esc).join(' · ')}</span></div>` : '';
+      return items.length ? `<div class="mm-ag-row${live && live.key === m.key ? ' mm-ag-live' : ''}"><b>${m.icon} ${m.label} <i>${m.time}</i>${live && live.key === m.key ? ' <em class="mm-pill">Now</em>' : ''}</b><span>${items.map(i => (m.key === 'lunch' || m.key === 'dinner') && dishKind(i) ? `<strong class="mm-ag-k">${esc(i)}</strong>` : esc(i)).join(' · ')}</span></div>` : '';
+    }).join('');
+    // always-visible line: dal + sabzi of the lunch/dinner that is on or coming next (both meals on other days)
+    const isToday = k === ymd(now);
+    const meals = (isToday ? [live && (live.key === 'lunch' || live.key === 'dinner') ? live : MEALS.find(m => (m.key === 'lunch' || m.key === 'dinner') && m.from > h)] : [MEALS[1], MEALS[3]]).filter(Boolean);
+    const keyLine = meals.map(m => {
+      const kd = keyDishes((menu.menu[dayKeyOf(d)] || {})[m.key] || []);
+      return kd.length ? `<span class="mm-ag-key"><b>${m.icon} ${isToday && live && live.key === m.key ? m.label + ' now' : (isToday && m.key === 'dinner' ? 'Tonight' : m.label)}:</b> ${kd.map(esc).join(' · ')}</span>` : '';
     }).join('');
     return `<details class="mm-agenda"${window._mmAgendaOpen ? ' open' : ''} ontoggle="window._mmAgendaOpen=this.open">
-      <summary>🥘 Mess menu · ${MESS_LABELS[state.mess]}${DIET_LABELS[state.diet] ? ' ' + DIET_LABELS[state.diet] : ''} · Week ${weekOn(d)}${live ? ` <em class="mm-pill">${live.label} now</em>` : ''}</summary>
+      <summary>🥘 Mess menu · ${MESS_LABELS[state.mess]}${DIET_LABELS[state.diet] ? ' ' + DIET_LABELS[state.diet] : ''} · Week ${weekOn(d)}${live ? ` <em class="mm-pill">${live.label} now</em>` : ''}${keyLine ? `<span class="mm-ag-keys">${keyLine}</span>` : ''}</summary>
       ${rows}
       <a class="mm-ag-link" href="#" onclick="openMenuOn('${k}');return false">Open full menu →</a>
     </details>`;
