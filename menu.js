@@ -3,15 +3,13 @@
   const WEEKS = ['A', 'B', 'C', 'D'];
   const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
   const MEALS = [
-    { key: 'breakfast', label: 'Breakfast', icon: '🌅' },
-    { key: 'lunch', label: 'Lunch', icon: '🍛' },
-    { key: 'snacks', label: 'Snacks', icon: '☕' },
-    { key: 'dinner', label: 'Dinner', icon: '🌙' }
+    { key: 'breakfast', label: 'Breakfast', icon: '🌅', time: '7:00 – 9:30 AM', from: 7, to: 9.5 },
+    { key: 'lunch', label: 'Lunch', icon: '🍛', time: '12:00 – 2:30 PM', from: 12, to: 14.5 },
+    { key: 'snacks', label: 'Snacks', icon: '☕', time: '4:30 – 5:30 PM', from: 16.5, to: 17.5 },
+    { key: 'dinner', label: 'Dinner', icon: '🌙', time: '7:00 – 9:30 PM', from: 19, to: 21.5 }
   ];
   const MESS_LABELS = { north: 'North', south: 'South', unified: 'Unified', protein: 'Protein' };
   const DIET_LABELS = { veg: 'Veg', nonveg: 'Non-Veg', pureveg: 'Pure Veg', all: '' };
-  // Rough end of each meal (hour, 24h), used only to highlight what's next today.
-  const MEAL_ENDS = { breakfast: 10.5, lunch: 15, snacks: 18.5, dinner: 22.5 };
   const PREF_KEY = 'mbaplanner_mess_pref';
 
   const state = { mess: null, diet: null, date: null, draftMess: null };
@@ -55,16 +53,19 @@
   }
 
   function dayCard(menu, dayKey, isToday, now) {
-    const cur = MEALS.find(m => now.getHours() + now.getMinutes() / 60 < MEAL_ENDS[m.key]) || null;
+    const h = now.getHours() + now.getMinutes() / 60;
+    const live = MEALS.find(m => h >= m.from && h < m.to);
+    const upNext = live ? null : MEALS.find(m => m.from > h);
     return MEALS.map(m => {
       const items = (menu.menu[dayKey] || {})[m.key] || [];
       const common = (menu.common[m.key] || []).filter(Boolean);
-      const isNext = isToday && cur && cur.key === m.key;
+      const isLive = isToday && live && live.key === m.key;
+      const isNext = isToday && upNext && upNext.key === m.key;
       return `
-      <div class="mm-meal${isNext ? ' mm-next' : ''}">
+      <div class="mm-meal${isLive || isNext ? ' mm-next' : ''}">
         <div class="mm-meal-head">
-          <span class="mm-meal-title"><span>${m.icon}</span>${m.label}</span>
-          ${isNext ? '<span class="mm-pill">Up next</span>' : ''}
+          <span class="mm-meal-title"><span>${m.icon}</span>${m.label}<span class="mm-time">${m.time}</span></span>
+          ${isLive ? '<span class="mm-pill">Now</span>' : isNext ? '<span class="mm-pill">Up next</span>' : ''}
         </div>
         <ul class="mm-items">${items.length ? items.map(i => `<li>${esc(i)}</li>`).join('') : '<li class="mm-none">Not listed</li>'}</ul>
         ${common.length ? `<div class="mm-common"><b>Also served:</b> ${esc(common.join(' · '))}</div>` : ''}
@@ -168,7 +169,7 @@
     if (!menu) return '';
     const rows = MEALS.map(m => {
       const items = (menu.menu[dayKeyOf(d)] || {})[m.key] || [];
-      return items.length ? `<div class="mm-ag-row"><b>${m.icon} ${m.label}</b><span>${items.map(esc).join(' · ')}</span></div>` : '';
+      return items.length ? `<div class="mm-ag-row"><b>${m.icon} ${m.label} <i>${m.time}</i></b><span>${items.map(esc).join(' · ')}</span></div>` : '';
     }).join('');
     return `<details class="mm-agenda"${window._mmAgendaOpen ? ' open' : ''} ontoggle="window._mmAgendaOpen=this.open">
       <summary>🥘 Mess menu · ${MESS_LABELS[state.mess]}${DIET_LABELS[state.diet] ? ' ' + DIET_LABELS[state.diet] : ''} · Week ${weekOn(d)}</summary>

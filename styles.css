@@ -1326,3 +1326,5 @@ body {
 .mm-pick-t{font-size:14px;font-weight:700;color:var(--tx);margin-bottom:10px}
 .mm-pick-row{display:flex;flex-wrap:wrap;gap:8px}
 .mm-ag-h{font-size:13px;font-weight:700;color:var(--tx);margin-bottom:8px}
+.mm-time{font-size:11px;font-weight:500;color:var(--tx2);margin-left:6px}
+.mm-ag-row b i{font-style:normal;font-weight:500;color:var(--tx3);margin-left:4px}
