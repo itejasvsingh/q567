@@ -1147,6 +1147,7 @@ function switchView(v){
   document.getElementById('vtab-plan')?.classList.toggle('on', v==='plan');
   document.getElementById('vtab-att')?.classList.toggle('on', v==='att');
   document.getElementById('vtab-compare')?.classList.toggle('on', v==='compare');
+  document.getElementById('vtab-menu')?.classList.toggle('on', v==='menu');
   document.getElementById('vtab-mess')?.classList.toggle('on', v==='mess');
   document.getElementById('vtab-daily')?.classList.toggle('on', v==='daily');
   document.getElementById('vtab-master')?.classList.toggle('on', v==='master');
@@ -1154,6 +1155,7 @@ function switchView(v){
   if(document.getElementById('view-plan')) document.getElementById('view-plan').style.display = v==='plan' ? '' : 'none';
   if(document.getElementById('view-att')) document.getElementById('view-att').style.display = v==='att' ? '' : 'none';
   if(document.getElementById('view-compare')) document.getElementById('view-compare').style.display = v==='compare' ? '' : 'none';
+  if(document.getElementById('view-menu')) document.getElementById('view-menu').style.display = v==='menu' ? '' : 'none';
   if(document.getElementById('view-mess')) document.getElementById('view-mess').style.display = v==='mess' ? '' : 'none';
   if(document.getElementById('view-daily')) document.getElementById('view-daily').style.display = v==='daily' ? '' : 'none';
   if(document.getElementById('view-master')) document.getElementById('view-master').style.display = v==='master' ? '' : 'none';
@@ -1192,6 +1194,7 @@ function switchView(v){
       document.getElementById('compare-onboard-hint')?.classList.add('show');
     }
   }
+  if(v==='menu' && typeof renderMenu==='function') renderMenu();
   if(v==='mess'){
     const f=document.getElementById('mess-iframe');
     if(f && !navigator.onLine && !f.getAttribute('src')){
@@ -2625,7 +2628,8 @@ function flushPendingOfflineWrites() {
         <button class="pwa-drawer-item"        data-view="master"  onclick="pwaNav('master')">🗓️ Weekly Schedule</button>
         <button class="pwa-drawer-item"        data-view="att"     onclick="pwaNav('att')">✅ Attendance</button>
         <button class="pwa-drawer-item"        data-view="compare" onclick="pwaNav('compare')">👥 Compare</button>
-        <button class="pwa-drawer-item"        data-view="mess"    onclick="pwaNav('mess')">🍽 Mess Menu</button>
+        <button class="pwa-drawer-item"        data-view="menu"    onclick="pwaNav('menu')">🥘 Mess Menu</button>
+        <button class="pwa-drawer-item"        data-view="mess"    onclick="pwaNav('mess')">🍽 Mess (live site)</button>
         
         <div class="pwa-drawer-section">Preferences & Alerts</div>
         
