@@ -533,7 +533,7 @@ function buildTTHtml(q,compact,interactive){
     TIMESLOTS.forEach(slot=>{
       if(slot==='12pm-1pm'){
         h+= interactive
-          ? `<div class="lc lc-click" onclick="switchView('mess')" title="See today's mess menu">🍽 lunch</div>`
+          ? `<div class="lc lc-click" onclick="switchView('menu')" title="See today's mess menu">🍽 lunch</div>`
           : `<div class="lc">lunch</div>`;
         return;
       }
@@ -1148,7 +1148,6 @@ function switchView(v){
   document.getElementById('vtab-att')?.classList.toggle('on', v==='att');
   document.getElementById('vtab-compare')?.classList.toggle('on', v==='compare');
   document.getElementById('vtab-menu')?.classList.toggle('on', v==='menu');
-  document.getElementById('vtab-mess')?.classList.toggle('on', v==='mess');
   document.getElementById('vtab-daily')?.classList.toggle('on', v==='daily');
   document.getElementById('vtab-master')?.classList.toggle('on', v==='master');
   
@@ -1156,7 +1155,6 @@ function switchView(v){
   if(document.getElementById('view-att')) document.getElementById('view-att').style.display = v==='att' ? '' : 'none';
   if(document.getElementById('view-compare')) document.getElementById('view-compare').style.display = v==='compare' ? '' : 'none';
   if(document.getElementById('view-menu')) document.getElementById('view-menu').style.display = v==='menu' ? '' : 'none';
-  if(document.getElementById('view-mess')) document.getElementById('view-mess').style.display = v==='mess' ? '' : 'none';
   if(document.getElementById('view-daily')) document.getElementById('view-daily').style.display = v==='daily' ? '' : 'none';
   if(document.getElementById('view-master')) document.getElementById('view-master').style.display = v==='master' ? '' : 'none';
   if (v !== 'daily' && window._nextClassInterval) {
@@ -1195,15 +1193,6 @@ function switchView(v){
     }
   }
   if(v==='menu' && typeof renderMenu==='function') renderMenu();
-  if(v==='mess'){
-    const f=document.getElementById('mess-iframe');
-    if(f && !navigator.onLine && !f.getAttribute('src')){
-      f.srcdoc='<p style="font:14px -apple-system,sans-serif;color:#888;text-align:center;padding:40px 16px">📴 The mess menu needs an internet connection.</p>';
-    } else if(f && !f.getAttribute('src')){
-      f.removeAttribute('srcdoc');
-      f.src='https://mess-menu-iitm.vercel.app/';
-    }
-  }
   if(v==='plan'){
     renderPlannerRollBanner();
     render();
@@ -1575,7 +1564,7 @@ function renderCmpGrid(){
   DAYS.forEach(day=>{
     h+=`<div class="cmp-tgrid"><div class="cmp-day">${day.slice(0,3)}</div>`;
     TIMESLOTS.forEach(slot=>{
-      if(slot==='12pm-1pm'){ h+=`<div class="cmp-lc lc-click" onclick="switchView('mess')" title="See today's mess menu">🍽 lunch</div>`; return; }
+      if(slot==='12pm-1pm'){ h+=`<div class="cmp-lc lc-click" onclick="switchView('menu')" title="See today's mess menu">🍽 lunch</div>`; return; }
       const occ=(lk[day]&&lk[day][slot])||[];
       if(!occ.length){ h+=`<div class="cmp-cell emp"></div>`; return; }
       const codes=new Set(occ.map(o=>o.subj.code));
@@ -2629,7 +2618,6 @@ function flushPendingOfflineWrites() {
         <button class="pwa-drawer-item"        data-view="att"     onclick="pwaNav('att')">✅ Attendance</button>
         <button class="pwa-drawer-item"        data-view="compare" onclick="pwaNav('compare')">👥 Compare</button>
         <button class="pwa-drawer-item"        data-view="menu"    onclick="pwaNav('menu')">🥘 Mess Menu</button>
-        <button class="pwa-drawer-item"        data-view="mess"    onclick="pwaNav('mess')">🍽 Mess (live site)</button>
         
         <div class="pwa-drawer-section">Preferences & Alerts</div>
         

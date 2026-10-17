@@ -66,14 +66,12 @@
   <button class="view-tab" id="vtab-att" onclick="switchView('att')"><span class="tab-icon">✅</span><span class="tab-label">Attendance</span></button>
   <button class="view-tab" id="vtab-compare" onclick="switchView('compare')"><span class="tab-icon">👥</span><span class="tab-label">Compare</span></button>
   <button class="view-tab" id="vtab-menu" onclick="switchView('menu')"><span class="tab-icon">🥘</span><span class="tab-label">Menu</span></button>
-  <button class="view-tab" id="vtab-mess" onclick="switchView('mess')"><span class="tab-icon">🍽</span><span class="tab-label">Mess</span></button>
 </div>
 
 <div id="view-plan"></div>
 <div id="view-daily" style="display:none"></div>
 <div id="view-compare" style="display:none"></div>
 <div id="view-menu" style="display:none"></div>
-<div id="view-mess" style="display:none"></div>
 <div id="view-att" style="display:none"></div>
 <div id="view-master" style="display:none"></div>
 </div>
@@ -119,7 +117,6 @@
     document.getElementById('view-plan').innerHTML = await fetchView('views/plan.html');
     document.getElementById('view-compare').innerHTML = await fetchView('views/compare.html');
     document.getElementById('view-menu').innerHTML = await fetchView('views/menu.html');
-    document.getElementById('view-mess').innerHTML = await fetchView('views/mess.html');
     document.getElementById('view-att').innerHTML = await fetchView('views/att.html');
     document.getElementById('view-daily').innerHTML = await fetchView('views/daily.html');
     document.getElementById('view-master').innerHTML = await fetchView('views/master.html');
@@ -127,7 +124,7 @@
     document.getElementById('export-modal-container').innerHTML = await fetchView('components/export-modal.html');
     
     const script = document.createElement('script');
-    script.src = 'app.js?v=24';
+    script.src = 'app.js?v=25';
     document.body.appendChild(script);
   }
   initApp();
