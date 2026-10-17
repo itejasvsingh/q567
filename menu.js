@@ -24,21 +24,23 @@
     try { localStorage.setItem(PREF_KEY, JSON.stringify({ mess: state.mess, diet: state.diet })); } catch (e) {}
   }
 
-  // Main dishes worth calling out at lunch and dinner: dal, and sabzi/curry items.
+  // Main dishes worth calling out at lunch and dinner: dal, sabzi/curry items, and rice mains (biryani, khichdi, pulao, fried rice).
   const SWEET = /halwa|kheer|payasam|jalebi|custard|cake|jam\b|kesari|jamun|tukda|meetha|meeta|pak\b/i;
   const DAL = /\bdal\b|dhal|dalma|kadhi|pappu|\bpapu\b/i;
-  const RICEY = /biryani|pulao|pulav|khichdi|kichidi|fried rice|\bbath\b|pongal/i;
+  const RICEY = /biryani|pulao|pulav|khichdi|kichidi|fried rice|\bbath\b/i;
   const STRONG = /curry|sabzi|sabji|kofta|koftha|bhurji|dalna|kurma|korma|stew|roast|gravy|tikka|mughalai|mughlai|butter masala|chole|rajma|chicken|mutton|fish|paneer/i;
   const STAPLE = /rice|roti|phulka|chapa?th?i|paratha|parotta|puri\b|poori|dosa|idli|idly|upma|poha|milk|juice|curd|raita|salad|pickle|papad|fryums|fruit|egg\b|oats|cornflakes|chutney|sambar|sambhar|rasam|lassi|rusk|biscuit|samosa|puff|vada|bonda|chaat|popcorn|water|drink|bhature|kulcha|thoviyal|pachadi|podi|salan|salna|sherva|boondi/i;
   const LOOSE = /masala|\bfry\b|\bdry\b|poriyal|kootu|aloo|gobi|bhindi|baingan|baigan|brinjal|cabbage|beans|peas|matar|mutter|karela|palak|mushroom|soya|manchurian|bhaji|saag|tindly|tinde|pumpkin|gourd|lauki|methi|chokha|bharta|kuzhambu|pakora|pakoda|chana|channa|kadai|mix(ed)? veg|saturated|cauliflower|capsicum|spinach|carrot/i;
   function dishKind(item) {
     if (SWEET.test(item)) return null;
     if (DAL.test(item)) return 'dal';
-    if (RICEY.test(item) || /thoviyal|chutney|pachadi|podi\b/i.test(item)) return null;
+    if (RICEY.test(item)) return 'rice';
+    if (/thoviyal|chutney|pachadi|podi\b/i.test(item)) return null;
     if (STRONG.test(item)) return 'sabzi';
     if (STAPLE.test(item)) return null;
     return LOOSE.test(item) ? 'sabzi' : null;
   }
+  const KIND_LABEL = { dal: 'Dal', sabzi: 'Sabzi', rice: 'Rice dish' };
   const keyDishes = items => items.filter(i => dishKind(i));
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const pad = n => String(n).padStart(2, '0');
@@ -85,7 +87,7 @@
         </div>
         <ul class="mm-items">${items.length ? items.map(i => {
           const k = (m.key === 'lunch' || m.key === 'dinner') ? dishKind(i) : null;
-          return k ? `<li class="mm-k mm-k-${k}">${esc(i)}<span class="mm-tag">${k === 'dal' ? 'Dal' : 'Sabzi'}</span></li>` : `<li>${esc(i)}</li>`;
+          return k ? `<li class="mm-k mm-k-${k}">${esc(i)}<span class="mm-tag">${KIND_LABEL[k]}</span></li>` : `<li>${esc(i)}</li>`;
         }).join('') : '<li class="mm-none">Not listed</li>'}</ul>
         ${common.length ? `<div class="mm-common"><b>Also served:</b> ${esc(common.join(' · '))}</div>` : ''}
       </div>`;
