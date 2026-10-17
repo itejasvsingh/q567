@@ -167,12 +167,14 @@
     if (!hasPref()) return `<div class="mm-agenda mm-pick"><div class="mm-ag-h">🥘 Mess menu</div>${pickerHtml()}</div>`;
     const d = parseYmd(k), menu = menuFor(d);
     if (!menu) return '';
+    const now = nowIST(), h = now.getHours() + now.getMinutes() / 60;
+    const live = k === ymd(now) ? MEALS.find(m => h >= m.from && h < m.to) : null;
     const rows = MEALS.map(m => {
       const items = (menu.menu[dayKeyOf(d)] || {})[m.key] || [];
-      return items.length ? `<div class="mm-ag-row"><b>${m.icon} ${m.label} <i>${m.time}</i></b><span>${items.map(esc).join(' · ')}</span></div>` : '';
+      return items.length ? `<div class="mm-ag-row${live && live.key === m.key ? ' mm-ag-live' : ''}"><b>${m.icon} ${m.label} <i>${m.time}</i>${live && live.key === m.key ? ' <em class="mm-pill">Now</em>' : ''}</b><span>${items.map(esc).join(' · ')}</span></div>` : '';
     }).join('');
     return `<details class="mm-agenda"${window._mmAgendaOpen ? ' open' : ''} ontoggle="window._mmAgendaOpen=this.open">
-      <summary>🥘 Mess menu · ${MESS_LABELS[state.mess]}${DIET_LABELS[state.diet] ? ' ' + DIET_LABELS[state.diet] : ''} · Week ${weekOn(d)}</summary>
+      <summary>🥘 Mess menu · ${MESS_LABELS[state.mess]}${DIET_LABELS[state.diet] ? ' ' + DIET_LABELS[state.diet] : ''} · Week ${weekOn(d)}${live ? ` <em class="mm-pill">${live.label} now</em>` : ''}</summary>
       ${rows}
       <a class="mm-ag-link" href="#" onclick="openMenuOn('${k}');return false">Open full menu →</a>
     </details>`;
