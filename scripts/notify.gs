@@ -8,7 +8,7 @@
 //   meal   meal alert 15 min before breakfast / lunch / snacks / dinner
 //   morn   morning summary (about 7 AM)
 //   eve    evening preview of tomorrow (about 9 PM)
-//   att    mark-attendance nudge (about 7:30 PM) + absence-limit warning in the morning
+//   att    mark-attendance reminder 15 min after a class ends (only if not marked) + absence-limit warning
 //   sheet  official timetable changed (called from the sync, see notifySheetChanges_)
 //   bc     announcement from you (sendBroadcast)
 //
@@ -33,11 +33,11 @@ function notifyClassChanges() {
   ctx.changes = dbGet_('/schedule_changes', 'orderBy="$key"&startAt="' + ist.ymd + '"') || {};
 
   var steps = [
+    function () { notifyAnnouncements_(ctx, props); },
     function () { notifyClassUpdates_(ctx, props); },
-    function () { if (needReminders_(ctx)) notifyRemindersAndMeals_(ctx); },
+    function () { if (needReminders_(ctx)) { notifyRemindersAndMeals_(ctx); notifyAttendance_(ctx); } },
     function () { notifyDaySummary_(ctx, props, 'morn'); },
-    function () { notifyDaySummary_(ctx, props, 'eve'); },
-    function () { notifyAttendance_(ctx, props); }
+    function () { notifyDaySummary_(ctx, props, 'eve'); }
   ];
   steps.forEach(function (fn) {
     try { fn(); } catch (e) { Logger.log('Notify step failed: ' + e.message); }
@@ -78,13 +78,16 @@ function needReminders_(ctx) {
   var m = ctx.ist.mins;
   var starts = [8 * 60, 10 * 60, 13 * 60, 15 * 60, 17 * 60];            // class slots
   var meals = [7 * 60, 12 * 60, 16 * 60 + 30, 19 * 60];                  // meal starts
+  var ends = [10 * 60, 12 * 60, 15 * 60, 17 * 60, 19 * 60];              // class ends (attendance reminder)
   var hit = false;
   starts.forEach(function (s) { if (m >= s - 32 && m <= s) hit = true; });
+  ends.forEach(function (e) { if (m >= e + 14 && m <= e + 46) hit = true; });
   meals.forEach(function (s) { if (m >= s - 17 && m <= s) hit = true; });
   // retimed / moved classes can start at odd times
   Object.keys(ctx.changes[ctx.ist.ymd] || {}).forEach(function (k) {
     var c = ctx.changes[ctx.ist.ymd][k];
     if (c && c.start) { var s = hhmm_(c.start); if (m >= s - 32 && m <= s) hit = true; }
+    if (c && c.end) { var e2 = hhmm_(c.end); if (m >= e2 + 14 && m <= e2 + 46) hit = true; }
   });
   Object.keys(ctx.changes).forEach(function (ymd) {
     Object.keys(ctx.changes[ymd] || {}).forEach(function (k) {
@@ -185,35 +188,60 @@ function notifyDaySummary_(ctx, props, kind) {
   sendAll_(out);
 }
 
-// ------------------------------------------------------ attendance nudge
-function notifyAttendance_(ctx, props) {
-  if (!ctx.force) {
-    if (ctx.ist.mins < 19 * 60 + 30 || ctx.ist.mins > 19 * 60 + 55) return;
-    if (props.getProperty('att_nudge') === ctx.ist.ymd) return;
-    props.setProperty('att_nudge', ctx.ist.ymd);
-  }
+// ------------------------------------------------------ attendance reminder
+// 15 minutes after a class ends, if it is still not marked in the app, ask the
+// student to mark it. Marked classes (checked live in Firebase) get nothing.
+function notifyAttendance_(ctx) {
   var reminders = getReminders_(ctx);
-  var out = [];
+  var cache = CacheService.getScriptCache();
+  var seen = cache.getAll(['sentAtt']);
+  var sentAtt = JSON.parse(seen.sentAtt || '{}');
+  var due = [];
   Object.keys(ctx.tokens).forEach(function (roll) {
     if (ctx.onlyRoll && roll !== ctx.onlyRoll) return;
     var r = reminders[roll];
     if (!r || !r.items || ctx.now - r.at > 3 * 86400000) return;
-    var missing = [];
     Object.keys(r.items).forEach(function (id) {
       var it = r.items[id];
       if (it.y !== ctx.ist.ymd || it.x || it.c === 'ICRC' || it.m) return;
       var ch = (ctx.changes[it.y] || {})[it.s + '_' + it.c];
       if (ch && (ch.status === 'cancelled' || ch.status === 'moved')) return;
-      if (it.t > ctx.now) return; // not started yet
-      missing.push(it.n);
+      var end = effectiveEnd_(it, ctx);
+      var since = (ctx.now - end) / 60000;
+      if (since < (ctx.force ? 0 : 15) || (!ctx.force && since > 45)) return;
+      var key = roll + '|' + id;
+      if (!ctx.force && sentAtt[key]) return;
+      due.push({ roll: roll, it: it, key: key, end: end, sid: (it.y + '_' + it.s + '_' + it.c).replace(/[.#$\[\]]/g, '_') });
     });
-    if (!missing.length) return;
-    addSends_(out, ctx, roll, 'att', {
-      title: 'Mark today\'s attendance',
-      body: missing.join(', ')
-    }, { ymd: ctx.ist.ymd, tag: 'att_' + ctx.ist.ymd });
   });
+  if (!due.length) return;
+  // the attendance the student has really saved, read fresh (the list above can be a few minutes old)
+  var rolls = {};
+  due.forEach(function (d) { rolls[d.roll] = 1; });
+  var names = Object.keys(rolls);
+  var res = UrlFetchApp.fetchAll(names.map(function (rl) {
+    return { url: NOTIFY_DB + '/q6_attendance/' + rl + '.json', headers: authHeader_(), muteHttpExceptions: true };
+  }));
+  var saved = {};
+  names.forEach(function (rl, i) { try { saved[rl] = JSON.parse(res[i].getContentText()) || {}; } catch (e) { saved[rl] = {}; } });
+  var out = [];
+  due.forEach(function (d) {
+    if (saved[d.roll][d.sid]) return; // already marked P or A
+    var before = out.length;
+    addSends_(out, ctx, d.roll, 'att', {
+      title: 'Mark attendance: ' + d.it.n,
+      body: 'Class has ended. Tap to mark Present or Absent in the app.'
+    }, { ymd: d.it.y, tag: 'att_' + d.key });
+    if (out.length > before) sentAtt[d.key] = d.end;
+  });
+  if (!ctx.force) cache.putAll({ sentAtt: JSON.stringify(prune_(sentAtt, ctx.now)) }, 21600);
   sendAll_(out);
+}
+
+function effectiveEnd_(it, ctx) {
+  var ch = (ctx.changes[it.y] || {})[it.s + '_' + it.c];
+  if (ch && ch.status === 'retimed' && ch.end) return istMs_(it.y, ch.end);
+  return it.e || (it.t + 2 * 3600000);
 }
 
 // ------------------------------------------- official timetable changed (sheet)
@@ -308,6 +336,24 @@ function notifyFromSheet_() {
   sh.getRange('B3').setValue((cmd === 'TEST' ? 'TEST' : 'SENT') + ' ' + when + ' to ' + n + ' device(s). Type ' + (cmd === 'TEST' ? 'SEND to send to everyone' : 'SEND again to resend'));
 }
 
+// IN-APP WAY: the admin (you) writes an announcement in the app and it is saved
+// under /announcements. This picks up new ones and sends them to everyone.
+function notifyAnnouncements_(ctx, props) {
+  var last = props.getProperty('lastAnnounceKey');
+  var data = dbGet_('/announcements', last ? 'orderBy="$key"&startAt="' + last + '"' : 'orderBy="$key"&limitToLast=1') || {};
+  var keys = Object.keys(data).sort();
+  if (!last) { props.setProperty('lastAnnounceKey', keys.length ? keys[keys.length - 1] : '-'); return; } // first run: ignore old ones
+  var fresh = keys.filter(function (k) { return k > last; });
+  if (!fresh.length) return;
+  props.setProperty('lastAnnounceKey', fresh[fresh.length - 1]); // before sending: never send twice
+  fresh.forEach(function (k) {
+    var a = data[k] || {};
+    if (!a.title || !a.body) return;
+    var n = broadcast_(null, String(a.title).slice(0, 80), String(a.body).slice(0, 240));
+    UrlFetchApp.fetch(NOTIFY_DB + '/announcements/' + k + '.json', { method: 'patch', contentType: 'application/json', headers: authHeader_(), payload: JSON.stringify({ status: 'sent', sentAt: Date.now(), devices: n }), muteHttpExceptions: true });
+  });
+}
+
 // Old way (edit these two lines, then Run): still works.
 var BROADCAST_TITLE = 'Announcement';
 var BROADCAST_BODY = 'Write your message here';
@@ -341,7 +387,7 @@ function previewAllNotifications() {
     ['🍛 Lunch in 15 min', 'Dal Makhani · Mixed Veg curry · Vegetable Biryani · Gulab Jamun', 'pv_meal'],
     ['Today: 3 classes', '8:00am Design Thinking (Room 204) · 1:00pm Behavioural Lab (Room 110) · 3:00pm Strategic Sourcing (Room 301) · ⚠️ Strategic Sourcing: at absence limit, do not miss', 'pv_morn'],
     ['Tomorrow: 2 classes', '10:00am Brand Management (Room 105) · 3:00pm AI for Management (Room 301) · ❌ Strategic Marketing cancelled', 'pv_eve'],
-    ['Mark today\'s attendance', 'Design Thinking, Behavioural Lab', 'pv_att'],
+    ['Mark attendance: Design Thinking', 'Class has ended. Tap to mark Present or Absent in the app.', 'pv_att'],
     ['Timetable updated', '22 Oct 10am-12pm: Brand Management → cancelled', 'pv_sheet'],
     ['Announcement', 'Guest lecture moved to Room 5 at 4 PM today', 'pv_bc']
   ];
@@ -358,7 +404,7 @@ function previewAllNotifications() {
 function sendTestPush() { var c = baseCtx_(MY_ROLL, true), o = []; addSends_(o, c, safeRoll_(MY_ROLL), null, { title: 'Test push', body: 'Phone notifications are working.' }, { ymd: '', tag: 'test' }); Logger.log('Sending to ' + o.length + ' device(s)'); sendAll_(o); }
 function testMorning() { notifyDaySummary_(baseCtx_(MY_ROLL, true), null, 'morn'); }
 function testEvening() { notifyDaySummary_(baseCtx_(MY_ROLL, true), null, 'eve'); }
-function testAttendance() { notifyAttendance_(baseCtx_(MY_ROLL, true), null); }
+function testAttendance() { notifyAttendance_(baseCtx_(MY_ROLL, true)); } // classes of today that already ended and are not marked
 function testRemindersAndMeals() { notifyRemindersAndMeals_(baseCtx_(MY_ROLL, true)); } // anything still upcoming today
 
 // ------------------------------------------------------------------- helpers

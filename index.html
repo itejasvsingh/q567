@@ -81,6 +81,8 @@
   <button class="view-tab" id="vtab-menu" onclick="switchView('menu')"><span class="tab-icon">🥘</span><span class="tab-label">Menu</span></button>
 </div>
 
+<div id="push-prompt"></div>
+
 <div id="view-plan"></div>
 <div id="view-daily" style="display:none"></div>
 <div id="view-compare" style="display:none"></div>
@@ -138,7 +140,7 @@
     document.getElementById('export-modal-container').innerHTML = await fetchView('components/export-modal.html');
     
     const script = document.createElement('script');
-    script.src = 'app.js?v=42';
+    script.src = 'app.js?v=45';
     document.body.appendChild(script);
   }
   initApp();

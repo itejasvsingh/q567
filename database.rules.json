@@ -65,6 +65,14 @@
       }
     },
 
+    "announcements": {
+      ".read": "auth.token.email === 'tejasvsingh001@gmail.com' && auth.token.email_verified === true",
+      "$id": {
+        ".write": "auth.token.email === 'tejasvsingh001@gmail.com' && auth.token.email_verified === true",
+        ".validate": "newData.hasChildren(['title', 'body', 'at']) && newData.child('title').isString() && newData.child('title').val().length <= 80 && newData.child('body').isString() && newData.child('body').val().length <= 240 && newData.child('at').isNumber()"
+      }
+    },
+
     "push_reminders": {
       ".read": false,
       "$roll": {

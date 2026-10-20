@@ -2656,6 +2656,8 @@ function flushPendingOfflineWrites() {
           </div>
         </div>
 
+        <div id="drawer-admin"></div>
+
         <!-- Student Roll Number Setting -->
         <div class="drawer-setting-row" onclick="changeAgendaRollNo()" style="cursor:pointer;">
           <div class="drawer-setting-info">
@@ -2705,6 +2707,7 @@ function flushPendingOfflineWrites() {
 })();
 
 window.updateDrawerSettingsUI = function() {
+    if (window.renderDrawerAdmin) window.renderDrawerAdmin();
     const isGranted = ('Notification' in window) && Notification.permission === 'granted';
     const reminderPref = localStorage.getItem('mbaplanner_reminder_30m');
     const isAlertActive = isGranted && reminderPref !== 'off';
@@ -3647,6 +3650,7 @@ function _renderDailyScheduleInner() {
         const code = isIcrc ? 'ICRC' : d.subject.code;
         const it = {
           t: istToUTC(midnight, d.timeInfo.sh, d.timeInfo.sm).getTime(),
+          e: istToUTC(midnight, d.timeInfo.eh, d.timeInfo.em).getTime(),
           n: isIcrc ? 'ICRC Placement Prep' : d.subject.name,
           y: ymd, s: d.slot, c: code
         };
@@ -4241,7 +4245,7 @@ const PUSH_PREF_LABELS = [
   ['meal', 'Meal alerts', '15 min before breakfast, lunch, snacks, dinner'],
   ['morn', 'Morning summary', "Today's classes at about 7 AM"],
   ['eve', 'Evening preview', "Tomorrow's classes at about 9 PM"],
-  ['att', 'Attendance', 'Mark-attendance nudge and absence-limit warnings'],
+  ['att', 'Attendance', 'Reminder 15 min after class if not marked, and absence-limit warnings'],
   ['sheet', 'Timetable changes', 'When the official timetable changes'],
   ['bc', 'Announcements', 'Messages from the admin']
 ];
@@ -4277,3 +4281,161 @@ window.renderPushPrefsHtml = function() {
           </label>
         </div>`).join('');
 };
+
+
+// ---- Admin: send an announcement push to everyone ------------------------
+// Only the admin's Google account can write /announcements (database rules).
+// notify.gs picks new ones up and sends them within about 5 minutes.
+const ADMIN_EMAIL = 'tejasvsingh001@gmail.com';
+function isAdminUser() {
+  try { const u = firebase.auth().currentUser; return Boolean(u && u.email === ADMIN_EMAIL); } catch (e) { return false; }
+}
+window.renderDrawerAdmin = function() {
+  const el = document.getElementById('drawer-admin');
+  if (!el) return;
+  el.innerHTML = isAdminUser()
+    ? `<div class="drawer-setting-row" onclick="openAdminSheet()" style="cursor:pointer;"><div class="drawer-setting-info"><span class="drawer-setting-title">📣 Send announcement</span><span class="drawer-setting-sub">Admin · goes to every student</span></div></div>`
+    : `<div style="text-align:center; padding:6px 0 2px;"><a href="#" onclick="openAdminSheet(); return false;" style="font-size:11px; color:var(--tx3); text-decoration:none;">Admin</a></div>`;
+};
+window.openAdminSheet = function() {
+  if (window.pwaCloseDrawer) pwaCloseDrawer();
+  let box = document.getElementById('admin-sheet');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'admin-sheet';
+    box.style.cssText = 'position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.45); display:flex; align-items:flex-end; justify-content:center;';
+    box.onclick = e => { if (e.target === box) box.remove(); };
+    document.body.appendChild(box);
+  }
+  const card = 'background:var(--bg); color:var(--tx); width:100%; max-width:520px; border-radius:18px 18px 0 0; padding:18px 16px calc(18px + env(safe-area-inset-bottom)); box-shadow:0 -8px 30px rgba(0,0,0,.25);';
+  if (!isAdminUser()) {
+    box.innerHTML = `<div style="${card}">
+      <div style="font-size:16px; font-weight:700; margin-bottom:6px;">Admin sign-in</div>
+      <div style="font-size:12.5px; color:var(--tx2); margin-bottom:12px; line-height:1.4;">Sign in with the admin Google account to send announcements. Anyone else is signed straight back out.</div>
+      <button class="cmp-btn" style="width:100%; padding:10px; border-radius:10px;" onclick="adminSignIn()">Sign in with Google</button>
+      <button class="ios-seg-btn" style="width:100%; margin-top:8px;" onclick="document.getElementById('admin-sheet').remove()">Cancel</button>
+    </div>`;
+    return;
+  }
+  box.innerHTML = `<div style="${card}">
+    <div style="font-size:16px; font-weight:700; margin-bottom:10px;">📣 Announcement to all students</div>
+    <input id="ann-title" class="cmp-input" maxlength="80" placeholder="Title (short)" style="width:100%; box-sizing:border-box; margin-bottom:8px; border-radius:10px; padding:9px 11px;">
+    <textarea id="ann-body" class="cmp-input" maxlength="240" rows="3" placeholder="Message" style="width:100%; box-sizing:border-box; border-radius:10px; padding:9px 11px; resize:none;"></textarea>
+    <div style="font-size:11.5px; color:var(--tx2); margin:6px 0 10px;">Goes to everyone with notifications on, within about 5 minutes. It can't be taken back.</div>
+    <button class="cmp-btn" style="width:100%; padding:10px; border-radius:10px;" onclick="sendAnnouncement()">Send to everyone</button>
+    <button class="ios-seg-btn" style="width:100%; margin-top:8px;" onclick="document.getElementById('admin-sheet').remove()">Cancel</button>
+    <button style="display:block; margin:10px auto 0; background:none; border:none; font-size:11.5px; color:var(--tx3); cursor:pointer;" onclick="adminSignOut()">Sign out of admin</button>
+    <div id="ann-recent" style="margin-top:8px; font-size:11.5px; color:var(--tx2);"></div>
+  </div>`;
+  try {
+    fbDb.ref('announcements').orderByKey().limitToLast(3).once('value').then(snap => {
+      const rows = [];
+      snap.forEach(c => { const v = c.val() || {}; rows.unshift(`${escHtml(v.title || '')} · ${v.status === 'sent' ? 'sent to ' + (v.devices || 0) + ' device(s)' : 'waiting to send'}`); });
+      const el = document.getElementById('ann-recent');
+      if (el && rows.length) el.innerHTML = '<b>Recent</b><br>' + rows.join('<br>');
+    }).catch(() => {});
+  } catch (e) {}
+};
+window.adminSignIn = async function() {
+  try {
+    const cred = await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());
+    if (!cred.user || cred.user.email !== ADMIN_EMAIL) {
+      await firebase.auth().signOut();
+      await firebase.auth().signInAnonymously();
+      alert('That Google account is not the admin.');
+      document.getElementById('admin-sheet')?.remove();
+      return;
+    }
+    window.openAdminSheet();
+    if (window.renderDrawerAdmin) window.renderDrawerAdmin();
+  } catch (e) {
+    alert('Sign-in failed: ' + e.message + '\n\nOn iPhone, if it will not open from the Home Screen app, open q567.vercel.app in Safari and use Admin there.');
+  }
+};
+window.adminSignOut = async function() {
+  try { await firebase.auth().signOut(); await firebase.auth().signInAnonymously(); } catch (e) {}
+  document.getElementById('admin-sheet')?.remove();
+  if (window.renderDrawerAdmin) window.renderDrawerAdmin();
+};
+window.sendAnnouncement = function() {
+  const title = (document.getElementById('ann-title').value || '').trim();
+  const body = (document.getElementById('ann-body').value || '').trim();
+  if (!title || !body) { alert('Write a title and a message first.'); return; }
+  if (!confirm('Send this to every student?\n\n' + title + '\n' + body)) return;
+  fbDb.ref('announcements').push({ title, body, at: firebase.database.ServerValue.TIMESTAMP, by: ADMIN_EMAIL })
+    .then(() => { document.getElementById('admin-sheet')?.remove(); alert('Queued. Students get it within about 5 minutes.'); })
+    .catch(e => alert('Could not send: ' + e.message));
+};
+// ?admin opens the admin sheet (use this link in the browser)
+if (/[?&]admin\b/.test(location.search)) setTimeout(() => { if (window.openAdminSheet) window.openAdminSheet(); }, 2000);
+
+
+// ---- Prompt students to install the app and turn notifications on ----------
+function pushPromptKind() {
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  const safari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|GSA/.test(ua);
+  const supported = 'Notification' in window && 'serviceWorker' in navigator;
+  const on = supported && Notification.permission === 'granted' && localStorage.getItem('mbaplanner_reminder_30m') !== 'off';
+  if (on) return null;
+  if (isIOS && !standalone) return safari ? 'ios-safari' : 'ios-other';
+  if (!supported) return null;
+  return Notification.permission === 'denied' ? 'denied' : 'enable';
+}
+
+window.refreshPushPrompt = function() {
+  const el = document.getElementById('push-prompt');
+  if (!el) return;
+  let until = 0;
+  try { until = Number(localStorage.getItem('mbaplanner_push_prompt_until') || 0); } catch (e) {}
+  const kind = pushPromptKind();
+  if (!kind || Date.now() < until) { el.innerHTML = ''; return; }
+  const box = 'background:var(--bg-info); color:var(--tx); border:.5px solid var(--bd-info); border-radius:12px; padding:12px 14px; margin:0 0 12px; font-size:13px; line-height:1.45;';
+  const btn = 'background:var(--tx-info); color:#fff; border:none; border-radius:8px; padding:8px 14px; font-size:13px; font-weight:700; cursor:pointer;';
+  const later = '<button onclick="dismissPushPrompt()" style="background:none; border:none; color:var(--tx2); font-size:12px; cursor:pointer; padding:8px 6px;">Not now</button>';
+  let h = '';
+  if (kind === 'ios-safari') {
+    h = `<b>📲 Get class alerts on your iPhone</b><br>Notifications only work once the app is on your Home Screen:<br>
+      1. Tap the <b>Share</b> button (the square with an arrow) at the bottom of Safari<br>
+      2. Tap <b>Add to Home Screen</b>, then <b>Add</b><br>
+      3. Open the app from the <b>new icon</b> and tap <b>Turn on notifications</b><div style="margin-top:6px;">${later}</div>`;
+  } else if (kind === 'ios-other') {
+    h = `<b>📲 Open this in Safari to get alerts</b><br>iPhones only allow notifications for apps added from <b>Safari</b> (not Chrome). Open <b>q567.vercel.app</b> in Safari, tap Share → Add to Home Screen, then open it from the new icon.<div style="margin-top:6px;"><button style="${btn}" onclick="copyAppLink()">Copy link</button>${later}</div>`;
+  } else if (kind === 'denied') {
+    h = `<b>🔕 Notifications are blocked</b><br>Open your phone's <b>Settings → Notifications</b>, find this app (or your browser), and allow notifications. Then reopen the app.<div style="margin-top:6px;">${later}</div>`;
+  } else {
+    const install = (typeof _deferredInstallPrompt !== 'undefined' && _deferredInstallPrompt) ? `<button style="${btn} background:var(--bg); color:var(--tx-info); border:.5px solid var(--bd-info);" onclick="handleInstallClick()">Install app</button> ` : '';
+    h = `<b>🔔 Turn on notifications</b><br>Get class changes, a reminder before each class, and meal alerts on your phone.<div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:8px; align-items:center;"><button style="${btn}" onclick="enableNotificationsFromPrompt()">Turn on notifications</button>${install}${later}</div>`;
+  }
+  el.innerHTML = `<div style="${box}">${h}</div>`;
+};
+
+window.dismissPushPrompt = function() {
+  try { localStorage.setItem('mbaplanner_push_prompt_until', String(Date.now() + 2 * 86400000)); } catch (e) {}
+  window.refreshPushPrompt();
+};
+
+window.copyAppLink = function() {
+  const url = 'https://q567.vercel.app';
+  (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(() => alert('Link copied. Paste it into Safari.'), () => prompt('Copy this link and open it in Safari:', url));
+};
+
+window.enableNotificationsFromPrompt = function() {
+  if (!getActiveRollNo()) {
+    alert('First enter your roll number (the box on the Agenda tab), then turn on notifications.');
+    if (window.switchView) switchView('daily');
+    return;
+  }
+  Notification.requestPermission().then(perm => {
+    localStorage.setItem('mbaplanner_reminder_30m', perm === 'granted' ? 'on' : 'off');
+    savePreferencesForRoll();
+    if (window.updateDrawerSettingsUI) updateDrawerSettingsUI();
+    window.refreshPushPrompt();
+    if (typeof currentView !== 'undefined' && currentView === 'daily') renderDailySchedule();
+  });
+};
+
+setTimeout(() => window.refreshPushPrompt(), 2500);
+window.addEventListener('focus', () => window.refreshPushPrompt());
+document.addEventListener('visibilitychange', () => { if (!document.hidden) window.refreshPushPrompt(); });
