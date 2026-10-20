@@ -14,4 +14,4 @@ const FIREBASE_CONFIG = {
 // Web Push key pair public key (Firebase Console > Project settings > Cloud
 // Messaging > Web Push certificates). Public, safe to commit. While empty,
 // phone push stays off and the rest of the app is unaffected.
-const FCM_VAPID_KEY = "";
+const FCM_VAPID_KEY = "BKDdR-EIJwO1VbzVP5krt2pvqy4cyP0hl70S9TnAJmNHEeX_iIrFDghrf2wBtEEs9-lScRqC0Jc0ONZ4UKQoDHw";
