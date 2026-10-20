@@ -19,6 +19,7 @@ var NOTIFY_PROJECT = 'q567mba';
 var MY_ROLL = 'MS25A071';          // used by the test* and preview functions
 var PREF_DEFAULTS = { chg: true, rem: true, meal: true, morn: true, eve: false, att: true, sheet: true };
 var ABSENCE_LIMIT = 2;
+var STATS_VERSION = 3;             // bump when the admin stats layout changes
 
 // ---------------------------------------------------------------- main tick
 function notifyClassChanges() {
@@ -358,8 +359,10 @@ function notifyAnnouncements_(ctx, props) {
 
 // Numbers shown in the admin panel (rebuilt about every 30 minutes).
 function writePushStats_(ctx, props) {
-  if (ctx.now - Number(props.getProperty('statsAt') || 0) < 25 * 60000) return;
+  // rebuild every ~30 min, or right away after the stats layout changes (bump STATS_VERSION)
+  if (props.getProperty('statsVer') === String(STATS_VERSION) && ctx.now - Number(props.getProperty('statsAt') || 0) < 25 * 60000) return;
   props.setProperty('statsAt', String(ctx.now));
+  props.setProperty('statsVer', String(STATS_VERSION));
   var users = dbGet_('/app_users') || {};
   // everyone who ever saved a profile in the app (roll number + electives)
   var profiles = dbGet_('/roll_preferences') || {};
