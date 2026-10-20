@@ -59,7 +59,8 @@
         ".validate": "$roll.length <= 40",
         "$device": {
           ".write": "auth != null",
-          ".validate": "$device.length <= 40 && (newData.child('token').isString() && newData.child('token').val().length <= 512 && newData.child('at').isNumber() && newData.hasChildren(['token', 'at']))"
+          ".validate": "$device.length <= 40 && newData.hasChildren(['token', 'at']) && newData.child('token').isString() && newData.child('token').val().length <= 512 && newData.child('at').isNumber()",
+          "prefs": { "$k": { ".validate": "newData.isBoolean()" } }
         }
       }
     },
@@ -68,7 +69,7 @@
       ".read": false,
       "$roll": {
         ".write": "auth != null",
-        ".validate": "$roll.length <= 40 && newData.hasChildren(['at', 'items'])"
+        ".validate": "$roll.length <= 40 && newData.hasChild('at') && newData.child('at').isNumber()"
       }
     },
 

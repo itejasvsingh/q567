@@ -236,6 +236,9 @@ function syncTimetableToFirebase() {
     }
   }
   
+  // Tell students whose classes changed in the sheet (never lets a notify bug break the sync).
+  try { notifySheetChanges_(existingFirebaseData.daily, dailyData); } catch (e) { Logger.log('Sheet-change notify failed: ' + e.message); }
+
   // --- 3. PUSH TO FIREBASE ---
   var payload = { daily: dailyData, weekly: weeklyData };
   var options = { method: 'put', contentType: 'application/json', headers: firebaseAuthHeaders(), payload: JSON.stringify(payload) };

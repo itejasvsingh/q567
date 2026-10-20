@@ -2644,6 +2644,11 @@ function flushPendingOfflineWrites() {
           </label>
         </div>
 
+        <details class="drawer-push-prefs">
+          <summary class="drawer-setting-title" style="cursor:pointer; padding:8px 0;">🔔 Notification settings</summary>
+          ${window.renderPushPrefsHtml ? window.renderPushPrefsHtml() : ''}
+        </details>
+
         <div class="drawer-setting-row" onclick="testNotification()" style="cursor:pointer;">
           <div class="drawer-setting-info">
             <span class="drawer-setting-title">🧪 Test notification</span>
@@ -2707,7 +2712,7 @@ window.updateDrawerSettingsUI = function() {
     const alertCb = document.getElementById('drawer-alert-checkbox');
     const alertSub = document.getElementById('drawer-alert-status-text');
     if (alertCb) alertCb.checked = isAlertActive;
-    if (alertSub) alertSub.textContent = isAlertActive ? 'Active · 30m reminders + class changes' : 'Disabled';
+    if (alertSub) alertSub.textContent = isAlertActive ? 'Active · tap Notification settings to choose' : 'Disabled';
 
     const roll = (localStorage.getItem('mbaplanner_roll_no') || '').trim();
     const rollDisp = document.getElementById('drawer-roll-display');
@@ -3625,28 +3630,45 @@ function _renderDailyScheduleInner() {
   }
   const currentDateKey = window._selectedAgendaDate;
 
-  // Hand the next week of my classes to the push reminder sync (server sends
-  // the "starts in 30 min" push from this list).
+  // Hand the next few days of my classes, absences and meals to the push sync
+  // (the server sends reminders, summaries and meal alerts from this).
   try {
+    let marks = {};
+    try { marks = JSON.parse(localStorage.getItem('mbaplanner_class_attendance')) || {}; } catch (e) {}
     const items = [];
-    dateKeys.filter(k => k.slice(0, 10) >= todayYmd).slice(0, 8).forEach(k => {
+    dateKeys.filter(k => k.slice(0, 10) >= todayYmd).slice(0, 3).forEach(k => {
       const ymd = k.slice(0, 10);
       const { dayClasses } = parseDayClasses(liveDailyCache[k], k);
       const [yy, mm, dd] = ymd.split('-').map(Number);
       const midnight = new Date(Date.UTC(yy, mm - 1, dd));
       Object.values(dayClasses).forEach(d => {
-        if (d.cancelled || d.hidden || !d.timeInfo || !d.slot) return;
+        if (d.hidden || !d.timeInfo || !d.slot) return;
         const isIcrc = d.type === 'icrc';
+        const code = isIcrc ? 'ICRC' : d.subject.code;
         const it = {
           t: istToUTC(midnight, d.timeInfo.sh, d.timeInfo.sm).getTime(),
           n: isIcrc ? 'ICRC Placement Prep' : d.subject.name,
-          y: ymd, s: d.slot, c: isIcrc ? 'ICRC' : d.subject.code
+          y: ymd, s: d.slot, c: code
         };
+        if (d.cancelled) it.x = 1;
         if (!isIcrc && d.subject.room) it.r = String(d.subject.room);
+        const mk = marks[`${ymd}_${d.slot}_${code}`];
+        if (mk) it.m = mk;
         items.push(it);
       });
     });
-    if (window.syncPushReminders) window.syncPushReminders(items);
+    const subj = activeSubjects.map(x => ({ c: x.code, n: x.name, a: excelAcronyms[x.code] || '' }));
+    const abs = {};
+    Object.entries(marks).forEach(([id, st]) => {
+      if (st !== 'A') return;
+      const code = id.split('_').slice(2).join('_');
+      if (code) abs[code] = (abs[code] || 0) + 1;
+    });
+    const meals = [];
+    if (window.mealAlertsFor) {
+      [todayYmd, tomorrowYmd].forEach(ymd => window.mealAlertsFor(ymd).forEach(m => meals.push(m)));
+    }
+    if (window.syncPushReminders) window.syncPushReminders({ items, subj, abs, meals });
   } catch (e) { console.warn('Reminder list failed', e); }
 
   // Build Interactive Day Capsules Carousel
@@ -4145,7 +4167,7 @@ window.syncPush = async function() {
     // Roll changed on this device: drop the token under the old roll.
     const prev = localStorage.getItem('mbaplanner_push_roll');
     if (prev && prev !== safeRoll) fbDb.ref(`push_tokens/${prev}/${pushDeviceId()}`).remove().catch(() => {});
-    await ref.set({ token, at: Date.now() });
+    await ref.set({ token, at: Date.now(), prefs: pushPrefs() });
     localStorage.setItem('mbaplanner_push_roll', safeRoll);
     window._pushSig = sig;
     if (typeof currentView !== 'undefined' && currentView === 'daily') renderDailySchedule();
@@ -4193,18 +4215,65 @@ window.testNotification = async function() {
 
 // Upcoming classes for server-sent "starts in 30 min" pushes. Written under
 // push_reminders/{roll}; notify.gs reads it and also skips cancelled/moved.
-window.syncPushReminders = function(items) {
+window.syncPushReminders = function(data) {
   try {
     if (!fbDb || !/\|true$/.test(window._pushSig || '')) return;
     const roll = getActiveRollNo();
     if (!roll) return;
     const safeRoll = roll.replace(/[.#$[\]]/g, '_');
-    const sig = safeRoll + JSON.stringify(items);
+    const sig = safeRoll + JSON.stringify(data);
     if (window._reminderSig === sig) return;
     window._reminderSig = sig;
     const map = {};
-    items.forEach(it => { map[`${it.y}_${it.s}_${it.c}`.replace(/[.#$[\]\/]/g, '_')] = it; });
-    const ref = fbDb.ref(`push_reminders/${safeRoll}`);
-    (Object.keys(map).length ? ref.set({ at: Date.now(), items: map }) : ref.remove()).catch(e => { window._reminderSig = ''; console.warn('Reminder sync failed', e); });
+    data.items.forEach(it => { map[`${it.y}_${it.s}_${it.c}`.replace(/[.#$[\]\/]/g, '_')] = it; });
+    const payload = { at: Date.now(), subj: data.subj || [], abs: data.abs || {}, meals: data.meals || [] };
+    if (Object.keys(map).length) payload.items = map;
+    fbDb.ref(`push_reminders/${safeRoll}`).set(payload).catch(e => { window._reminderSig = ''; console.warn('Reminder sync failed', e); });
   } catch (e) { console.warn('Reminder sync error', e); }
+};
+
+
+// What this device gets. Stored on the token record so the server can respect it.
+const PUSH_PREF_DEFAULTS = { chg: true, rem: true, morn: true, eve: false, att: true, sheet: true, meal: true, bc: true };
+const PUSH_PREF_LABELS = [
+  ['chg', 'Class updates', 'Cancelled, moved or retimed by classmates'],
+  ['rem', '30-min class reminder', 'Before each class'],
+  ['meal', 'Meal alerts', '15 min before breakfast, lunch, snacks, dinner'],
+  ['morn', 'Morning summary', "Today's classes at about 7 AM"],
+  ['eve', 'Evening preview', "Tomorrow's classes at about 9 PM"],
+  ['att', 'Attendance', 'Mark-attendance nudge and absence-limit warnings'],
+  ['sheet', 'Timetable changes', 'When the official timetable changes'],
+  ['bc', 'Announcements', 'Messages from the admin']
+];
+function pushPrefs() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem('mbaplanner_push_prefs')) || {}; } catch (e) {}
+  const out = {};
+  Object.keys(PUSH_PREF_DEFAULTS).forEach(k => { out[k] = typeof saved[k] === 'boolean' ? saved[k] : PUSH_PREF_DEFAULTS[k]; });
+  return out;
+}
+window.setPushPref = function(key, on) {
+  const p = pushPrefs();
+  p[key] = Boolean(on);
+  try { localStorage.setItem('mbaplanner_push_prefs', JSON.stringify(p)); } catch (e) {}
+  try {
+    const safeRoll = localStorage.getItem('mbaplanner_push_roll');
+    if (fbDb && safeRoll && /\|true$/.test(window._pushSig || '')) {
+      fbDb.ref(`push_tokens/${safeRoll}/${pushDeviceId()}/prefs`).set(p).catch(() => {});
+    }
+  } catch (e) {}
+};
+window.renderPushPrefsHtml = function() {
+  const p = pushPrefs();
+  return PUSH_PREF_LABELS.map(([k, t, sub]) => `
+        <div class="drawer-setting-row">
+          <div class="drawer-setting-info">
+            <span class="drawer-setting-title">${t}</span>
+            <span class="drawer-setting-sub">${sub}</span>
+          </div>
+          <label class="ios-switch">
+            <input type="checkbox" ${p[k] ? 'checked' : ''} onchange="setPushPref('${k}', this.checked)">
+            <span class="ios-slider"></span>
+          </label>
+        </div>`).join('');
 };

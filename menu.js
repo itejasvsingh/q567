@@ -249,5 +249,28 @@
     </details>`;
   };
 
+  // Short highlights for the push meal alerts: key dishes only, never the whole menu.
+  // Returns [{t: start ms, k: label, i: icon, m: 'dish · dish'}] for one date, or [] if no mess is chosen.
+  window.mealAlertsFor = function (k) {
+    if (!window.MESS_MENU) return [];
+    ensureValid();
+    if (!hasPref()) return [];
+    const d = parseYmd(k), menu = menuFor(d);
+    if (!menu) return [];
+    const out = [];
+    MEALS.forEach(m => {
+      const raw = (menu.menu[dayKeyOf(d)] || {})[m.key] || [];
+      let dishes = m.key === 'breakfast' ? keyDishes(breakfastSplit(raw).items, m.key)
+        : m.key === 'snacks' ? raw.slice(0, 3)
+        : keyDishes(raw, m.key);
+      dishes = dishes.map(x => String(x).replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 4);
+      if (!dishes.length) return;
+      const [y, mo, da] = k.split('-').map(Number);
+      const startMins = Math.round(m.from * 60);
+      out.push({ t: Date.UTC(y, mo - 1, da) + (startMins - 330) * 60000, k: m.label, i: m.icon, m: dishes.join(' · ').slice(0, 140) });
+    });
+    return out;
+  };
+
   loadPref();
 })();
