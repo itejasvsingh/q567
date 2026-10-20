@@ -4425,7 +4425,7 @@ function adminPanel() {
   const tile = (n, label, sub) => `<div style="background:var(--bg2); border:.5px solid var(--bd); border-radius:10px; padding:8px 6px; text-align:center;"><div style="font-size:19px; font-weight:800; color:var(--tx);">${n == null ? 0 : n}</div><div style="font-size:10.5px; color:var(--tx2); line-height:1.25;">${label}</div>${sub ? `<div style="font-size:9.5px; color:var(--tx3); margin-top:1px;">${sub}</div>` : ''}</div>`;
   const head = t => `<div style="font-size:13px; font-weight:700; color:var(--tx); margin:2px 0 6px;">${t}</div>`;
   const grid = h => `<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:8px;">${h}</div>`;
-  const pct = (n, d) => d ? Math.round(n * 100 / d) + '%' : '-';
+  const pct = (n, d) => d ? Math.round((n || 0) * 100 / d) + '%' : '-';
 
   // live: who is in the app right now (presence), refreshed while the panel is open
   const loadLive = () => {
@@ -4447,19 +4447,22 @@ function adminPanel() {
       const v = snap.val(), el = document.getElementById('admin-stats');
       if (!el) return;
       if (!v) { el.textContent = 'No stats yet. They appear after the script runs (every 30 minutes).'; return; }
-      const u = v.users || {}, s = v.sent || {}, pr = v.prefs || {};
+      const u = v.users || {}, s = v.sent || {}, pr = v.prefs || {}, rg = v.reg || {};
       const kindName = { rem: 'class reminders', meal: 'meal alerts', chg: 'class updates', att: 'attendance', morn: 'morning', eve: 'evening', sheet: 'timetable', bc: 'announcements' };
       const byKind = Object.entries(s.byKind || {}).map(([k, n]) => `${n} ${kindName[k] || k}`).join(' · ');
       const prefNames = { chg: 'Class updates', rem: '30-min reminder', meal: 'Meal alerts', morn: 'Morning summary', eve: 'Evening preview', att: 'Attendance', sheet: 'Timetable changes' };
       const webDev = (u.devices || 0) - (u.pwa || 0);
       el.innerHTML = `
-        ${head('🎓 Registered students (roll no. set)')}
-        ${grid(tile(u.students, 'students in total') + tile(u.rollsApp, 'use the Home Screen app', pct(u.rollsApp, u.students)) + tile(u.rollsWeb, 'use the website', pct(u.rollsWeb, u.students)) + tile(u.rollsBoth, 'use both'))}
+        ${head('🎓 Registered in the app (all time)')}
+        ${grid(tile(rg.profiles, 'students with a saved profile', pct(rg.profiles, rg.cohort) + ' of ' + (rg.cohort || '?') + ' in the class') + tile(rg.active1d, 'updated their profile today') + tile(rg.active7d, 'updated in the last 7 days') + tile(rg.attendance, 'tracking Q6 attendance') + tile(rg.groupNames, 'names in Compare groups'))}
+        ${head('💻 Website vs Home Screen app')}
+        <div style="font-size:11px; color:var(--tx2); margin:-2px 0 6px;">Counted since students opened the latest update, so this grows over time.</div>
+        ${grid(tile(u.students, 'students seen on the new version') + tile(u.rollsApp, 'use the Home Screen app', pct(u.rollsApp, u.students)) + tile(u.rollsWeb, 'use the website', pct(u.rollsWeb, u.students)) + tile(u.rollsBoth, 'use both'))}
         ${head('📱 Devices that opened the app')}
         ${grid(tile(u.devices, 'devices in total') + tile(u.pwa, 'Home Screen app', pct(u.pwa, u.devices)) + tile(webDev, 'website', pct(webDev, u.devices)) + tile(u.active24h, 'active today', 'last 24h') + tile(u.active7d, 'active this week', 'last 7 days') + tile(u.newToday, 'new today'))}
         <div style="font-size:11.5px; margin-bottom:12px;">iPhone ${u.ios || 0} · Android ${u.android || 0} · Computer ${u.desktop || 0}<br>Home Screen app: iPhone ${u.pwaIos || 0} · Android ${u.pwaAndroid || 0}</div>
         ${head('🔔 Notifications')}
-        ${grid(tile(v.students, 'students with notifications on', pct(v.students, u.students) + ' of students') + tile(v.devices, 'devices registered') + tile(s.today, 'sent today') + tile(s.week, 'sent in 7 days') + tile(s.total, 'sent in total'))}
+        ${grid(tile(v.students, 'students with notifications on', pct(v.students, rg.profiles || u.students) + ' of registered') + tile(v.devices, 'devices registered') + tile(s.today, 'sent today') + tile(s.week, 'sent in 7 days') + tile(s.total, 'sent in total'))}
         <div style="font-size:11.5px; margin-bottom:8px;">${byKind ? 'Today: ' + byKind : 'Nothing sent today yet.'}</div>
         <details style="font-size:11.5px; margin-bottom:6px;"><summary style="cursor:pointer;">Who turned on what (devices)</summary>${Object.keys(prefNames).map(k => `<div>${prefNames[k]}: <b>${pr[k] || 0}</b></div>`).join('')}</details>
         <div style="font-size:10.5px; color:var(--tx3);">Updated ${new Date(v.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} (every 30 min). Numbers grow as students open the updated app.</div>`;

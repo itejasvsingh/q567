@@ -361,6 +361,18 @@ function writePushStats_(ctx, props) {
   if (ctx.now - Number(props.getProperty('statsAt') || 0) < 25 * 60000) return;
   props.setProperty('statsAt', String(ctx.now));
   var users = dbGet_('/app_users') || {};
+  // everyone who ever saved a profile in the app (roll number + electives)
+  var profiles = dbGet_('/roll_preferences') || {};
+  var reg = { profiles: 0, active1d: 0, active7d: 0, cohort: Object.keys(dbGet_('/q5_attendance', 'shallow=true') || {}).length, attendance: Object.keys(dbGet_('/q6_attendance', 'shallow=true') || {}).length, groupNames: 0 };
+  Object.keys(profiles).forEach(function (r) {
+    reg.profiles++;
+    var age = ctx.now - ((profiles[r] || {}).updatedAt || 0);
+    if (age < 86400000) reg.active1d++;
+    if (age < 7 * 86400000) reg.active7d++;
+  });
+  var groups = dbGet_('/groups') || {}, names = {};
+  Object.keys(groups).forEach(function (gk) { Object.keys((groups[gk] || {}).members || {}).forEach(function (n) { names[n] = 1; }); });
+  reg.groupNames = Object.keys(names).length;
   var rollsApp = {}, rollsWeb = {};
   var day = 86400000, u = { devices: 0, rolls: {}, active24h: 0, active7d: 0, pwa: 0, notif: 0, ios: 0, android: 0, desktop: 0, pwaIos: 0, pwaAndroid: 0, newToday: 0 };
   Object.keys(users).forEach(function (k) {
@@ -389,6 +401,7 @@ function writePushStats_(ctx, props) {
   });
   var stats = {
     at: ctx.now,
+    reg: reg,
     students: students, devices: devices, prefs: prefs,
     users: { devices: u.devices, students: Object.keys(u.rolls).length, rollsApp: Object.keys(rollsApp).length, rollsWeb: Object.keys(rollsWeb).length, rollsBoth: Object.keys(rollsApp).filter(function (r) { return rollsWeb[r]; }).length, active24h: u.active24h, active7d: u.active7d, newToday: u.newToday, pwa: u.pwa, pwaIos: u.pwaIos, pwaAndroid: u.pwaAndroid, notif: u.notif, ios: u.ios, android: u.android, desktop: u.desktop },
     sent: { today: sentToday, week: sentWeek, total: Number(props.getProperty('pushTotal') || 0), byKind: byKind }
