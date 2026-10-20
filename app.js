@@ -4482,22 +4482,42 @@ function adminPanel() {
   } catch (e) {}
 }
 
-window.loadAdminFeedback = function() {
+window.loadAdminFeedback = function(filter) {
   const el = document.getElementById('admin-feedback');
   if (!el) return;
-  fbDb.ref('feedback').orderByKey().limitToLast(40).once('value').then(snap => {
-    const rows = [];
-    snap.forEach(c => rows.unshift({ k: c.key, v: c.val() || {} }));
+  if (filter) window._fbFilter = filter;
+  fbDb.ref('feedback').orderByKey().once('value').then(snap => {
+    const all = [];
+    snap.forEach(c => all.unshift({ k: c.key, v: c.val() || {} }));   // newest first
+    window._fbAll = all;
+    const f = window._fbFilter || 'all';
+    const rows = f === 'all' ? all : all.filter(x => (x.v.cat || 'other') === f);
     const cnt = document.getElementById('fb-count');
-    if (cnt) cnt.textContent = rows.length ? `(${rows.length})` : '';
+    if (cnt) cnt.textContent = all.length ? `(${all.length})` : '';
+    if (!all.length) { el.textContent = 'No feedback yet.'; return; }
     const catIcon = { idea: '💡', problem: '🐞', other: '💬' };
-    el.innerHTML = rows.length ? rows.map(({ k, v }) => `
-      <div style="border:.5px solid var(--bd); border-radius:10px; padding:8px 10px; margin-bottom:6px; background:var(--bg2);">
-        <div style="font-size:11px; color:var(--tx2); margin-bottom:3px;">${catIcon[v.cat] || '💬'} ${escHtml(v.roll || 'no roll no.')} · ${escHtml(v.ua || '')}${v.pwa ? ' app' : ' web'} · ${new Date(v.at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
-        <div style="font-size:13px; color:var(--tx); white-space:pre-wrap;">${escHtml(v.text || '')}</div>
-        <button onclick="deleteFeedback('${k}')" style="background:none; border:none; color:var(--tx3); font-size:11px; cursor:pointer; padding:4px 0 0;">Delete</button>
-      </div>`).join('') : 'No feedback yet.';
+    const n = c => all.filter(x => (x.v.cat || 'other') === c).length;
+    const chip = (k, label) => `<button class="ios-seg-btn${f === k ? ' active-p' : ''}" style="padding:3px 9px; font-size:11.5px;" onclick="loadAdminFeedback('${k}')">${label}</button>`;
+    const when = t => new Date(t).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    el.innerHTML = `
+      <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">${chip('all', `All ${all.length}`)}${chip('idea', `💡 ${n('idea')}`)}${chip('problem', `🐞 ${n('problem')}`)}${chip('other', `💬 ${n('other')}`)}</div>
+      <div style="display:flex; gap:12px; margin-bottom:8px; font-size:11.5px;"><a href="#" onclick="copyAllFeedback(); return false" style="color:var(--tx-info);">Copy all</a><a href="#" onclick="deleteAllFeedback(); return false" style="color:var(--tx-danger);">Delete all</a></div>
+      ${rows.map(({ k, v }) => `
+        <div style="border-bottom:.5px solid var(--bd); padding:7px 0;">
+          <div style="font-size:11px; color:var(--tx2);">${catIcon[v.cat] || '💬'} ${escHtml(v.roll || 'no roll no.')} · ${escHtml(v.ua || '')} ${v.pwa ? 'app' : 'web'} · ${when(v.at)} <a href="#" onclick="deleteFeedback('${k}'); return false" style="color:var(--tx3); margin-left:6px;">delete</a></div>
+          <div style="font-size:13px; color:var(--tx); white-space:pre-wrap;">${escHtml(v.text || '')}</div>
+        </div>`).join('') || '<div>None in this group.</div>'}`;
   }).catch(() => { el.innerHTML = 'Could not load feedback. Tap <b>Lock</b>, then open Admin and enter the PIN again.'; });
+};
+window.copyAllFeedback = function() {
+  const text = (window._fbAll || []).map(({ v }) => `[${v.cat || 'other'}] ${v.roll || '-'} (${v.ua || ''} ${v.pwa ? 'app' : 'web'}, ${new Date(v.at).toLocaleString('en-GB')})\n${v.text}`).join('\n\n');
+  (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => alert('All feedback copied.'), () => prompt('Copy this:', text));
+};
+window.deleteAllFeedback = function() {
+  const all = window._fbAll || [];
+  if (!all.length || !confirm(`Delete all ${all.length} feedback messages? This cannot be undone.`)) return;
+  const upd = {}; all.forEach(x => { upd[x.k] = null; });
+  fbDb.ref('feedback').update(upd).then(() => window.loadAdminFeedback()).catch(() => alert('Could not delete.'));
 };
 window.deleteFeedback = function(k) {
   if (!confirm('Delete this feedback?')) return;
