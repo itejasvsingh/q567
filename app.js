@@ -2865,6 +2865,9 @@ window.requestNotificationPermission = function() {
 window._activeNotifications = window._activeNotifications || [];
 function scheduleClassNotifications(todaysClasses, ymdStr) {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    // Server push is active on this device: it sends the 30-min reminder, so
+    // skip the local one to avoid a double notification.
+    if (/\|true$/.test(window._pushSig || '')) return;
     if (localStorage.getItem('mbaplanner_reminder_30m') === 'off') return;
     
     // Clear pending timeouts. renderDailySchedule() can run while app.js is
@@ -3622,6 +3625,30 @@ function _renderDailyScheduleInner() {
   }
   const currentDateKey = window._selectedAgendaDate;
 
+  // Hand the next week of my classes to the push reminder sync (server sends
+  // the "starts in 30 min" push from this list).
+  try {
+    const items = [];
+    dateKeys.filter(k => k.slice(0, 10) >= todayYmd).slice(0, 8).forEach(k => {
+      const ymd = k.slice(0, 10);
+      const { dayClasses } = parseDayClasses(liveDailyCache[k], k);
+      const [yy, mm, dd] = ymd.split('-').map(Number);
+      const midnight = new Date(Date.UTC(yy, mm - 1, dd));
+      Object.values(dayClasses).forEach(d => {
+        if (d.cancelled || d.hidden || !d.timeInfo || !d.slot) return;
+        const isIcrc = d.type === 'icrc';
+        const it = {
+          t: istToUTC(midnight, d.timeInfo.sh, d.timeInfo.sm).getTime(),
+          n: isIcrc ? 'ICRC Placement Prep' : d.subject.name,
+          y: ymd, s: d.slot, c: isIcrc ? 'ICRC' : d.subject.code
+        };
+        if (!isIcrc && d.subject.room) it.r = String(d.subject.room);
+        items.push(it);
+      });
+    });
+    if (window.syncPushReminders) window.syncPushReminders(items);
+  } catch (e) { console.warn('Reminder list failed', e); }
+
   // Build Interactive Day Capsules Carousel
   let capsulesHtml = `<div class="date-capsules">`;
   for (const dateString of dateKeys) {
@@ -4107,6 +4134,8 @@ window.syncPush = async function() {
       const old = localStorage.getItem('mbaplanner_push_roll');
       if (old) fbDb.ref(`push_tokens/${old}/${pushDeviceId()}`).remove().catch(() => {});
       ref.remove().catch(() => {});
+      fbDb.ref(`push_reminders/${safeRoll}`).remove().catch(() => {});
+      window._reminderSig = '';
       localStorage.removeItem('mbaplanner_push_roll');
       return;
     }
@@ -4119,6 +4148,7 @@ window.syncPush = async function() {
     await ref.set({ token, at: Date.now() });
     localStorage.setItem('mbaplanner_push_roll', safeRoll);
     window._pushSig = sig;
+    if (typeof currentView !== 'undefined' && currentView === 'daily') renderDailySchedule();
   } catch (e) {
     window._pushErr = String(e && e.message || e).slice(0, 160);
     console.warn('Push setup failed', e);
@@ -4158,4 +4188,23 @@ window.testNotification = async function() {
     lines.push('Error: ' + e.message);
   }
   alert(lines.join('\n'));
+};
+
+
+// Upcoming classes for server-sent "starts in 30 min" pushes. Written under
+// push_reminders/{roll}; notify.gs reads it and also skips cancelled/moved.
+window.syncPushReminders = function(items) {
+  try {
+    if (!fbDb || !/\|true$/.test(window._pushSig || '')) return;
+    const roll = getActiveRollNo();
+    if (!roll) return;
+    const safeRoll = roll.replace(/[.#$[\]]/g, '_');
+    const sig = safeRoll + JSON.stringify(items);
+    if (window._reminderSig === sig) return;
+    window._reminderSig = sig;
+    const map = {};
+    items.forEach(it => { map[`${it.y}_${it.s}_${it.c}`.replace(/[.#$[\]\/]/g, '_')] = it; });
+    const ref = fbDb.ref(`push_reminders/${safeRoll}`);
+    (Object.keys(map).length ? ref.set({ at: Date.now(), items: map }) : ref.remove()).catch(e => { window._reminderSig = ''; console.warn('Reminder sync failed', e); });
+  } catch (e) { console.warn('Reminder sync error', e); }
 };

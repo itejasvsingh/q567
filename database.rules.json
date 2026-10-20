@@ -64,6 +64,14 @@
       }
     },
 
+    "push_reminders": {
+      ".read": false,
+      "$roll": {
+        ".write": "auth != null",
+        ".validate": "$roll.length <= 40 && newData.hasChildren(['at', 'items'])"
+      }
+    },
+
     "schedule_changes": {
       ".read": "auth != null",
       "$ymd": {
