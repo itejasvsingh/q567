@@ -1969,6 +1969,21 @@ window.getQ6AttendanceForRoll = function(query) {
   }
   Object.keys(counts).forEach(c => targetCodes.add(c));
 
+  // Held classes with no Present/Absent mark yet (only for the signed-in student).
+  if (isCurrentStudent && !window._attSessions && typeof renderDailySchedule === 'function') {
+    try { renderDailySchedule(); } catch (e) {}
+  }
+  const unmarkedByCode = {};
+  if (isCurrentStudent && window._attSessions) {
+    const markedCodes = new Set(Object.keys(rollAttMap).map(id => id.split('_').slice(2).join('_')));
+    Object.entries(window._attSessions).forEach(([code, list]) => {
+      // skip courses tracked only with the old +/- counters (no per-class marks at all)
+      if (counts[code] && !markedCodes.has(code)) return;
+      const days = [...new Set(list.filter(x => !rollAttMap[x.id]).map(x => x.y))].sort();
+      if (days.length) unmarkedByCode[code] = days;
+    });
+  }
+
   const subjectRecords = [];
   let totalAttended = 0;
   let totalAbsent = 0;
@@ -2004,6 +2019,7 @@ window.getQ6AttendanceForRoll = function(query) {
       p,
       a,
       absentDates: [...(absentByCode[code] || [])].sort(),
+      unmarkedDates: unmarkedByCode[code] || [],
       held,
       remaining,
       totalPlanned: totalPlannedPerCourse,
@@ -2159,6 +2175,10 @@ function searchCohortAttendance() {
                 ? `<a href="#" onclick="openAgendaDate('${d}'); return false" style="color:var(--tx-danger); font-weight:700; text-decoration:underline; margin-right:8px; white-space:nowrap;">${label}</a>`
                 : `<span style="margin-right:8px; white-space:nowrap;">${label}</span>`;
             }).join('')}</div>` : ''}
+            ${rec.unmarkedDates && rec.unmarkedDates.length ? `<div style="font-size:10.5px; margin-top:5px; color:var(--tx-warn); line-height:1.7;">Not marked: ${rec.unmarkedDates.map(d => {
+              const label = new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+              return `<a href="#" onclick="openAgendaDate('${d}'); return false" style="color:var(--tx-warn); font-weight:700; text-decoration:underline; margin-right:8px; white-space:nowrap;">${label}</a>`;
+            }).join('')}</div>` : ''}
           </td>
           <td style="padding:8px 10px; text-align:center; font-weight:600; color:#34C759;">${rec.p}</td>
           <td style="padding:8px 10px; text-align:center; font-weight:600; color:${rec.a > 0 ? '#FF3B30' : 'var(--tx2)'};">${rec.a}</td>
@@ -2173,7 +2193,8 @@ function searchCohortAttendance() {
           </tbody>
         </table>
       </div>
-      ${isCurrentStudent && records.some(r => r.absentDates.length) ? '<div style="font-size:11px; color:var(--tx3); margin-top:8px;">Tap a missed date to open it in the Agenda and change it.</div>' : ''}
+      ${isCurrentStudent && records.some(r => r.unmarkedDates && r.unmarkedDates.length) ? `<div style="font-size:12px; color:var(--tx-warn); margin-top:10px; font-weight:600;">⚠️ ${records.reduce((n, r) => n + (r.unmarkedDates ? r.unmarkedDates.length : 0), 0)} class day(s) not marked yet. They are not counted above until you mark Present or Absent.</div>` : ''}
+      ${isCurrentStudent && records.some(r => r.absentDates.length || (r.unmarkedDates && r.unmarkedDates.length)) ? '<div style="font-size:11px; color:var(--tx3); margin-top:8px;">Tap a date to open it in the Agenda and mark or change it.</div>' : ''}
     </div>`;
     return html;
   };
@@ -3678,13 +3699,22 @@ function _renderDailyScheduleInner() {
   } catch (e) { console.warn('Reminder list failed', e); }
 
   // Build Interactive Day Capsules Carousel
+  const attSessions = {};
   let capsulesHtml = `<div class="date-capsules">`;
   for (const dateString of dateKeys) {
       const [ymd, dayName] = dateString.split(' ');
       const shortDay = dayName ? dayName.substring(0,3) : '';
       const dd = ymd ? ymd.split('-')[2] : '';
       const isSelected = dateString === currentDateKey;
-      const { hasCls, hasActiveCls } = parseDayClasses(liveDailyCache[dateString], dateString);
+      const { hasCls, hasActiveCls, dayClasses: capDay } = parseDayClasses(liveDailyCache[dateString], dateString);
+      // Held class sessions so far (for the Attendance tab's "not marked" list)
+      if (ymd <= todayYmd) {
+        Object.values(capDay).forEach(d => {
+          if (d.type !== 'class' || d.cancelled || d.hidden || !d.subject || !d.slot) return;
+          if (ymd === todayYmd && d.timeInfo && d.timeInfo.eh * 60 + d.timeInfo.em > currentMins) return;
+          (attSessions[d.subject.code] = attSessions[d.subject.code] || []).push({ y: ymd, id: `${ymd}_${d.slot}_${d.subject.code}` });
+        });
+      }
       
       capsulesHtml += `
       <div id="capsule-${dateString.replace(/\s/g, '-')}" 
@@ -3696,6 +3726,7 @@ function _renderDailyScheduleInner() {
       </div>`;
   }
   capsulesHtml += `</div>`;
+  window._attSessions = attSessions;
 
   // Roll Number Banner / Prompt for Attendance (iOS style)
   const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
