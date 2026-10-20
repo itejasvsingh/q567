@@ -22,6 +22,7 @@ var ABSENCE_LIMIT = 2;
 
 // ---------------------------------------------------------------- main tick
 function notifyClassChanges() {
+  try { notifyFromSheet_(); } catch (e) { Logger.log('Announce failed: ' + e.message); }
   var props = PropertiesService.getScriptProperties();
   var now = Date.now();
   var ist = istNow_(now);
@@ -276,23 +277,53 @@ function matchesSubj_(text, subj) {
 }
 
 // -------------------------------------------------------------- announcements
-// Edit the two lines, press Run on sendBroadcast. Everyone with push on and
-// "Announcements" enabled gets it. testBroadcast sends only to you.
+// EASY WAY: use the "Announce" tab in the timetable Google Sheet (run
+// setupAnnounceSheet once to create it). Type a title and message, then type
+// TEST (only you get it) or SEND (everyone). It goes out within 5 minutes.
+// Everyone with push on and "Announcements" enabled receives it.
+var ANNOUNCE_SHEET_ID = '1FyiqG6ArbYoEtmZWPnXjfwnjNNm1CO89pfz2WV2_bYY';
+
+function setupAnnounceSheet() {
+  var ss = SpreadsheetApp.openById(ANNOUNCE_SHEET_ID);
+  var sh = ss.getSheetByName('Announce') || ss.insertSheet('Announce');
+  sh.getRange('A1:A3').setValues([['Title'], ['Message'], ['Send (type TEST or SEND)']]).setFontWeight('bold');
+  sh.getRange('A5').setValue('How: fill Title and Message, type TEST in B3 to preview on your own phone, then type SEND to send to everyone. It goes out within 5 minutes and B3 shows what happened.');
+  sh.setColumnWidth(1, 190);
+  sh.setColumnWidth(2, 480);
+  sh.getRange('B1:B3').setBackground('#fff8e1');
+  sh.getRange('B2').setWrap(true);
+  Logger.log('Announce tab is ready.');
+}
+
+function notifyFromSheet_() {
+  var sh = SpreadsheetApp.openById(ANNOUNCE_SHEET_ID).getSheetByName('Announce');
+  if (!sh) return;
+  var v = sh.getRange('B1:B3').getValues();
+  var title = String(v[0][0]).trim(), body = String(v[1][0]).trim(), cmd = String(v[2][0]).trim().toUpperCase();
+  if (cmd !== 'SEND' && cmd !== 'TEST') return;
+  if (!title || !body) { sh.getRange('B3').setValue('Fill in Title and Message first, then type SEND again'); return; }
+  sh.getRange('B3').setValue('Sending...'); // so a slow run is never picked up twice
+  var n = broadcast_(cmd === 'TEST' ? MY_ROLL : null, title, body);
+  var when = Utilities.formatDate(new Date(), 'Asia/Kolkata', 'd MMM, h:mm a');
+  sh.getRange('B3').setValue((cmd === 'TEST' ? 'TEST' : 'SENT') + ' ' + when + ' to ' + n + ' device(s). Type ' + (cmd === 'TEST' ? 'SEND to send to everyone' : 'SEND again to resend'));
+}
+
+// Old way (edit these two lines, then Run): still works.
 var BROADCAST_TITLE = 'Announcement';
 var BROADCAST_BODY = 'Write your message here';
+function sendBroadcast() { broadcast_(null, BROADCAST_TITLE, BROADCAST_BODY); }
+function testBroadcast() { broadcast_(MY_ROLL, BROADCAST_TITLE, BROADCAST_BODY); }
 
-function sendBroadcast() { broadcast_(null); }
-function testBroadcast() { broadcast_(MY_ROLL); }
-
-function broadcast_(onlyRoll) {
+function broadcast_(onlyRoll, title, body) {
   var ctx = baseCtx_(onlyRoll, true);
   var out = [];
   Object.keys(ctx.tokens).forEach(function (roll) {
     if (onlyRoll && roll !== safeRoll_(onlyRoll)) return;
-    addSends_(out, ctx, roll, 'bc', { title: BROADCAST_TITLE, body: BROADCAST_BODY }, { ymd: '', tag: 'bc_' + ctx.now });
+    addSends_(out, ctx, roll, onlyRoll ? null : 'bc', { title: title, body: body }, { ymd: '', tag: 'bc_' + ctx.now });
   });
   Logger.log('Broadcast to ' + out.length + ' device(s)');
   sendAll_(out);
+  return out.length;
 }
 
 // ------------------------------------------------------------- previews/tests
