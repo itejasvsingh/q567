@@ -65,12 +65,30 @@
       }
     },
 
-    "announcements": {
-      ".read": "auth.token.email === 'tejasvsingh001@gmail.com' && auth.token.email_verified === true",
-      "$id": {
-        ".write": "auth.token.email === 'tejasvsingh001@gmail.com' && auth.token.email_verified === true",
-        ".validate": "newData.hasChildren(['title', 'body', 'at']) && newData.child('title').isString() && newData.child('title').val().length <= 80 && newData.child('body').isString() && newData.child('body').val().length <= 240 && newData.child('at').isNumber()"
+    "admin_ping": {
+      ".read": false,
+      "$uid": {
+        ".write": "auth != null && $uid === auth.uid && (!newData.exists() || newData.child('pin').val() === '__ADMIN_PIN__')",
+        ".validate": "newData.hasChild('pin')"
       }
+    },
+
+    "announcements": {
+      ".read": false,
+      "$id": {
+        ".write": "auth != null && !data.exists() && newData.child('pin').val() === '__ADMIN_PIN__'",
+        ".validate": "newData.hasChildren(['title', 'body', 'at', 'pin']) && newData.child('title').isString() && newData.child('title').val().length <= 80 && newData.child('body').isString() && newData.child('body').val().length <= 240 && newData.child('at').isNumber()"
+      }
+    },
+
+    "announcements_log": {
+      ".read": "auth != null",
+      ".write": false
+    },
+
+    "push_stats": {
+      ".read": "auth != null",
+      ".write": false
     },
 
     "push_reminders": {

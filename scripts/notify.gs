@@ -33,6 +33,7 @@ function notifyClassChanges() {
   ctx.changes = dbGet_('/schedule_changes', 'orderBy="$key"&startAt="' + ist.ymd + '"') || {};
 
   var steps = [
+    function () { writePushStats_(ctx); },
     function () { notifyAnnouncements_(ctx, props); },
     function () { notifyClassUpdates_(ctx, props); },
     function () { if (needReminders_(ctx)) { notifyRemindersAndMeals_(ctx); notifyAttendance_(ctx); } },
@@ -336,22 +337,30 @@ function notifyFromSheet_() {
   sh.getRange('B3').setValue((cmd === 'TEST' ? 'TEST' : 'SENT') + ' ' + when + ' to ' + n + ' device(s). Type ' + (cmd === 'TEST' ? 'SEND to send to everyone' : 'SEND again to resend'));
 }
 
-// IN-APP WAY: the admin (you) writes an announcement in the app and it is saved
-// under /announcements. This picks up new ones and sends them to everyone.
+// IN-APP WAY: the admin (you) types an announcement in the app (PIN protected).
+// The app saves it under /announcements; this sends it, logs it, and removes it.
 function notifyAnnouncements_(ctx, props) {
-  var last = props.getProperty('lastAnnounceKey');
-  var data = dbGet_('/announcements', last ? 'orderBy="$key"&startAt="' + last + '"' : 'orderBy="$key"&limitToLast=1') || {};
-  var keys = Object.keys(data).sort();
-  if (!last) { props.setProperty('lastAnnounceKey', keys.length ? keys[keys.length - 1] : '-'); return; } // first run: ignore old ones
-  var fresh = keys.filter(function (k) { return k > last; });
+  var data = dbGet_('/announcements') || {};
+  var last = props.getProperty('lastAnnounceKey') || '';
+  var fresh = Object.keys(data).sort().filter(function (k) { return k > last; });
   if (!fresh.length) return;
   props.setProperty('lastAnnounceKey', fresh[fresh.length - 1]); // before sending: never send twice
   fresh.forEach(function (k) {
     var a = data[k] || {};
-    if (!a.title || !a.body) return;
-    var n = broadcast_(null, String(a.title).slice(0, 80), String(a.body).slice(0, 240));
-    UrlFetchApp.fetch(NOTIFY_DB + '/announcements/' + k + '.json', { method: 'patch', contentType: 'application/json', headers: authHeader_(), payload: JSON.stringify({ status: 'sent', sentAt: Date.now(), devices: n }), muteHttpExceptions: true });
+    if (a.title && a.body) {
+      var title = String(a.title).slice(0, 80), body = String(a.body).slice(0, 240);
+      var n = broadcast_(a.onlyMe ? MY_ROLL : null, title, body);
+      UrlFetchApp.fetch(NOTIFY_DB + '/announcements_log/' + k + '.json', { method: 'put', contentType: 'application/json', headers: authHeader_(), payload: JSON.stringify({ title: title, body: body, sentAt: Date.now(), devices: n, test: !!a.onlyMe }), muteHttpExceptions: true });
+    }
+    UrlFetchApp.fetch(NOTIFY_DB + '/announcements/' + k + '.json', { method: 'delete', headers: authHeader_(), muteHttpExceptions: true }); // also drops the stored PIN
   });
+}
+
+// Counts shown in the admin panel.
+function writePushStats_(ctx) {
+  var devices = 0, students = 0;
+  Object.keys(ctx.tokens).forEach(function (r) { var n = Object.keys(ctx.tokens[r] || {}).length; if (n) { students++; devices += n; } });
+  UrlFetchApp.fetch(NOTIFY_DB + '/push_stats.json', { method: 'put', contentType: 'application/json', headers: authHeader_(), payload: JSON.stringify({ students: students, devices: devices, at: Date.now() }), muteHttpExceptions: true });
 }
 
 // Old way (edit these two lines, then Run): still works.

@@ -4283,22 +4283,29 @@ window.renderPushPrefsHtml = function() {
 };
 
 
-// ---- Admin: send an announcement push to everyone ------------------------
-// Only the admin's Google account can write /announcements (database rules).
-// notify.gs picks new ones up and sends them within about 5 minutes.
-const ADMIN_EMAIL = 'tejasvsingh001@gmail.com';
-function isAdminUser() {
-  try { const u = firebase.auth().currentUser; return Boolean(u && u.email === ADMIN_EMAIL); } catch (e) { return false; }
-}
-window.renderDrawerAdmin = function() {
+// ---- Admin tools (PIN protected) -----------------------------------------
+// The entry only appears when the admin's own roll number is set on this
+// device. The PIN is checked by the database rules, never by this file.
+const ADMIN_ROLL = 'MS25A071';
+function adminEntryVisible() { return getActiveRollNo() === ADMIN_ROLL; }
+function adminPin() { try { return sessionStorage.getItem('mbaplanner_admin_pin') || ''; } catch (e) { return ''; } }
+
+window.updateAdminEntry = function() {
+  const show = adminEntryVisible();
+  const hdr = document.getElementById('hdr-admin-btn');
+  if (hdr) hdr.style.display = show ? 'inline-block' : 'none';
   const el = document.getElementById('drawer-admin');
-  if (!el) return;
-  el.innerHTML = isAdminUser()
-    ? `<div class="drawer-setting-row" onclick="openAdminSheet()" style="cursor:pointer;"><div class="drawer-setting-info"><span class="drawer-setting-title">📣 Send announcement</span><span class="drawer-setting-sub">Admin · goes to every student</span></div></div>`
-    : `<div style="text-align:center; padding:6px 0 2px;"><a href="#" onclick="openAdminSheet(); return false;" style="font-size:11px; color:var(--tx3); text-decoration:none;">Admin</a></div>`;
+  if (el) {
+    el.innerHTML = show
+      ? `<div class="drawer-setting-row" onclick="openAdminSheet()" style="cursor:pointer;"><div class="drawer-setting-info"><span class="drawer-setting-title">🔐 Admin</span><span class="drawer-setting-sub">Announcements and stats</span></div></div>`
+      : '';
+  }
 };
-window.openAdminSheet = function() {
-  if (window.pwaCloseDrawer) pwaCloseDrawer();
+window.renderDrawerAdmin = window.updateAdminEntry;
+setInterval(() => window.updateAdminEntry(), 3000);
+setTimeout(() => window.updateAdminEntry(), 1500);
+
+function adminBox() {
   let box = document.getElementById('admin-sheet');
   if (!box) {
     box = document.createElement('div');
@@ -4307,68 +4314,98 @@ window.openAdminSheet = function() {
     box.onclick = e => { if (e.target === box) box.remove(); };
     document.body.appendChild(box);
   }
-  const card = 'background:var(--bg); color:var(--tx); width:100%; max-width:520px; border-radius:18px 18px 0 0; padding:18px 16px calc(18px + env(safe-area-inset-bottom)); box-shadow:0 -8px 30px rgba(0,0,0,.25);';
-  if (!isAdminUser()) {
-    box.innerHTML = `<div style="${card}">
-      <div style="font-size:16px; font-weight:700; margin-bottom:6px;">Admin sign-in</div>
-      <div style="font-size:12.5px; color:var(--tx2); margin-bottom:12px; line-height:1.4;">Sign in with the admin Google account to send announcements. Anyone else is signed straight back out.</div>
-      <button class="cmp-btn" style="width:100%; padding:10px; border-radius:10px;" onclick="adminSignIn()">Sign in with Google</button>
+  return box;
+}
+const ADMIN_CARD = 'background:var(--bg); color:var(--tx); width:100%; max-width:520px; border-radius:18px 18px 0 0; padding:18px 16px calc(18px + env(safe-area-inset-bottom)); box-shadow:0 -8px 30px rgba(0,0,0,.25);';
+
+window.openAdminSheet = function() {
+  if (!adminEntryVisible()) return;
+  if (window.pwaCloseDrawer) pwaCloseDrawer();
+  const box = adminBox();
+  if (!adminPin()) {
+    box.innerHTML = `<div style="${ADMIN_CARD}">
+      <div style="font-size:16px; font-weight:700; margin-bottom:10px;">🔐 Enter admin PIN</div>
+      <input id="admin-pin-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="4-digit PIN" style="width:100%; box-sizing:border-box; font-size:22px; letter-spacing:8px; text-align:center; padding:10px; border-radius:10px; border:.5px solid var(--bd); background:var(--bg2); color:var(--tx);" onkeydown="if(event.key==='Enter') adminUnlock()">
+      <div id="admin-pin-msg" style="font-size:12px; color:var(--tx-danger); min-height:16px; margin:6px 0;"></div>
+      <button class="cmp-btn" style="width:100%; padding:10px; border-radius:10px;" onclick="adminUnlock()">Unlock</button>
       <button class="ios-seg-btn" style="width:100%; margin-top:8px;" onclick="document.getElementById('admin-sheet').remove()">Cancel</button>
     </div>`;
+    setTimeout(() => document.getElementById('admin-pin-input')?.focus(), 50);
     return;
   }
-  box.innerHTML = `<div style="${card}">
-    <div style="font-size:16px; font-weight:700; margin-bottom:10px;">📣 Announcement to all students</div>
+  adminPanel();
+};
+
+window.adminUnlock = function() {
+  const msg = document.getElementById('admin-pin-msg');
+  const pin = (document.getElementById('admin-pin-input').value || '').trim();
+  if (Date.now() < (window._adminLockUntil || 0)) { msg.textContent = 'Too many tries. Wait a minute.'; return; }
+  if (!/^\d{4}$/.test(pin)) { msg.textContent = 'Enter the 4-digit PIN.'; return; }
+  const u = firebase.auth().currentUser;
+  if (!u || !fbDb) { msg.textContent = 'Not connected yet. Try again in a moment.'; return; }
+  msg.style.color = 'var(--tx2)'; msg.textContent = 'Checking...';
+  const ref = fbDb.ref(`admin_ping/${u.uid}`);
+  ref.set({ pin }).then(() => {
+    ref.remove().catch(() => {});
+    try { sessionStorage.setItem('mbaplanner_admin_pin', pin); } catch (e) {}
+    window._adminFails = 0;
+    adminPanel();
+  }).catch(() => {
+    window._adminFails = (window._adminFails || 0) + 1;
+    if (window._adminFails >= 5) { window._adminLockUntil = Date.now() + 60000; window._adminFails = 0; }
+    msg.style.color = 'var(--tx-danger)';
+    msg.textContent = 'Wrong PIN.';
+  });
+};
+
+window.adminLock = function() {
+  try { sessionStorage.removeItem('mbaplanner_admin_pin'); } catch (e) {}
+  document.getElementById('admin-sheet')?.remove();
+};
+
+function adminPanel() {
+  const box = adminBox();
+  box.innerHTML = `<div style="${ADMIN_CARD} max-height:90vh; overflow:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+      <div style="font-size:16px; font-weight:700;">🔐 Admin</div>
+      <button class="ios-seg-btn" style="padding:4px 10px; font-size:11.5px;" onclick="adminLock()">Lock</button>
+    </div>
+    <div id="admin-stats" style="font-size:12.5px; color:var(--tx2); margin-bottom:12px;">Loading stats...</div>
+    <div style="font-size:13px; font-weight:700; margin-bottom:6px;">📣 Announcement</div>
     <input id="ann-title" class="cmp-input" maxlength="80" placeholder="Title (short)" style="width:100%; box-sizing:border-box; margin-bottom:8px; border-radius:10px; padding:9px 11px;">
     <textarea id="ann-body" class="cmp-input" maxlength="240" rows="3" placeholder="Message" style="width:100%; box-sizing:border-box; border-radius:10px; padding:9px 11px; resize:none;"></textarea>
-    <div style="font-size:11.5px; color:var(--tx2); margin:6px 0 10px;">Goes to everyone with notifications on, within about 5 minutes. It can't be taken back.</div>
-    <button class="cmp-btn" style="width:100%; padding:10px; border-radius:10px;" onclick="sendAnnouncement()">Send to everyone</button>
-    <button class="ios-seg-btn" style="width:100%; margin-top:8px;" onclick="document.getElementById('admin-sheet').remove()">Cancel</button>
-    <button style="display:block; margin:10px auto 0; background:none; border:none; font-size:11.5px; color:var(--tx3); cursor:pointer;" onclick="adminSignOut()">Sign out of admin</button>
-    <div id="ann-recent" style="margin-top:8px; font-size:11.5px; color:var(--tx2);"></div>
+    <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:8px 0;"><input type="checkbox" id="ann-only-me"> Test: send only to me</label>
+    <div style="font-size:11.5px; color:var(--tx2); margin-bottom:10px;">Goes to everyone with notifications on, within about 5 minutes. It can't be taken back.</div>
+    <button class="cmp-btn" style="width:100%; padding:10px; border-radius:10px;" onclick="sendAnnouncement()">Send</button>
+    <div id="ann-recent" style="margin-top:14px; font-size:12px; color:var(--tx2);"></div>
   </div>`;
   try {
-    fbDb.ref('announcements').orderByKey().limitToLast(3).once('value').then(snap => {
+    fbDb.ref('push_stats').once('value').then(snap => {
+      const v = snap.val(), el = document.getElementById('admin-stats');
+      if (!el) return;
+      el.innerHTML = v ? `🔔 <b>${v.students}</b> students have notifications on (${v.devices} device${v.devices === 1 ? '' : 's'}). Updated ${new Date(v.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}.` : 'No stats yet.';
+    }).catch(() => {});
+    fbDb.ref('announcements_log').orderByKey().limitToLast(5).once('value').then(snap => {
       const rows = [];
-      snap.forEach(c => { const v = c.val() || {}; rows.unshift(`${escHtml(v.title || '')} · ${v.status === 'sent' ? 'sent to ' + (v.devices || 0) + ' device(s)' : 'waiting to send'}`); });
+      snap.forEach(c => { const v = c.val() || {}; rows.unshift(`• ${escHtml(v.title || '')} — ${v.test ? 'test, ' : ''}sent to ${v.devices || 0} device(s), ${new Date(v.sentAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`); });
       const el = document.getElementById('ann-recent');
-      if (el && rows.length) el.innerHTML = '<b>Recent</b><br>' + rows.join('<br>');
+      if (el) el.innerHTML = rows.length ? '<b>Recent</b><br>' + rows.join('<br>') : '';
     }).catch(() => {});
   } catch (e) {}
-};
-window.adminSignIn = async function() {
-  try {
-    const cred = await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());
-    if (!cred.user || cred.user.email !== ADMIN_EMAIL) {
-      await firebase.auth().signOut();
-      await firebase.auth().signInAnonymously();
-      alert('That Google account is not the admin.');
-      document.getElementById('admin-sheet')?.remove();
-      return;
-    }
-    window.openAdminSheet();
-    if (window.renderDrawerAdmin) window.renderDrawerAdmin();
-  } catch (e) {
-    alert('Sign-in failed: ' + e.message + '\n\nOn iPhone, if it will not open from the Home Screen app, open q567.vercel.app in Safari and use Admin there.');
-  }
-};
-window.adminSignOut = async function() {
-  try { await firebase.auth().signOut(); await firebase.auth().signInAnonymously(); } catch (e) {}
-  document.getElementById('admin-sheet')?.remove();
-  if (window.renderDrawerAdmin) window.renderDrawerAdmin();
-};
+}
+
 window.sendAnnouncement = function() {
   const title = (document.getElementById('ann-title').value || '').trim();
   const body = (document.getElementById('ann-body').value || '').trim();
+  const onlyMe = document.getElementById('ann-only-me').checked;
   if (!title || !body) { alert('Write a title and a message first.'); return; }
-  if (!confirm('Send this to every student?\n\n' + title + '\n' + body)) return;
-  fbDb.ref('announcements').push({ title, body, at: firebase.database.ServerValue.TIMESTAMP, by: ADMIN_EMAIL })
-    .then(() => { document.getElementById('admin-sheet')?.remove(); alert('Queued. Students get it within about 5 minutes.'); })
-    .catch(e => alert('Could not send: ' + e.message));
+  if (!onlyMe && !confirm('Send this to every student?\n\n' + title + '\n' + body)) return;
+  const rec = { title, body, at: firebase.database.ServerValue.TIMESTAMP, pin: adminPin() };
+  if (onlyMe) rec.onlyMe = true;
+  fbDb.ref('announcements').push(rec)
+    .then(() => { document.getElementById('admin-sheet')?.remove(); alert(onlyMe ? 'Queued. It reaches your phone within about 5 minutes.' : 'Queued. Students get it within about 5 minutes.'); })
+    .catch(() => { try { sessionStorage.removeItem('mbaplanner_admin_pin'); } catch (e) {} alert('Not allowed. The PIN may have changed. Unlock again.'); window.openAdminSheet(); });
 };
-// ?admin opens the admin sheet (use this link in the browser)
-if (/[?&]admin\b/.test(location.search)) setTimeout(() => { if (window.openAdminSheet) window.openAdminSheet(); }, 2000);
-
 
 // ---- Prompt students to install the app and turn notifications on ----------
 function pushPromptKind() {
