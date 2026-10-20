@@ -53,6 +53,17 @@
       }
     },
 
+    "push_tokens": {
+      ".read": false,
+      "$roll": {
+        ".validate": "$roll.length <= 40",
+        "$device": {
+          ".write": "auth != null",
+          ".validate": "$device.length <= 40 && (newData.child('token').isString() && newData.child('token').val().length <= 512 && newData.child('at').isNumber() && newData.hasChildren(['token', 'at']))"
+        }
+      }
+    },
+
     "schedule_changes": {
       ".read": "auth != null",
       "$ymd": {

@@ -1,6 +1,6 @@
 // Bump this version string every time you deploy a new index.html so
 // returning visitors actually get the update instead of a stale cache.
-const CACHE_NAME = 'mba-planner-v62';
+const CACHE_NAME = 'mba-planner-v63';
 
 const SHELL_FILES = [
   './',
@@ -8,7 +8,7 @@ const SHELL_FILES = [
   './manifest.json',
   './styles.css',
   './app.js',
-  './app.js?v=38',
+  './app.js?v=39',
   './data.js',
   './firebase-config.js',
   './mess-menu.js',
@@ -33,6 +33,7 @@ const CDN_FILES = [
   'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js',
   'https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js',
   'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js',
+  'https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js',
 ];
 const CDN_ORIGINS = ['https://cdnjs.cloudflare.com', 'https://www.gstatic.com'];
 
@@ -111,4 +112,37 @@ self.addEventListener('fetch', event => {
       ? fromNetwork().catch(() => caches.match(event.request).then(c => c || offlineFallback()))
       : caches.match(event.request).then(cached => cached || fromNetwork().catch(offlineFallback))
   );
+});
+
+// Phone push for shared class updates. The sender (Apps Script) sends
+// data-only messages; we always show a notification, because browsers revoke
+// subscriptions that receive pushes without showing one.
+self.addEventListener('push', event => {
+  let p = {};
+  try { p = event.data ? event.data.json() : {}; } catch (e) {
+    p = { data: { body: event.data ? event.data.text() : '' } };
+  }
+  const d = p.data || p.notification || p;
+  event.waitUntil(self.registration.showNotification(d.title || 'Class update', {
+    body: d.body || 'Open the app to see what changed.',
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    tag: d.tag || undefined,
+    data: { ymd: d.ymd || '' },
+  }));
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const ymd = (event.notification.data && event.notification.data.ymd) || '';
+  const target = ymd ? './?date=' + encodeURIComponent(ymd) : './';
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+    for (const c of list) {
+      if ('focus' in c) {
+        c.postMessage({ type: 'open-date', ymd });
+        return c.focus();
+      }
+    }
+    return self.clients.openWindow(target);
+  }));
 });

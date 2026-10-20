@@ -164,6 +164,7 @@ function savePreferencesForRoll(roll) {
   } catch(e) {
     console.warn("Could not save roll preferences locally", e);
   }
+  setTimeout(() => { if (window.syncPush) window.syncPush(); }, 0);
 
   // Backup to Firebase Realtime Database
   if (fbDb) {
@@ -2699,7 +2700,7 @@ window.updateDrawerSettingsUI = function() {
     const alertCb = document.getElementById('drawer-alert-checkbox');
     const alertSub = document.getElementById('drawer-alert-status-text');
     if (alertCb) alertCb.checked = isAlertActive;
-    if (alertSub) alertSub.textContent = isAlertActive ? 'Active · Alerts 30m before' : 'Disabled';
+    if (alertSub) alertSub.textContent = isAlertActive ? 'Active · 30m reminders + class changes' : 'Disabled';
 
     const roll = (localStorage.getItem('mbaplanner_roll_no') || '').trim();
     const rollDisp = document.getElementById('drawer-roll-display');
@@ -4070,3 +4071,59 @@ function _renderDailyScheduleInner() {
       }
   }
 }
+
+
+// ---- Phone push for shared class updates (FCM) -------------------------
+// Opt-in rides the existing alerts toggle. The token is stored per roll and
+// device; Apps Script (scripts/notify.gs) sends the pushes. The 30-minute
+// reminders above stay local and only fire while the app is alive.
+function pushDeviceId() {
+  let id = localStorage.getItem('mbaplanner_device_id');
+  if (!id) { id = Math.random().toString(36).slice(2, 12) + Date.now().toString(36); localStorage.setItem('mbaplanner_device_id', id); }
+  return id;
+}
+
+window.syncPush = async function() {
+  try {
+    if (typeof FCM_VAPID_KEY === 'undefined' || !FCM_VAPID_KEY) return;
+    if (!('serviceWorker' in navigator) || !('Notification' in window) || !fbDb) return;
+    if (!firebase.messaging || !firebase.messaging.isSupported()) return;
+    const roll = getActiveRollNo();
+    if (!roll) return;
+    const safeRoll = roll.replace(/[.#$[\]]/g, '_');
+    const want = Notification.permission === 'granted' && localStorage.getItem('mbaplanner_reminder_30m') !== 'off';
+    const sig = safeRoll + '|' + want;
+    if (window._pushSig === sig) return;
+    const ref = fbDb.ref(`push_tokens/${safeRoll}/${pushDeviceId()}`);
+    if (!want) {
+      window._pushSig = sig;
+      const old = localStorage.getItem('mbaplanner_push_roll');
+      if (old) fbDb.ref(`push_tokens/${old}/${pushDeviceId()}`).remove().catch(() => {});
+      ref.remove().catch(() => {});
+      localStorage.removeItem('mbaplanner_push_roll');
+      return;
+    }
+    const reg = await navigator.serviceWorker.ready;
+    const token = await firebase.messaging().getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: reg });
+    if (!token) return;
+    // Roll changed on this device: drop the token under the old roll.
+    const prev = localStorage.getItem('mbaplanner_push_roll');
+    if (prev && prev !== safeRoll) fbDb.ref(`push_tokens/${prev}/${pushDeviceId()}`).remove().catch(() => {});
+    await ref.set({ token, at: Date.now() });
+    localStorage.setItem('mbaplanner_push_roll', safeRoll);
+    window._pushSig = sig;
+  } catch (e) {
+    console.warn('Push setup failed', e);
+  }
+};
+setTimeout(() => { if (window.syncPush) window.syncPush(); }, 6000);
+
+// Tapping a push opens the agenda on the changed date.
+(function() {
+  const go = ymd => { if (/^\d{4}-\d{2}-\d{2}$/.test(ymd || '') && window.openAgendaDate) window.openAgendaDate(ymd); };
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'open-date') go(e.data.ymd); });
+  }
+  const q = new URLSearchParams(location.search).get('date');
+  if (q) setTimeout(() => go(q), 1500);
+})();
