@@ -2644,6 +2644,13 @@ function flushPendingOfflineWrites() {
           </label>
         </div>
 
+        <div class="drawer-setting-row" onclick="testNotification()" style="cursor:pointer;">
+          <div class="drawer-setting-info">
+            <span class="drawer-setting-title">🧪 Test notification</span>
+            <span class="drawer-setting-sub">Check phone alerts are working</span>
+          </div>
+        </div>
+
         <!-- Student Roll Number Setting -->
         <div class="drawer-setting-row" onclick="changeAgendaRollNo()" style="cursor:pointer;">
           <div class="drawer-setting-info">
@@ -4113,6 +4120,7 @@ window.syncPush = async function() {
     localStorage.setItem('mbaplanner_push_roll', safeRoll);
     window._pushSig = sig;
   } catch (e) {
+    window._pushErr = String(e && e.message || e).slice(0, 160);
     console.warn('Push setup failed', e);
   }
 };
@@ -4127,3 +4135,27 @@ setTimeout(() => { if (window.syncPush) window.syncPush(); }, 6000);
   const q = new URLSearchParams(location.search).get('date');
   if (q) setTimeout(() => go(q), 1500);
 })();
+
+// Drawer "Test notification": shows the push set-up state on this device and
+// fires a local notification through the service worker.
+window.testNotification = async function() {
+  const lines = [];
+  try {
+    lines.push('Permission: ' + (('Notification' in window) ? Notification.permission : 'unsupported'));
+    lines.push('Home Screen app: ' + ((window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) ? 'yes' : 'no'));
+    lines.push('Roll: ' + (getActiveRollNo() || 'not set'));
+    lines.push('Push key set: ' + (typeof FCM_VAPID_KEY !== 'undefined' && FCM_VAPID_KEY ? 'yes' : 'no'));
+    lines.push('Token saved for: ' + (localStorage.getItem('mbaplanner_push_roll') || 'none'));
+    const reg = await navigator.serviceWorker.ready;
+    lines.push('Worker: ' + (reg.active ? reg.active.state : 'none'));
+    const sub = reg.pushManager ? await reg.pushManager.getSubscription() : null;
+    lines.push('Push subscription: ' + (sub ? 'yes' : 'NO'));
+    if (window._pushErr) lines.push('Last error: ' + window._pushErr);
+    if (Notification.permission === 'granted') {
+      await reg.showNotification('Test notification', { body: 'If you can see this, notifications work on this device.', icon: './icon-192.png' });
+    }
+  } catch (e) {
+    lines.push('Error: ' + e.message);
+  }
+  alert(lines.join('\n'));
+};
