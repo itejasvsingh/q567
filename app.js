@@ -2726,12 +2726,17 @@ window.updateDrawerSettingsUI = function() {
     const alertCb = document.getElementById('drawer-alert-checkbox');
     const alertSub = document.getElementById('drawer-alert-status-text');
     if (alertCb) alertCb.checked = isAlertActive;
-    if (alertSub) alertSub.textContent = isAlertActive ? 'On · choose what you get below' : 'Off';
+    if (alertSub) alertSub.textContent = isAlertActive ? 'On · tap below to choose what you get' : 'Off';
     // The detailed settings only show once notifications are switched on.
     const prefsBox = document.getElementById('drawer-push-prefs');
     if (prefsBox) {
         prefsBox.style.display = isAlertActive ? 'block' : 'none';
-        if (isAlertActive && window.renderPushPrefsHtml) prefsBox.innerHTML = window.renderPushPrefsHtml();
+        if (isAlertActive && window.renderPushPrefsHtml) {
+            prefsBox.innerHTML = `<details ${window._prefsOpen ? 'open' : ''} ontoggle="window._prefsOpen=this.open">
+              <summary class="drawer-setting-title" style="cursor:pointer; padding:8px 0; font-size:13px;">⚙️ Choose what you get</summary>
+              ${window.renderPushPrefsHtml()}
+            </details>`;
+        }
     }
 
     const roll = (localStorage.getItem('mbaplanner_roll_no') || '').trim();
