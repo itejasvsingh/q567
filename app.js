@@ -4196,6 +4196,7 @@ window.syncPush = async function() {
       fbDb.ref(`push_reminders/${safeRoll}`).remove().catch(() => {});
       window._reminderSig = '';
       localStorage.removeItem('mbaplanner_push_roll');
+      localStorage.removeItem('mbaplanner_user_ping'); reportAppUser();
       return;
     }
     const reg = await navigator.serviceWorker.ready;
@@ -4207,6 +4208,7 @@ window.syncPush = async function() {
     await ref.set({ token, at: Date.now(), prefs: pushPrefs() });
     localStorage.setItem('mbaplanner_push_roll', safeRoll);
     window._pushSig = sig;
+    localStorage.removeItem('mbaplanner_user_ping'); reportAppUser();
     if (typeof currentView !== 'undefined' && currentView === 'daily') renderDailySchedule();
   } catch (e) {
     window._pushErr = String(e && e.message || e).slice(0, 160);
@@ -4316,6 +4318,31 @@ window.renderPushPrefsHtml = function() {
 };
 
 
+// ---- Usage report: one small record per device (counts only reach the admin) ----
+function reportAppUser() {
+  try {
+    if (!fbDb || !firebase.auth().currentUser) return;
+    const now = Date.now();
+    const last = Number(localStorage.getItem('mbaplanner_user_ping') || 0);
+    if (now - last < 30 * 60 * 1000) return;
+    const ua = navigator.userAgent;
+    let first = Number(localStorage.getItem('mbaplanner_first_seen') || 0);
+    if (!first) { first = now; localStorage.setItem('mbaplanner_first_seen', String(first)); }
+    const rec = {
+      seen: now, first,
+      ua: /iPad|iPhone|iPod/.test(ua) ? 'ios' : /Android/.test(ua) ? 'android' : 'desktop',
+      pwa: Boolean(window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone),
+      notif: Boolean('Notification' in window && Notification.permission === 'granted' && localStorage.getItem('mbaplanner_reminder_30m') !== 'off')
+    };
+    const roll = getActiveRollNo();
+    if (roll) rec.roll = roll.replace(/[.#$[\]]/g, '_');
+    fbDb.ref(`app_users/${pushDeviceId()}`).set(rec).then(() => localStorage.setItem('mbaplanner_user_ping', String(now))).catch(() => {});
+  } catch (e) {}
+}
+window.reportAppUser = reportAppUser;
+setTimeout(reportAppUser, 5000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) reportAppUser(); });
+
 // ---- Admin tools (PIN protected) -----------------------------------------
 // The entry only appears when the admin's own roll number is set on this
 // device. The PIN is checked by the database rules, never by this file.
@@ -4416,7 +4443,35 @@ function adminPanel() {
     fbDb.ref('push_stats').once('value').then(snap => {
       const v = snap.val(), el = document.getElementById('admin-stats');
       if (!el) return;
-      el.innerHTML = v ? `🔔 <b>${v.students}</b> students have notifications on (${v.devices} device${v.devices === 1 ? '' : 's'}). Updated ${new Date(v.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}.` : 'No stats yet.';
+      if (!v) { el.textContent = 'No stats yet. They appear after the script runs (every 30 minutes).'; return; }
+      const u = v.users || {}, s = v.sent || {}, pr = v.prefs || {};
+      const tile = (n, label, sub) => `<div style="background:var(--bg2); border:.5px solid var(--bd); border-radius:10px; padding:8px 6px; text-align:center;"><div style="font-size:19px; font-weight:800; color:var(--tx);">${n == null ? 0 : n}</div><div style="font-size:10.5px; color:var(--tx2); line-height:1.25;">${label}</div>${sub ? `<div style="font-size:9.5px; color:var(--tx3); margin-top:1px;">${sub}</div>` : ''}</div>`;
+      const pct = (n, d) => d ? Math.round(n * 100 / d) + '%' : '-';
+      const kindName = { rem: 'class reminders', meal: 'meal alerts', chg: 'class updates', att: 'attendance', morn: 'morning', eve: 'evening', sheet: 'timetable', bc: 'announcements' };
+      const byKind = Object.entries(s.byKind || {}).map(([k, n]) => `${n} ${kindName[k] || k}`).join(' · ');
+      const prefNames = { chg: 'Class updates', rem: '30-min reminder', meal: 'Meal alerts', morn: 'Morning summary', eve: 'Evening preview', att: 'Attendance', sheet: 'Timetable changes', bc: 'Announcements' };
+      el.innerHTML = `
+        <div style="font-size:13px; font-weight:700; color:var(--tx); margin-bottom:6px;">📊 Users</div>
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:6px;">
+          ${tile(u.devices, 'devices have opened the app')}
+          ${tile(u.students, 'students (roll no. set)')}
+          ${tile(u.active24h, 'active today', 'last 24h')}
+          ${tile(u.active7d, 'active this week', 'last 7 days')}
+          ${tile(u.newToday, 'new today')}
+          ${tile(u.pwa, 'Home Screen app', pct(u.pwa, u.devices) + ' of devices')}
+        </div>
+        <div style="font-size:11.5px; margin-bottom:12px;">iPhone ${u.ios || 0} · Android ${u.android || 0} · Computer ${u.desktop || 0}<br>Home Screen app: iPhone ${u.pwaIos || 0} · Android ${u.pwaAndroid || 0}</div>
+        <div style="font-size:13px; font-weight:700; color:var(--tx); margin-bottom:6px;">🔔 Notifications</div>
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:6px;">
+          ${tile(v.students, 'students with notifications on', pct(v.students, u.students) + ' of students')}
+          ${tile(v.devices, 'devices registered')}
+          ${tile(s.today, 'sent today')}
+          ${tile(s.week, 'sent in 7 days')}
+          ${tile(s.total, 'sent in total')}
+        </div>
+        <div style="font-size:11.5px; margin-bottom:8px;">${byKind ? 'Today: ' + byKind : 'Nothing sent today yet.'}</div>
+        <details style="font-size:11.5px; margin-bottom:6px;"><summary style="cursor:pointer;">Who turned on what (devices)</summary>${Object.keys(prefNames).map(k => `<div>${prefNames[k]}: <b>${pr[k] || 0}</b></div>`).join('')}</details>
+        <div style="font-size:10.5px; color:var(--tx3);">Updated ${new Date(v.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}. Numbers grow as students open the updated app.</div>`;
     }).catch(() => {});
     fbDb.ref('announcements_log').orderByKey().limitToLast(5).once('value').then(snap => {
       const rows = [];

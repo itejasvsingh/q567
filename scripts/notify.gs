@@ -33,7 +33,7 @@ function notifyClassChanges() {
   ctx.changes = dbGet_('/schedule_changes', 'orderBy="$key"&startAt="' + ist.ymd + '"') || {};
 
   var steps = [
-    function () { writePushStats_(ctx); },
+    function () { writePushStats_(ctx, props); },
     function () { notifyAnnouncements_(ctx, props); },
     function () { notifyClassUpdates_(ctx, props); },
     function () { if (needReminders_(ctx)) { notifyRemindersAndMeals_(ctx); notifyAttendance_(ctx); } },
@@ -356,11 +356,57 @@ function notifyAnnouncements_(ctx, props) {
   });
 }
 
-// Counts shown in the admin panel.
-function writePushStats_(ctx) {
-  var devices = 0, students = 0;
-  Object.keys(ctx.tokens).forEach(function (r) { var n = Object.keys(ctx.tokens[r] || {}).length; if (n) { students++; devices += n; } });
-  UrlFetchApp.fetch(NOTIFY_DB + '/push_stats.json', { method: 'put', contentType: 'application/json', headers: authHeader_(), payload: JSON.stringify({ students: students, devices: devices, at: Date.now() }), muteHttpExceptions: true });
+// Numbers shown in the admin panel (rebuilt about every 30 minutes).
+function writePushStats_(ctx, props) {
+  if (ctx.now - Number(props.getProperty('statsAt') || 0) < 25 * 60000) return;
+  props.setProperty('statsAt', String(ctx.now));
+  var users = dbGet_('/app_users') || {};
+  var day = 86400000, u = { devices: 0, rolls: {}, active24h: 0, active7d: 0, pwa: 0, notif: 0, ios: 0, android: 0, desktop: 0, pwaIos: 0, pwaAndroid: 0, newToday: 0 };
+  Object.keys(users).forEach(function (k) {
+    var x = users[k]; u.devices++;
+    if (x.roll) u.rolls[x.roll] = 1;
+    if (ctx.now - x.seen < day) u.active24h++;
+    if (ctx.now - x.seen < 7 * day) u.active7d++;
+    if (x.first && ctx.now - x.first < day) u.newToday++;
+    if (x.pwa) { u.pwa++; if (x.ua === 'ios') u.pwaIos++; if (x.ua === 'android') u.pwaAndroid++; }
+    if (x.notif) u.notif++;
+    if (u[x.ua] !== undefined) u[x.ua]++;
+  });
+  var devices = 0, students = 0, prefs = { chg: 0, rem: 0, meal: 0, morn: 0, eve: 0, att: 0, sheet: 0, bc: 0 };
+  Object.keys(ctx.tokens).forEach(function (r) {
+    var devs = ctx.tokens[r] || {}, n = Object.keys(devs).length;
+    if (!n) return;
+    students++; devices += n;
+    Object.keys(devs).forEach(function (d) { Object.keys(prefs).forEach(function (k) { if (wants_(devs[d], k)) prefs[k]++; }); });
+  });
+  var log = JSON.parse(props.getProperty('pushLog') || '{}');
+  var today = ctx.ist.ymd, sentToday = 0, sentWeek = 0, byKind = {};
+  Object.keys(log).forEach(function (d) {
+    var n = 0; Object.keys(log[d]).forEach(function (k) { n += log[d][k]; if (d === today) byKind[k] = log[d][k]; });
+    if (d === today) sentToday = n;
+    if (d >= addDaysYmd_(today, -6)) sentWeek += n;
+  });
+  var stats = {
+    at: ctx.now,
+    students: students, devices: devices, prefs: prefs,
+    users: { devices: u.devices, students: Object.keys(u.rolls).length, active24h: u.active24h, active7d: u.active7d, newToday: u.newToday, pwa: u.pwa, pwaIos: u.pwaIos, pwaAndroid: u.pwaAndroid, notif: u.notif, ios: u.ios, android: u.android, desktop: u.desktop },
+    sent: { today: sentToday, week: sentWeek, total: Number(props.getProperty('pushTotal') || 0), byKind: byKind }
+  };
+  UrlFetchApp.fetch(NOTIFY_DB + '/push_stats.json', { method: 'put', contentType: 'application/json', headers: authHeader_(), payload: JSON.stringify(stats), muteHttpExceptions: true });
+}
+
+// Adds delivered pushes to the running counts (previews and tests are not counted).
+function countSent_(kinds) {
+  var names = Object.keys(kinds);
+  if (!names.length) return;
+  var props = PropertiesService.getScriptProperties();
+  var today = istNow_(Date.now()).ymd;
+  var log = JSON.parse(props.getProperty('pushLog') || '{}'), total = Number(props.getProperty('pushTotal') || 0);
+  log[today] = log[today] || {};
+  names.forEach(function (k) { log[today][k] = (log[today][k] || 0) + kinds[k]; total += kinds[k]; });
+  Object.keys(log).forEach(function (d) { if (d < addDaysYmd_(today, -14)) delete log[d]; });
+  props.setProperty('pushLog', JSON.stringify(log));
+  props.setProperty('pushTotal', String(total));
 }
 
 // Old way (edit these two lines, then Run): still works.
@@ -441,7 +487,7 @@ function addSends_(out, ctx, roll, key, msg, extra) {
   var devs = ctx.tokens[roll] || {};
   Object.keys(devs).forEach(function (dev) {
     if (!wants_(devs[dev], key)) return;
-    out.push({ owner: roll + '/' + dev, req: fcmRequest_(devs[dev].token, msg, extra || {}) });
+    out.push({ owner: roll + '/' + dev, kind: String((extra && extra.tag) || 'x').split('_')[0], req: fcmRequest_(devs[dev].token, msg, extra || {}) });
   });
 }
 
@@ -450,15 +496,18 @@ function sendAll_(out) {
   for (var i = 0; i < out.length; i += 50) {
     var chunk = out.slice(i, i + 50);
     var res = UrlFetchApp.fetchAll(chunk.map(function (o) { return o.req; }));
+    var kinds = {};
     res.forEach(function (r, j) {
       var code = r.getResponseCode();
       var text = r.getContentText();
+      if (code < 300 && chunk[j].kind !== 'pv' && chunk[j].kind !== 'test') kinds[chunk[j].kind] = (kinds[chunk[j].kind] || 0) + 1;
       if (code === 404 || (code === 400 && /UNREGISTERED|INVALID_ARGUMENT/.test(text))) {
         UrlFetchApp.fetch(NOTIFY_DB + '/push_tokens/' + chunk[j].owner + '.json', { method: 'delete', headers: authHeader_(), muteHttpExceptions: true });
       } else if (code >= 300) {
         Logger.log('FCM ' + code + ' for ' + chunk[j].owner + ': ' + text);
       }
     });
+    countSent_(kinds);
   }
 }
 

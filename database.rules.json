@@ -86,6 +86,21 @@
       ".write": false
     },
 
+    "app_users": {
+      ".read": false,
+      "$dev": {
+        ".write": "auth != null",
+        ".validate": "$dev.length <= 40 && newData.hasChildren(['seen', 'pwa', 'ua'])",
+        "seen": { ".validate": "newData.isNumber()" },
+        "first": { ".validate": "newData.isNumber()" },
+        "pwa": { ".validate": "newData.isBoolean()" },
+        "notif": { ".validate": "newData.isBoolean()" },
+        "ua": { ".validate": "newData.isString() && newData.val().length <= 10" },
+        "roll": { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "$other": { ".validate": false }
+      }
+    },
+
     "push_stats": {
       ".read": "auth != null",
       ".write": false
