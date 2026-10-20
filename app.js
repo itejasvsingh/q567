@@ -2656,8 +2656,8 @@ function flushPendingOfflineWrites() {
         <!-- 30-Min Alert Toggle in Menu -->
         <div class="drawer-setting-row">
           <div class="drawer-setting-info">
-            <span class="drawer-setting-title">🔔 30-Min Class Alerts</span>
-            <span class="drawer-setting-sub" id="drawer-alert-status-text">Alerts before each class</span>
+            <span class="drawer-setting-title">🔔 Notifications</span>
+            <span class="drawer-setting-sub" id="drawer-alert-status-text">Off</span>
           </div>
           <label class="ios-switch">
             <input type="checkbox" id="drawer-alert-checkbox" onchange="toggle30mAlertFromDrawer(this.checked)">
@@ -2665,17 +2665,7 @@ function flushPendingOfflineWrites() {
           </label>
         </div>
 
-        <details class="drawer-push-prefs">
-          <summary class="drawer-setting-title" style="cursor:pointer; padding:8px 0;">🔔 Notification settings</summary>
-          <div id="drawer-push-prefs"></div>
-        </details>
-
-        <div class="drawer-setting-row" onclick="testNotification()" style="cursor:pointer;">
-          <div class="drawer-setting-info">
-            <span class="drawer-setting-title">🧪 Test notification</span>
-            <span class="drawer-setting-sub">Check phone alerts are working</span>
-          </div>
-        </div>
+        <div id="drawer-push-prefs" style="display:none; padding-left:10px; border-left:2px solid var(--bd); margin:0 0 6px 6px;"></div>
 
         <div id="drawer-admin"></div>
 
@@ -2729,8 +2719,6 @@ function flushPendingOfflineWrites() {
 
 window.updateDrawerSettingsUI = function() {
     if (window.renderDrawerAdmin) window.renderDrawerAdmin();
-    const prefsBox = document.getElementById('drawer-push-prefs');
-    if (prefsBox && window.renderPushPrefsHtml) prefsBox.innerHTML = window.renderPushPrefsHtml();
     const isGranted = ('Notification' in window) && Notification.permission === 'granted';
     const reminderPref = localStorage.getItem('mbaplanner_reminder_30m');
     const isAlertActive = isGranted && reminderPref !== 'off';
@@ -2738,7 +2726,13 @@ window.updateDrawerSettingsUI = function() {
     const alertCb = document.getElementById('drawer-alert-checkbox');
     const alertSub = document.getElementById('drawer-alert-status-text');
     if (alertCb) alertCb.checked = isAlertActive;
-    if (alertSub) alertSub.textContent = isAlertActive ? 'Active · tap Notification settings to choose' : 'Disabled';
+    if (alertSub) alertSub.textContent = isAlertActive ? 'On · choose what you get below' : 'Off';
+    // The detailed settings only show once notifications are switched on.
+    const prefsBox = document.getElementById('drawer-push-prefs');
+    if (prefsBox) {
+        prefsBox.style.display = isAlertActive ? 'block' : 'none';
+        if (isAlertActive && window.renderPushPrefsHtml) prefsBox.innerHTML = window.renderPushPrefsHtml();
+    }
 
     const roll = (localStorage.getItem('mbaplanner_roll_no') || '').trim();
     const rollDisp = document.getElementById('drawer-roll-display');
@@ -4226,31 +4220,6 @@ setTimeout(() => { if (window.syncPush) window.syncPush(); }, 6000);
   const q = new URLSearchParams(location.search).get('date');
   if (q) setTimeout(() => go(q), 1500);
 })();
-
-// Drawer "Test notification": shows the push set-up state on this device and
-// fires a local notification through the service worker.
-window.testNotification = async function() {
-  const lines = [];
-  try {
-    lines.push('Permission: ' + (('Notification' in window) ? Notification.permission : 'unsupported'));
-    lines.push('Home Screen app: ' + ((window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) ? 'yes' : 'no'));
-    lines.push('Roll: ' + (getActiveRollNo() || 'not set'));
-    lines.push('Push key set: ' + (typeof FCM_VAPID_KEY !== 'undefined' && FCM_VAPID_KEY ? 'yes' : 'no'));
-    lines.push('Token saved for: ' + (localStorage.getItem('mbaplanner_push_roll') || 'none'));
-    const reg = await navigator.serviceWorker.ready;
-    lines.push('Worker: ' + (reg.active ? reg.active.state : 'none'));
-    const sub = reg.pushManager ? await reg.pushManager.getSubscription() : null;
-    lines.push('Push subscription: ' + (sub ? 'yes' : 'NO'));
-    if (window._pushErr) lines.push('Last error: ' + window._pushErr);
-    if (Notification.permission === 'granted') {
-      await reg.showNotification('Test notification', { body: 'If you can see this, notifications work on this device.', icon: './icon-192.png' });
-    }
-  } catch (e) {
-    lines.push('Error: ' + e.message);
-  }
-  alert(lines.join('\n'));
-};
-
 
 // Upcoming classes for server-sent "starts in 30 min" pushes. Written under
 // push_reminders/{roll}; notify.gs reads it and also skips cancelled/moved.
