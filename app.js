@@ -4373,7 +4373,12 @@ window.openAdminSheet = function() {
     setTimeout(() => document.getElementById('admin-pin-input')?.focus(), 50);
     return;
   }
-  adminPanel();
+  // Already unlocked: re-confirm the PIN with the database so the panel can read feedback and live counts
+  const u = firebase.auth().currentUser;
+  if (!u || !fbDb) { adminPanel(); return; }
+  fbDb.ref(`admin_ping/${u.uid}`).set({ pin: adminPin() })
+    .then(() => adminPanel())
+    .catch(() => { try { sessionStorage.removeItem('mbaplanner_admin_pin'); } catch (e) {} window.openAdminSheet(); });
 };
 
 window.adminUnlock = function() {
@@ -4492,7 +4497,7 @@ window.loadAdminFeedback = function() {
         <div style="font-size:13px; color:var(--tx); white-space:pre-wrap;">${escHtml(v.text || '')}</div>
         <button onclick="deleteFeedback('${k}')" style="background:none; border:none; color:var(--tx3); font-size:11px; cursor:pointer; padding:4px 0 0;">Delete</button>
       </div>`).join('') : 'No feedback yet.';
-  }).catch(() => { el.textContent = 'Could not load feedback.'; });
+  }).catch(() => { el.innerHTML = 'Could not load feedback. Tap <b>Lock</b>, then open Admin and enter the PIN again.'; });
 };
 window.deleteFeedback = function(k) {
   if (!confirm('Delete this feedback?')) return;
