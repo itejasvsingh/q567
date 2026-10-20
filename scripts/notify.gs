@@ -361,10 +361,11 @@ function writePushStats_(ctx, props) {
   if (ctx.now - Number(props.getProperty('statsAt') || 0) < 25 * 60000) return;
   props.setProperty('statsAt', String(ctx.now));
   var users = dbGet_('/app_users') || {};
+  var rollsApp = {}, rollsWeb = {};
   var day = 86400000, u = { devices: 0, rolls: {}, active24h: 0, active7d: 0, pwa: 0, notif: 0, ios: 0, android: 0, desktop: 0, pwaIos: 0, pwaAndroid: 0, newToday: 0 };
   Object.keys(users).forEach(function (k) {
     var x = users[k]; u.devices++;
-    if (x.roll) u.rolls[x.roll] = 1;
+    if (x.roll) { u.rolls[x.roll] = 1; if (x.pwa) rollsApp[x.roll] = 1; else rollsWeb[x.roll] = 1; }
     if (ctx.now - x.seen < day) u.active24h++;
     if (ctx.now - x.seen < 7 * day) u.active7d++;
     if (x.first && ctx.now - x.first < day) u.newToday++;
@@ -389,7 +390,7 @@ function writePushStats_(ctx, props) {
   var stats = {
     at: ctx.now,
     students: students, devices: devices, prefs: prefs,
-    users: { devices: u.devices, students: Object.keys(u.rolls).length, active24h: u.active24h, active7d: u.active7d, newToday: u.newToday, pwa: u.pwa, pwaIos: u.pwaIos, pwaAndroid: u.pwaAndroid, notif: u.notif, ios: u.ios, android: u.android, desktop: u.desktop },
+    users: { devices: u.devices, students: Object.keys(u.rolls).length, rollsApp: Object.keys(rollsApp).length, rollsWeb: Object.keys(rollsWeb).length, rollsBoth: Object.keys(rollsApp).filter(function (r) { return rollsWeb[r]; }).length, active24h: u.active24h, active7d: u.active7d, newToday: u.newToday, pwa: u.pwa, pwaIos: u.pwaIos, pwaAndroid: u.pwaAndroid, notif: u.notif, ios: u.ios, android: u.android, desktop: u.desktop },
     sent: { today: sentToday, week: sentWeek, total: Number(props.getProperty('pushTotal') || 0), byKind: byKind }
   };
   UrlFetchApp.fetch(NOTIFY_DB + '/push_stats.json', { method: 'put', contentType: 'application/json', headers: authHeader_(), payload: JSON.stringify(stats), muteHttpExceptions: true });

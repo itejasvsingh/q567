@@ -2667,6 +2667,13 @@ function flushPendingOfflineWrites() {
 
         <div id="drawer-push-prefs" style="display:none; padding-left:10px; border-left:2px solid var(--bd); margin:0 0 6px 6px;"></div>
 
+        <div class="drawer-setting-row" onclick="openFeedback()" style="cursor:pointer;">
+          <div class="drawer-setting-info">
+            <span class="drawer-setting-title">💬 Send feedback</span>
+            <span class="drawer-setting-sub">Ideas or problems, straight to the admin</span>
+          </div>
+        </div>
+
         <div id="drawer-admin"></div>
 
         <!-- Student Roll Number Setting -->
@@ -4379,7 +4386,6 @@ window.adminUnlock = function() {
   msg.style.color = 'var(--tx2)'; msg.textContent = 'Checking...';
   const ref = fbDb.ref(`admin_ping/${u.uid}`);
   ref.set({ pin }).then(() => {
-    ref.remove().catch(() => {});
     try { sessionStorage.setItem('mbaplanner_admin_pin', pin); } catch (e) {}
     window._adminFails = 0;
     adminPanel();
@@ -4393,6 +4399,7 @@ window.adminUnlock = function() {
 
 window.adminLock = function() {
   try { sessionStorage.removeItem('mbaplanner_admin_pin'); } catch (e) {}
+  try { const u = firebase.auth().currentUser; if (u) fbDb.ref(`admin_ping/${u.uid}`).remove().catch(() => {}); } catch (e) {}
   document.getElementById('admin-sheet')?.remove();
 };
 
@@ -4403,6 +4410,7 @@ function adminPanel() {
       <div style="font-size:16px; font-weight:700;">🔐 Admin</div>
       <button class="ios-seg-btn" style="padding:4px 10px; font-size:11.5px;" onclick="adminLock()">Lock</button>
     </div>
+    <div id="admin-live" style="margin-bottom:10px;"></div>
     <div id="admin-stats" style="font-size:12.5px; color:var(--tx2); margin-bottom:12px;">Loading stats...</div>
     <div style="font-size:13px; font-weight:700; margin-bottom:6px;">📣 Announcement</div>
     <input id="ann-title" class="cmp-input" maxlength="80" placeholder="Title (short)" style="width:100%; box-sizing:border-box; margin-bottom:8px; border-radius:10px; padding:9px 11px;">
@@ -4411,40 +4419,50 @@ function adminPanel() {
     <div style="font-size:11.5px; color:var(--tx2); margin-bottom:10px;">Goes to every student who has notifications on (they can't opt out of announcements), within about 5 minutes. It can't be taken back.</div>
     <button class="cmp-btn" style="width:100%; padding:10px; border-radius:10px;" onclick="sendAnnouncement()">Send</button>
     <div id="ann-recent" style="margin-top:14px; font-size:12px; color:var(--tx2);"></div>
+    <div style="font-size:13px; font-weight:700; margin:16px 0 6px;">💬 Feedback <span id="fb-count" style="font-weight:400; color:var(--tx2);"></span></div>
+    <div id="admin-feedback" style="font-size:12.5px; color:var(--tx2);">Loading...</div>
   </div>`;
+  const tile = (n, label, sub) => `<div style="background:var(--bg2); border:.5px solid var(--bd); border-radius:10px; padding:8px 6px; text-align:center;"><div style="font-size:19px; font-weight:800; color:var(--tx);">${n == null ? 0 : n}</div><div style="font-size:10.5px; color:var(--tx2); line-height:1.25;">${label}</div>${sub ? `<div style="font-size:9.5px; color:var(--tx3); margin-top:1px;">${sub}</div>` : ''}</div>`;
+  const head = t => `<div style="font-size:13px; font-weight:700; color:var(--tx); margin:2px 0 6px;">${t}</div>`;
+  const grid = h => `<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:8px;">${h}</div>`;
+  const pct = (n, d) => d ? Math.round(n * 100 / d) + '%' : '-';
+
+  // live: who is in the app right now (presence), refreshed while the panel is open
+  const loadLive = () => {
+    const live = document.getElementById('admin-live');
+    if (!live) { clearInterval(window._adminLiveTimer); return; }
+    fbDb.ref('presence').once('value').then(snap => {
+      let app = 0, web = 0;
+      const cutoff = Date.now() - 10 * 60 * 1000;
+      snap.forEach(c => { const v = c.val() || {}; if (v.t > cutoff) { if (v.pwa) app++; else web++; } });
+      live.innerHTML = head('🟢 Using it right now') + grid(tile(app + web, 'in total') + tile(app, 'on the Home Screen app') + tile(web, 'on the website'));
+    }).catch(() => { live.innerHTML = ''; });
+  };
+  loadLive();
+  clearInterval(window._adminLiveTimer);
+  window._adminLiveTimer = setInterval(loadLive, 15000);
+
   try {
     fbDb.ref('push_stats').once('value').then(snap => {
       const v = snap.val(), el = document.getElementById('admin-stats');
       if (!el) return;
       if (!v) { el.textContent = 'No stats yet. They appear after the script runs (every 30 minutes).'; return; }
       const u = v.users || {}, s = v.sent || {}, pr = v.prefs || {};
-      const tile = (n, label, sub) => `<div style="background:var(--bg2); border:.5px solid var(--bd); border-radius:10px; padding:8px 6px; text-align:center;"><div style="font-size:19px; font-weight:800; color:var(--tx);">${n == null ? 0 : n}</div><div style="font-size:10.5px; color:var(--tx2); line-height:1.25;">${label}</div>${sub ? `<div style="font-size:9.5px; color:var(--tx3); margin-top:1px;">${sub}</div>` : ''}</div>`;
-      const pct = (n, d) => d ? Math.round(n * 100 / d) + '%' : '-';
       const kindName = { rem: 'class reminders', meal: 'meal alerts', chg: 'class updates', att: 'attendance', morn: 'morning', eve: 'evening', sheet: 'timetable', bc: 'announcements' };
       const byKind = Object.entries(s.byKind || {}).map(([k, n]) => `${n} ${kindName[k] || k}`).join(' · ');
       const prefNames = { chg: 'Class updates', rem: '30-min reminder', meal: 'Meal alerts', morn: 'Morning summary', eve: 'Evening preview', att: 'Attendance', sheet: 'Timetable changes' };
+      const webDev = (u.devices || 0) - (u.pwa || 0);
       el.innerHTML = `
-        <div style="font-size:13px; font-weight:700; color:var(--tx); margin-bottom:6px;">📊 Users</div>
-        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:6px;">
-          ${tile(u.devices, 'devices have opened the app')}
-          ${tile(u.students, 'students (roll no. set)')}
-          ${tile(u.active24h, 'active today', 'last 24h')}
-          ${tile(u.active7d, 'active this week', 'last 7 days')}
-          ${tile(u.newToday, 'new today')}
-          ${tile(u.pwa, 'Home Screen app', pct(u.pwa, u.devices) + ' of devices')}
-        </div>
+        ${head('🎓 Registered students (roll no. set)')}
+        ${grid(tile(u.students, 'students in total') + tile(u.rollsApp, 'use the Home Screen app', pct(u.rollsApp, u.students)) + tile(u.rollsWeb, 'use the website', pct(u.rollsWeb, u.students)) + tile(u.rollsBoth, 'use both'))}
+        ${head('📱 Devices that opened the app')}
+        ${grid(tile(u.devices, 'devices in total') + tile(u.pwa, 'Home Screen app', pct(u.pwa, u.devices)) + tile(webDev, 'website', pct(webDev, u.devices)) + tile(u.active24h, 'active today', 'last 24h') + tile(u.active7d, 'active this week', 'last 7 days') + tile(u.newToday, 'new today'))}
         <div style="font-size:11.5px; margin-bottom:12px;">iPhone ${u.ios || 0} · Android ${u.android || 0} · Computer ${u.desktop || 0}<br>Home Screen app: iPhone ${u.pwaIos || 0} · Android ${u.pwaAndroid || 0}</div>
-        <div style="font-size:13px; font-weight:700; color:var(--tx); margin-bottom:6px;">🔔 Notifications</div>
-        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:6px;">
-          ${tile(v.students, 'students with notifications on', pct(v.students, u.students) + ' of students')}
-          ${tile(v.devices, 'devices registered')}
-          ${tile(s.today, 'sent today')}
-          ${tile(s.week, 'sent in 7 days')}
-          ${tile(s.total, 'sent in total')}
-        </div>
+        ${head('🔔 Notifications')}
+        ${grid(tile(v.students, 'students with notifications on', pct(v.students, u.students) + ' of students') + tile(v.devices, 'devices registered') + tile(s.today, 'sent today') + tile(s.week, 'sent in 7 days') + tile(s.total, 'sent in total'))}
         <div style="font-size:11.5px; margin-bottom:8px;">${byKind ? 'Today: ' + byKind : 'Nothing sent today yet.'}</div>
         <details style="font-size:11.5px; margin-bottom:6px;"><summary style="cursor:pointer;">Who turned on what (devices)</summary>${Object.keys(prefNames).map(k => `<div>${prefNames[k]}: <b>${pr[k] || 0}</b></div>`).join('')}</details>
-        <div style="font-size:10.5px; color:var(--tx3);">Updated ${new Date(v.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}. Numbers grow as students open the updated app.</div>`;
+        <div style="font-size:10.5px; color:var(--tx3);">Updated ${new Date(v.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} (every 30 min). Numbers grow as students open the updated app.</div>`;
     }).catch(() => {});
     fbDb.ref('announcements_log').orderByKey().limitToLast(5).once('value').then(snap => {
       const rows = [];
@@ -4452,8 +4470,31 @@ function adminPanel() {
       const el = document.getElementById('ann-recent');
       if (el) el.innerHTML = rows.length ? '<b>Recent</b><br>' + rows.join('<br>') : '';
     }).catch(() => {});
+    window.loadAdminFeedback();
   } catch (e) {}
 }
+
+window.loadAdminFeedback = function() {
+  const el = document.getElementById('admin-feedback');
+  if (!el) return;
+  fbDb.ref('feedback').orderByKey().limitToLast(40).once('value').then(snap => {
+    const rows = [];
+    snap.forEach(c => rows.unshift({ k: c.key, v: c.val() || {} }));
+    const cnt = document.getElementById('fb-count');
+    if (cnt) cnt.textContent = rows.length ? `(${rows.length})` : '';
+    const catIcon = { idea: '💡', problem: '🐞', other: '💬' };
+    el.innerHTML = rows.length ? rows.map(({ k, v }) => `
+      <div style="border:.5px solid var(--bd); border-radius:10px; padding:8px 10px; margin-bottom:6px; background:var(--bg2);">
+        <div style="font-size:11px; color:var(--tx2); margin-bottom:3px;">${catIcon[v.cat] || '💬'} ${escHtml(v.roll || 'no roll no.')} · ${escHtml(v.ua || '')}${v.pwa ? ' app' : ' web'} · ${new Date(v.at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+        <div style="font-size:13px; color:var(--tx); white-space:pre-wrap;">${escHtml(v.text || '')}</div>
+        <button onclick="deleteFeedback('${k}')" style="background:none; border:none; color:var(--tx3); font-size:11px; cursor:pointer; padding:4px 0 0;">Delete</button>
+      </div>`).join('') : 'No feedback yet.';
+  }).catch(() => { el.textContent = 'Could not load feedback.'; });
+};
+window.deleteFeedback = function(k) {
+  if (!confirm('Delete this feedback?')) return;
+  fbDb.ref('feedback/' + k).remove().then(() => window.loadAdminFeedback()).catch(() => alert('Could not delete.'));
+};
 
 window.sendAnnouncement = function() {
   const title = (document.getElementById('ann-title').value || '').trim();
@@ -4472,12 +4513,14 @@ window.sendAnnouncement = function() {
 function pushPromptKind() {
   const ua = navigator.userAgent;
   const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+  const isAndroid = /Android/.test(ua);
   const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
   const safari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|GSA/.test(ua);
   const supported = 'Notification' in window && 'serviceWorker' in navigator;
   const on = supported && Notification.permission === 'granted' && localStorage.getItem('mbaplanner_reminder_30m') !== 'off';
+  // On a phone, keep asking to install the app (it also unlocks notifications on iPhone)
+  if (!standalone && (isIOS || isAndroid)) return isIOS ? (safari ? 'ios-safari' : 'ios-other') : 'android-install';
   if (on) return null;
-  if (isIOS && !standalone) return safari ? 'ios-safari' : 'ios-other';
   if (!supported) return null;
   return Notification.permission === 'denied' ? 'denied' : 'enable';
 }
@@ -4494,10 +4537,13 @@ window.refreshPushPrompt = function() {
   const later = '<button onclick="dismissPushPrompt()" style="background:none; border:none; color:var(--tx2); font-size:12px; cursor:pointer; padding:8px 6px;">Not now</button>';
   let h = '';
   if (kind === 'ios-safari') {
-    h = `<b>📲 Get class alerts on your iPhone</b><br>Notifications only work once the app is on your Home Screen:<br>
+    h = `<b>📲 Install the app on your iPhone</b><br>It opens faster, works offline, and notifications only work once the app is on your Home Screen:<br>
       1. Tap the <b>Share</b> button (the square with an arrow) at the bottom of Safari<br>
       2. Tap <b>Add to Home Screen</b>, then <b>Add</b><br>
-      3. Open the app from the <b>new icon</b> and tap <b>Turn on notifications</b><div style="margin-top:6px;">${later}</div>`;
+      3. Open the app from the <b>new icon</b>. Notifications are switched on for you there.<div style="margin-top:6px;">${later}</div>`;
+  } else if (kind === 'android-install') {
+    const canInstall = (typeof _deferredInstallPrompt !== 'undefined' && _deferredInstallPrompt);
+    h = `<b>📲 Install the app on your phone</b><br>Opens faster, works offline, and lets you get class alerts and meal reminders.${canInstall ? '' : '<br>Tap the <b>⋮ menu</b> in Chrome, then <b>Install app</b> (or <b>Add to Home screen</b>).'}<div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:8px; align-items:center;">${canInstall ? `<button style="${btn}" onclick="handleInstallClick()">Install app</button>` : ''}${later}</div>`;
   } else if (kind === 'ios-other') {
     h = `<b>📲 Open this in Safari to get alerts</b><br>iPhones only allow notifications for apps added from <b>Safari</b> (not Chrome). Open <b>q567.vercel.app</b> in Safari, tap Share → Add to Home Screen, then open it from the new icon.<div style="margin-top:6px;"><button style="${btn}" onclick="copyAppLink()">Copy link</button>${later}</div>`;
   } else if (kind === 'denied') {
@@ -4510,7 +4556,7 @@ window.refreshPushPrompt = function() {
 };
 
 window.dismissPushPrompt = function() {
-  try { localStorage.setItem('mbaplanner_push_prompt_until', String(Date.now() + 2 * 86400000)); } catch (e) {}
+  try { localStorage.setItem('mbaplanner_push_prompt_until', String(Date.now() + 3 * 3600000)); } catch (e) {}
   window.refreshPushPrompt();
 };
 
@@ -4535,5 +4581,88 @@ window.enableNotificationsFromPrompt = function() {
 };
 
 setTimeout(() => window.refreshPushPrompt(), 2500);
+setInterval(() => window.refreshPushPrompt(), 10 * 60 * 1000);
 window.addEventListener('focus', () => window.refreshPushPrompt());
 document.addEventListener('visibilitychange', () => { if (!document.hidden) window.refreshPushPrompt(); });
+
+
+// ---- Feedback from students (read by the admin only) ---------------------
+window.openFeedback = function() {
+  if (window.pwaCloseDrawer) pwaCloseDrawer();
+  let box = document.getElementById('feedback-sheet');
+  if (box) box.remove();
+  box = document.createElement('div');
+  box.id = 'feedback-sheet';
+  box.style.cssText = 'position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.45); display:flex; align-items:flex-end; justify-content:center;';
+  box.onclick = e => { if (e.target === box) box.remove(); };
+  const chip = (k, label) => `<button class="ios-seg-btn fb-cat${k === 'idea' ? ' active-p' : ''}" data-cat="${k}" onclick="document.querySelectorAll('.fb-cat').forEach(b=>b.classList.remove('active-p')); this.classList.add('active-p'); window._fbCat='${k}';">${label}</button>`;
+  window._fbCat = 'idea';
+  box.innerHTML = `<div style="${ADMIN_CARD}">
+    <div style="font-size:16px; font-weight:700; margin-bottom:4px;">💬 Send feedback</div>
+    <div style="font-size:12.5px; color:var(--tx2); margin-bottom:10px;">Tell us what to improve, or what is not working. It goes straight to the app admin.</div>
+    <div style="display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap;">${chip('idea', '💡 Idea')}${chip('problem', '🐞 Problem')}${chip('other', '💬 Other')}</div>
+    <textarea id="fb-text" class="cmp-input" maxlength="600" rows="4" placeholder="Write here..." style="width:100%; box-sizing:border-box; border-radius:10px; padding:9px 11px; resize:none;"></textarea>
+    <button class="cmp-btn" style="width:100%; padding:10px; border-radius:10px; margin-top:10px;" onclick="sendFeedback()">Send</button>
+    <button class="ios-seg-btn" style="width:100%; margin-top:8px;" onclick="document.getElementById('feedback-sheet').remove()">Cancel</button>
+  </div>`;
+  document.body.appendChild(box);
+  setTimeout(() => document.getElementById('fb-text')?.focus(), 50);
+};
+
+window.sendFeedback = function() {
+  const text = (document.getElementById('fb-text').value || '').trim();
+  if (!text) { alert('Write your feedback first.'); return; }
+  if (Date.now() - (window._fbLast || 0) < 20000) { alert('Please wait a few seconds before sending again.'); return; }
+  if (!fbDb || !firebase.auth().currentUser) { alert('Not connected. Check your internet and try again.'); return; }
+  const ua = navigator.userAgent;
+  const rec = {
+    text, cat: window._fbCat || 'idea', at: firebase.database.ServerValue.TIMESTAMP,
+    ua: /iPad|iPhone|iPod/.test(ua) ? 'ios' : /Android/.test(ua) ? 'android' : 'desktop',
+    pwa: Boolean(window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone)
+  };
+  const roll = getActiveRollNo();
+  if (roll) rec.roll = roll;
+  window._fbLast = Date.now();
+  fbDb.ref('feedback').push(rec)
+    .then(() => { document.getElementById('feedback-sheet')?.remove(); alert('Thank you! Your feedback was sent.'); })
+    .catch(() => { window._fbLast = 0; alert('Could not send. Please try again.'); });
+};
+
+// ---- Who is using the app right now (counts only reach the admin) --------
+function presenceTick() {
+  try {
+    if (!fbDb || !firebase.auth().currentUser) return;
+    const ref = fbDb.ref(`presence/${pushDeviceId()}`);
+    if (document.hidden) { ref.remove().catch(() => {}); return; }
+    ref.onDisconnect().remove();
+    ref.set({ pwa: Boolean(window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone), t: Date.now() }).catch(() => {});
+  } catch (e) {}
+}
+setTimeout(presenceTick, 4000);
+setInterval(presenceTick, 4 * 60 * 1000);
+document.addEventListener('visibilitychange', presenceTick);
+
+
+// Installed Home Screen app: notifications are ON by default. The phone only
+// lets us ask for permission after a tap, so the first tap in the app asks.
+(function() {
+  const standalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  const needAsk = () => 'Notification' in window && standalone() && Notification.permission === 'default'
+    && localStorage.getItem('mbaplanner_reminder_30m') !== 'off'
+    && Date.now() - Number(localStorage.getItem('mbaplanner_notif_asked') || 0) > 24 * 3600000;
+  const handler = () => {
+    if (!needAsk()) return;
+    document.removeEventListener('click', handler, true);
+    localStorage.setItem('mbaplanner_notif_asked', String(Date.now()));
+    try {
+      Promise.resolve(Notification.requestPermission()).then(perm => {
+        if (perm === 'granted') localStorage.setItem('mbaplanner_reminder_30m', 'on');
+        if (getActiveRollNo()) savePreferencesForRoll();
+        if (window.updateDrawerSettingsUI) updateDrawerSettingsUI();
+        if (window.refreshPushPrompt) refreshPushPrompt();
+        setTimeout(() => { if (window.syncPush) window.syncPush(); }, 500);
+      });
+    } catch (e) {}
+  };
+  document.addEventListener('click', handler, true);
+})();

@@ -81,6 +81,32 @@
       }
     },
 
+    "feedback": {
+      ".read": "root.child('admin_ping').child(auth.uid).child('pin').val() === '__ADMIN_PIN__'",
+      "$id": {
+        ".write": "auth != null && ((!data.exists() && newData.exists()) || (data.exists() && !newData.exists() && root.child('admin_ping').child(auth.uid).child('pin').val() === '__ADMIN_PIN__'))",
+        ".validate": "newData.hasChildren(['text', 'at']) && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length <= 600 && newData.child('at').isNumber()",
+        "text": { ".validate": "newData.isString()" },
+        "at": { ".validate": "newData.isNumber()" },
+        "cat": { ".validate": "newData.isString() && newData.val().length <= 12" },
+        "roll": { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "ua": { ".validate": "newData.isString() && newData.val().length <= 10" },
+        "pwa": { ".validate": "newData.isBoolean()" },
+        "$other": { ".validate": false }
+      }
+    },
+
+    "presence": {
+      ".read": "root.child('admin_ping').child(auth.uid).child('pin').val() === '__ADMIN_PIN__'",
+      "$dev": {
+        ".write": "auth != null",
+        ".validate": "$dev.length <= 40 && newData.hasChildren(['pwa', 't'])",
+        "pwa": { ".validate": "newData.isBoolean()" },
+        "t": { ".validate": "newData.isNumber()" },
+        "$other": { ".validate": false }
+      }
+    },
+
     "announcements_log": {
       ".read": "auth != null",
       ".write": false
