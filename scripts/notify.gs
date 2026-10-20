@@ -10,14 +10,14 @@
 //   eve    evening preview of tomorrow (about 9 PM)
 //   att    mark-attendance reminder 15 min after a class ends (only if not marked) + absence-limit warning
 //   sheet  official timetable changed (called from the sync, see notifySheetChanges_)
-//   bc     announcement from you (sendBroadcast)
+//   (announcements from you cannot be switched off by students)
 //
 // To see every kind of notification on your own phone: run previewAllNotifications.
 
 var NOTIFY_DB = 'https://q567mba-default-rtdb.asia-southeast1.firebasedatabase.app';
 var NOTIFY_PROJECT = 'q567mba';
 var MY_ROLL = 'MS25A071';          // used by the test* and preview functions
-var PREF_DEFAULTS = { chg: true, rem: true, meal: true, morn: true, eve: false, att: true, sheet: true, bc: true };
+var PREF_DEFAULTS = { chg: true, rem: true, meal: true, morn: true, eve: false, att: true, sheet: true };
 var ABSENCE_LIMIT = 2;
 
 // ---------------------------------------------------------------- main tick
@@ -309,7 +309,7 @@ function matchesSubj_(text, subj) {
 // EASY WAY: use the "Announce" tab in the timetable Google Sheet (run
 // setupAnnounceSheet once to create it). Type a title and message, then type
 // TEST (only you get it) or SEND (everyone). It goes out within 5 minutes.
-// Everyone with push on and "Announcements" enabled receives it.
+// Every device with notifications on receives it (students cannot opt out).
 var ANNOUNCE_SHEET_ID = '1FyiqG6ArbYoEtmZWPnXjfwnjNNm1CO89pfz2WV2_bYY';
 
 function setupAnnounceSheet() {
@@ -372,7 +372,7 @@ function writePushStats_(ctx, props) {
     if (x.notif) u.notif++;
     if (u[x.ua] !== undefined) u[x.ua]++;
   });
-  var devices = 0, students = 0, prefs = { chg: 0, rem: 0, meal: 0, morn: 0, eve: 0, att: 0, sheet: 0, bc: 0 };
+  var devices = 0, students = 0, prefs = { chg: 0, rem: 0, meal: 0, morn: 0, eve: 0, att: 0, sheet: 0 };
   Object.keys(ctx.tokens).forEach(function (r) {
     var devs = ctx.tokens[r] || {}, n = Object.keys(devs).length;
     if (!n) return;
@@ -420,7 +420,7 @@ function broadcast_(onlyRoll, title, body) {
   var out = [];
   Object.keys(ctx.tokens).forEach(function (roll) {
     if (onlyRoll && roll !== safeRoll_(onlyRoll)) return;
-    addSends_(out, ctx, roll, onlyRoll ? null : 'bc', { title: title, body: body }, { ymd: '', tag: 'bc_' + ctx.now });
+    addSends_(out, ctx, roll, null, { title: title, body: body }, { ymd: '', tag: 'bc_' + ctx.now }); // null = ignores personal settings: announcements are mandatory
   });
   Logger.log('Broadcast to ' + out.length + ' device(s)');
   sendAll_(out);

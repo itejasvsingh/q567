@@ -4247,7 +4247,7 @@ window.syncPushReminders = function(data) {
 
 
 // What this device gets. Stored on the token record so the server can respect it.
-const PUSH_PREF_DEFAULTS = { chg: true, rem: true, morn: true, eve: false, att: true, sheet: true, meal: true, bc: true };
+const PUSH_PREF_DEFAULTS = { chg: true, rem: true, morn: true, eve: false, att: true, sheet: true, meal: true };
 const PUSH_PREF_LABELS = [
   ['chg', 'Class updates', 'Cancelled, moved or retimed by classmates'],
   ['rem', '30-min class reminder', 'Before each class'],
@@ -4255,8 +4255,7 @@ const PUSH_PREF_LABELS = [
   ['morn', 'Morning summary', "Today's classes at about 7 AM"],
   ['eve', 'Evening preview', "Tomorrow's classes at about 9 PM"],
   ['att', 'Attendance', 'Reminder 15 min after class if not marked, and absence-limit warnings'],
-  ['sheet', 'Timetable changes', 'When the official timetable changes'],
-  ['bc', 'Announcements', 'Messages from the admin']
+  ['sheet', 'Timetable changes', 'When the official timetable changes']
 ];
 function pushPrefs() {
   let saved = {};
@@ -4409,7 +4408,7 @@ function adminPanel() {
     <input id="ann-title" class="cmp-input" maxlength="80" placeholder="Title (short)" style="width:100%; box-sizing:border-box; margin-bottom:8px; border-radius:10px; padding:9px 11px;">
     <textarea id="ann-body" class="cmp-input" maxlength="240" rows="3" placeholder="Message" style="width:100%; box-sizing:border-box; border-radius:10px; padding:9px 11px; resize:none;"></textarea>
     <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:8px 0;"><input type="checkbox" id="ann-only-me"> Test: send only to me</label>
-    <div style="font-size:11.5px; color:var(--tx2); margin-bottom:10px;">Goes to everyone with notifications on, within about 5 minutes. It can't be taken back.</div>
+    <div style="font-size:11.5px; color:var(--tx2); margin-bottom:10px;">Goes to every student who has notifications on (they can't opt out of announcements), within about 5 minutes. It can't be taken back.</div>
     <button class="cmp-btn" style="width:100%; padding:10px; border-radius:10px;" onclick="sendAnnouncement()">Send</button>
     <div id="ann-recent" style="margin-top:14px; font-size:12px; color:var(--tx2);"></div>
   </div>`;
@@ -4423,7 +4422,7 @@ function adminPanel() {
       const pct = (n, d) => d ? Math.round(n * 100 / d) + '%' : '-';
       const kindName = { rem: 'class reminders', meal: 'meal alerts', chg: 'class updates', att: 'attendance', morn: 'morning', eve: 'evening', sheet: 'timetable', bc: 'announcements' };
       const byKind = Object.entries(s.byKind || {}).map(([k, n]) => `${n} ${kindName[k] || k}`).join(' · ');
-      const prefNames = { chg: 'Class updates', rem: '30-min reminder', meal: 'Meal alerts', morn: 'Morning summary', eve: 'Evening preview', att: 'Attendance', sheet: 'Timetable changes', bc: 'Announcements' };
+      const prefNames = { chg: 'Class updates', rem: '30-min reminder', meal: 'Meal alerts', morn: 'Morning summary', eve: 'Evening preview', att: 'Attendance', sheet: 'Timetable changes' };
       el.innerHTML = `
         <div style="font-size:13px; font-weight:700; color:var(--tx); margin-bottom:6px;">📊 Users</div>
         <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:6px;">
