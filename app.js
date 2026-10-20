@@ -4488,7 +4488,7 @@ window.loadAdminFeedback = function(filter) {
   if (filter) window._fbFilter = filter;
   fbDb.ref('feedback').orderByKey().once('value').then(snap => {
     const all = [];
-    snap.forEach(c => all.unshift({ k: c.key, v: c.val() || {} }));   // newest first
+    snap.forEach(c => { all.unshift({ k: c.key, v: c.val() || {} }); });   // newest first (braces: a returned value would stop the loop)
     window._fbAll = all;
     const f = window._fbFilter || 'all';
     const rows = f === 'all' ? all : all.filter(x => (x.v.cat || 'other') === f);
