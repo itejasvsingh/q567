@@ -2646,7 +2646,7 @@ function flushPendingOfflineWrites() {
 
         <details class="drawer-push-prefs">
           <summary class="drawer-setting-title" style="cursor:pointer; padding:8px 0;">🔔 Notification settings</summary>
-          ${window.renderPushPrefsHtml ? window.renderPushPrefsHtml() : ''}
+          <div id="drawer-push-prefs"></div>
         </details>
 
         <div class="drawer-setting-row" onclick="testNotification()" style="cursor:pointer;">
@@ -2708,6 +2708,8 @@ function flushPendingOfflineWrites() {
 
 window.updateDrawerSettingsUI = function() {
     if (window.renderDrawerAdmin) window.renderDrawerAdmin();
+    const prefsBox = document.getElementById('drawer-push-prefs');
+    if (prefsBox && window.renderPushPrefsHtml) prefsBox.innerHTML = window.renderPushPrefsHtml();
     const isGranted = ('Notification' in window) && Notification.permission === 'granted';
     const reminderPref = localStorage.getItem('mbaplanner_reminder_30m');
     const isAlertActive = isGranted && reminderPref !== 'off';
