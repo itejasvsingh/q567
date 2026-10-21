@@ -4060,6 +4060,14 @@ function _renderDailyScheduleInner() {
               </div>`;
           }
       }
+      // ICRC runs on Thursdays; on a Thursday without a session, say so instead of leaving a blank afternoon
+      if (dayName === 'Thursday' && !Object.values(dayClasses).some(d => d.type === 'icrc')) {
+          timelineEventsHtml += `
+          <div class="ios-divider-break">
+              <span>🏢</span>
+              <span><strong style="color:var(--tx); font-weight:700;">No ICRC</strong> ${isToday ? 'today' : (isTomorrow ? 'tomorrow' : 'this day')}</span>
+          </div>`;
+      }
       timelineEventsHtml += `</div>`;
   } else {
       timelineEventsHtml += `<div style="font-size:12.5px; color:var(--tx3); padding: 28px 0; text-align:center; border: 0.5px dashed var(--bd); border-radius: 14px; background: var(--bg2);">☕ No classes scheduled for this day. Enjoy your break!</div>`;
