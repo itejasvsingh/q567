@@ -3652,7 +3652,32 @@ function _renderDailyScheduleInner() {
       }
       dateKeys = continuousKeys;
   }
-  if (!window._selectedAgendaDate || !liveDailyCache[window._selectedAgendaDate]) {
+  // Exams for my courses (details live in data.js), keyed by date
+  const MONTH_NUM = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+  const examsByYmd = {};
+  activeSubjects.forEach(s => {
+      const live = ((DATA[quarter] && DATA[quarter].subjects) || []).find(x => x.code === s.code);
+      const ex = (live && live.exam) || s.exam;
+      const m = ex && /^(\d{1,2}) ([A-Za-z]{3})$/.exec(ex.d || '');
+      if (!m || !MONTH_NUM[m[2]]) return;
+      const y = `2026-${MONTH_NUM[m[2]]}-${m[1].padStart(2, '0')}`;
+      (examsByYmd[y] = examsByYmd[y] || []).push({ name: s.name, ex });
+  });
+  const examYmds = Object.keys(examsByYmd).sort();
+  if (examYmds.length && dateKeys.length) {
+      const lastYmd = dateKeys[dateKeys.length - 1].slice(0, 10);
+      const maxExam = examYmds[examYmds.length - 1];
+      if (maxExam > lastYmd) {
+          const c = new Date(lastYmd + 'T00:00:00'); c.setDate(c.getDate() + 1);
+          const end = new Date(maxExam + 'T00:00:00');
+          while (c <= end) {
+              const ymd2 = `${c.getFullYear()}-${String(c.getMonth()+1).padStart(2,'0')}-${String(c.getDate()).padStart(2,'0')}`;
+              dateKeys.push(`${ymd2} ${c.toLocaleDateString('en-US', { weekday: 'long' })}`);
+              c.setDate(c.getDate() + 1);
+          }
+      }
+  }
+  if (!window._selectedAgendaDate || (!liveDailyCache[window._selectedAgendaDate] && !examsByYmd[window._selectedAgendaDate.slice(0, 10)])) {
       const todayMatch = dateKeys.find(k => k.startsWith(todayYmd));
       if (todayMatch) {
           window._selectedAgendaDate = todayMatch;
@@ -3725,7 +3750,7 @@ function _renderDailyScheduleInner() {
       
       capsulesHtml += `
       <div id="capsule-${dateString.replace(/\s/g, '-')}" 
-           class="capsule ${isSelected ? 'selected' : ''} ${hasActiveCls ? 'has-class' : (hasCls ? 'has-cancelled' : '')}" 
+           class="capsule ${isSelected ? 'selected' : ''} ${(hasActiveCls || examsByYmd[ymd]) ? 'has-class' : (hasCls ? 'has-cancelled' : '')}" 
            onclick="selectAgendaDate('${dateString}')">
           <span class="dow">${shortDay}</span>
           <span class="num">${dd}</span>
@@ -4070,7 +4095,7 @@ function _renderDailyScheduleInner() {
           </div>`;
       }
       timelineEventsHtml += `</div>`;
-  } else {
+  } else if (!(examsByYmd[ymd] || []).length) {
       timelineEventsHtml += `<div style="font-size:12.5px; color:var(--tx3); padding: 28px 0; text-align:center; border: 0.5px dashed var(--bd); border-radius: 14px; background: var(--bg2);">☕ No classes scheduled for this day. Enjoy your break!</div>`;
   }
 
@@ -4115,6 +4140,12 @@ function _renderDailyScheduleInner() {
   const prevDateKey = currentIndex > 0 ? dateKeys[currentIndex - 1] : null;
   const nextDateKey = currentIndex < dateKeys.length - 1 ? dateKeys[currentIndex + 1] : null;
 
+  const examHtml = (examsByYmd[ymd] || []).map(e => `
+      <div style="font-size:12px; font-weight:700; color:var(--tx-danger); margin-bottom:10px; background:var(--bg-danger); padding:8px 12px; border-radius:10px; border:0.5px solid var(--bd-danger); display:flex; align-items:center; gap:8px;">
+          <span style="font-size:16px;">📝</span>
+          <span style="flex:1;">Exam · ${escHtml(e.name)}<br><span style="font-weight:600;">${escHtml(e.ex.t)} · ${escHtml(e.ex.v)} · ${escHtml(e.ex.m)}</span></span>
+      </div>`).join('');
+
   const singleCardHtml = `
   <div class="ios-day-card" id="card-${currentDateKey.replace(/\s/g, '-')}" data-is-today="${isToday ? 'true' : 'false'}">
       <div class="ios-day-header">
@@ -4126,6 +4157,7 @@ function _renderDailyScheduleInner() {
           <button class="ios-nav-btn" ${nextDateKey ? `onclick="selectAgendaDate('${nextDateKey}')"` : 'disabled'} title="Next Day">›</button>
       </div>
       ${commentHtml}
+      ${examHtml}
       ${birthdayHtml}
       ${timelineEventsHtml}
       ${typeof messMenuCardHtml === 'function' ? messMenuCardHtml(ymd) : ''}
