@@ -597,6 +597,7 @@ function renderGrid(){
           <span class="vb ${VC[s.v]||''}">${s.v}</span>
           · ${s.instructor}
         </div>
+        ${s.exam!==undefined?`<div class="smeta" style="margin-top:4px">${s.exam?`📝 Exam ${s.exam.d} · ${s.exam.t} · ${s.exam.m}`:'📝 No exam'}</div>`:''}
       </div>
     </div>`;
   }).join('');
