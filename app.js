@@ -3671,7 +3671,7 @@ function _renderDailyScheduleInner() {
       const y = examYmds.find(k => (examsByYmd[k] || []).some(e => e.name === subj.name));
       if (!y || daysUntil(y) < 0) return '';
       const n = daysUntil(y);
-      return n === 0 ? '📝 Exam today' : `📝 Exam ${dayLabel(n)} · ${+y.slice(8)} Nov`;
+      return n === 0 ? '📝 Exam today' : `📝 Exam ${dayLabel(n).toLowerCase()} · ${+y.slice(8)} Nov`;
   };
   if (examYmds.length && dateKeys.length) {
       const lastYmd = dateKeys[dateKeys.length - 1].slice(0, 10);
