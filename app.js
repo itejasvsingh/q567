@@ -3664,6 +3664,15 @@ function _renderDailyScheduleInner() {
       (examsByYmd[y] = examsByYmd[y] || []).push({ name: s.name, ex });
   });
   const examYmds = Object.keys(examsByYmd).sort();
+  const daysUntil = y => Math.round((Date.UTC(+y.slice(0,4), +y.slice(5,7)-1, +y.slice(8,10)) - Date.UTC(+todayYmd.slice(0,4), +todayYmd.slice(5,7)-1, +todayYmd.slice(8,10))) / 86400000);
+  const dayLabel = n => n === 0 ? 'Today' : n === 1 ? 'Tomorrow' : `in ${n} days`;
+  // Countdown for one subject's own exam ('' if it has none or it has passed)
+  const examChip = subj => {
+      const y = examYmds.find(k => (examsByYmd[k] || []).some(e => e.name === subj.name));
+      if (!y || daysUntil(y) < 0) return '';
+      const n = daysUntil(y);
+      return n === 0 ? '📝 Exam today' : `📝 Exam ${dayLabel(n)} · ${+y.slice(8)} Nov`;
+  };
   if (examYmds.length && dateKeys.length) {
       const lastYmd = dateKeys[dateKeys.length - 1].slice(0, 10);
       const maxExam = examYmds[examYmds.length - 1];
@@ -3832,7 +3841,7 @@ function _renderDailyScheduleInner() {
           const room = bData.type === 'icrc' ? null : bData.subject.room;
 
           if (isHappeningNow) {
-              ongoingClassFound = { name: subjectName, room, label: classTimeLabel(bData, todaySlots, SLOT_LABELS) };
+              ongoingClassFound = { name: subjectName, room, subj: bData.type === 'icrc' ? null : bData.subject, label: classTimeLabel(bData, todaySlots, SLOT_LABELS) };
           } else if (!nextClassFound) {
               const timeInfo = ti;
               if (timeInfo) {
@@ -3840,7 +3849,7 @@ function _renderDailyScheduleInner() {
                   const utcMidnight = new Date(Date.UTC(parseInt(y), parseInt(m)-1, parseInt(d)));
                   const classStartUTC = istToUTC(utcMidnight, timeInfo.sh, timeInfo.sm);
                   if (classStartUTC.getTime() > Date.now()) {
-                      nextClassFound = { name: subjectName, room, timeMs: classStartUTC.getTime() };
+                      nextClassFound = { name: subjectName, room, subj: bData.type === 'icrc' ? null : bData.subject, timeMs: classStartUTC.getTime() };
                   }
               }
           }
@@ -3857,7 +3866,7 @@ function _renderDailyScheduleInner() {
               <span class="ios-island-badge">Now</span>
               <span class="ios-island-title">${ongoingClassFound.name}</span>
           </div>
-          <span class="ios-island-loc">📍 ${ongoingClassFound.room ? `Rm ${ongoingClassFound.room} · ` : ''}<strong>${activeSlotLabel}</strong></span>
+          <span class="ios-island-loc">📍 ${ongoingClassFound.room ? `Rm ${ongoingClassFound.room} · ` : ''}<strong>${activeSlotLabel}</strong>${ongoingClassFound.subj && examChip(ongoingClassFound.subj) ? ` · ${examChip(ongoingClassFound.subj)}` : ''}</span>
       </div>`;
   } else if (nextClassFound) {
       liveIslandHtml = `
@@ -4001,6 +4010,7 @@ function _renderDailyScheduleInner() {
               else if (upd && upd.status === 'retimed') updatePillHtml = warnPill('⏱ New time');
 
               let subText = room && !cancelled ? `📍 Room ${room}` : (!cancelled ? '📍 Department' : (data.shiftedTo ? `🔄 ${data.shiftedTo}` : 'Cancelled in schedule'));
+              const chip = !isIcrc && !cancelled && data.subject ? examChip(data.subject) : '';
               if (upd && upd.status === 'moved') {
                   const toTi = upd.start ? hhmmToTimeInfo(upd.start, upd.end) : ICS_TIME_MAP[upd.toSlot];
                   subText = `↪️ Moved to ${fmtDayLabel(upd.toYmd)} · ${fmtClock(toTi.sh, toTi.sm)} – ${fmtClock(toTi.eh, toTi.em)}`;
@@ -4008,6 +4018,7 @@ function _renderDailyScheduleInner() {
                   subText = 'Cancelled';
               }
               if (data.movedIn) subText += ` · moved from ${fmtDayLabel(data.movedIn.ymd)}`;
+              if (chip) subText += ` · ${chip}`;
 
               const updSrc = upd || data.movedIn;
               const updateInfoHtml = updSrc
@@ -4140,8 +4151,6 @@ function _renderDailyScheduleInner() {
   const prevDateKey = currentIndex > 0 ? dateKeys[currentIndex - 1] : null;
   const nextDateKey = currentIndex < dateKeys.length - 1 ? dateKeys[currentIndex + 1] : null;
 
-  const daysUntil = y => Math.round((Date.UTC(+y.slice(0,4), +y.slice(5,7)-1, +y.slice(8,10)) - Date.UTC(+todayYmd.slice(0,4), +todayYmd.slice(5,7)-1, +todayYmd.slice(8,10))) / 86400000);
-  const dayLabel = n => n === 0 ? 'Today' : n === 1 ? 'Tomorrow' : `in ${n} days`;
   const examHtml = (examsByYmd[ymd] || []).map(e => `
       <div style="font-size:12px; font-weight:700; color:var(--tx-danger); margin-bottom:10px; background:var(--bg-danger); padding:8px 12px; border-radius:10px; border:0.5px solid var(--bd-danger); display:flex; align-items:center; gap:8px;">
           <span style="font-size:16px;">📝</span>
@@ -4165,25 +4174,11 @@ function _renderDailyScheduleInner() {
       ${typeof messMenuCardHtml === 'function' ? messMenuCardHtml(ymd) : ''}
   </div>`;
 
-  // Countdown to the next exam (today counts until the day is over)
-  let examCountdownHtml = '';
-  const nextExamYmd = examYmds.find(y => y >= todayYmd);
-  if (nextExamYmd) {
-      const n = daysUntil(nextExamYmd);
-      const names = examsByYmd[nextExamYmd].map(e => escHtml(e.name)).join(' · ');
-      const dk = dateKeys.find(k => k.startsWith(nextExamYmd));
-      examCountdownHtml = `<div ${dk ? `onclick="selectAgendaDate('${dk}')"` : ''} style="display:flex; align-items:center; gap:10px; padding:9px 12px; margin-bottom:12px; background:var(--bg-danger); border:0.5px solid var(--bd-danger); border-radius:12px; color:var(--tx-danger); cursor:pointer;">
-          <span style="font-size:20px; font-weight:800; line-height:1; min-width:34px; text-align:center;">${n === 0 ? '📝' : n}</span>
-          <span style="font-size:12px; font-weight:700; line-height:1.35;">${n === 0 ? 'Exam today' : (n === 1 ? 'day to next exam' : 'days to next exam')}<br><span style="font-weight:600;">${names} · ${nextExamYmd.slice(8)} Nov</span></span>
-      </div>`;
-  }
-
   const oldStrip = area.querySelector('.date-capsules');
   const keepScroll = oldStrip ? oldStrip.scrollLeft : null;
   area.innerHTML = `
     <div style="display:flex; justify-content:flex-end; margin-bottom:6px;"><button class="mm-today" onclick="agendaToday()">Today</button></div>
     ${capsulesHtml}
-    ${examCountdownHtml}
     ${liveIslandHtml}
     ${rollBannerHtml}
     ${singleCardHtml}
