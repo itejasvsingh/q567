@@ -4140,10 +4140,12 @@ function _renderDailyScheduleInner() {
   const prevDateKey = currentIndex > 0 ? dateKeys[currentIndex - 1] : null;
   const nextDateKey = currentIndex < dateKeys.length - 1 ? dateKeys[currentIndex + 1] : null;
 
+  const daysUntil = y => Math.round((Date.UTC(+y.slice(0,4), +y.slice(5,7)-1, +y.slice(8,10)) - Date.UTC(+todayYmd.slice(0,4), +todayYmd.slice(5,7)-1, +todayYmd.slice(8,10))) / 86400000);
+  const dayLabel = n => n === 0 ? 'Today' : n === 1 ? 'Tomorrow' : `in ${n} days`;
   const examHtml = (examsByYmd[ymd] || []).map(e => `
       <div style="font-size:12px; font-weight:700; color:var(--tx-danger); margin-bottom:10px; background:var(--bg-danger); padding:8px 12px; border-radius:10px; border:0.5px solid var(--bd-danger); display:flex; align-items:center; gap:8px;">
           <span style="font-size:16px;">📝</span>
-          <span style="flex:1;">Exam · ${escHtml(e.name)}<br><span style="font-weight:600;">${escHtml(e.ex.t)} · ${escHtml(e.ex.v)} · ${escHtml(e.ex.m)}</span></span>
+          <span style="flex:1;">Exam · ${escHtml(e.name)}${daysUntil(ymd) >= 0 ? ` <span style="font-weight:800;">(${dayLabel(daysUntil(ymd))})</span>` : ''}<br><span style="font-weight:600;">${escHtml(e.ex.t)} · ${escHtml(e.ex.v)} · ${escHtml(e.ex.m)}</span></span>
       </div>`).join('');
 
   const singleCardHtml = `
@@ -4163,11 +4165,25 @@ function _renderDailyScheduleInner() {
       ${typeof messMenuCardHtml === 'function' ? messMenuCardHtml(ymd) : ''}
   </div>`;
 
+  // Countdown to the next exam (today counts until the day is over)
+  let examCountdownHtml = '';
+  const nextExamYmd = examYmds.find(y => y >= todayYmd);
+  if (nextExamYmd) {
+      const n = daysUntil(nextExamYmd);
+      const names = examsByYmd[nextExamYmd].map(e => escHtml(e.name)).join(' · ');
+      const dk = dateKeys.find(k => k.startsWith(nextExamYmd));
+      examCountdownHtml = `<div ${dk ? `onclick="selectAgendaDate('${dk}')"` : ''} style="display:flex; align-items:center; gap:10px; padding:9px 12px; margin-bottom:12px; background:var(--bg-danger); border:0.5px solid var(--bd-danger); border-radius:12px; color:var(--tx-danger); cursor:pointer;">
+          <span style="font-size:20px; font-weight:800; line-height:1; min-width:34px; text-align:center;">${n === 0 ? '📝' : n}</span>
+          <span style="font-size:12px; font-weight:700; line-height:1.35;">${n === 0 ? 'Exam today' : (n === 1 ? 'day to next exam' : 'days to next exam')}<br><span style="font-weight:600;">${names} · ${nextExamYmd.slice(8)} Nov</span></span>
+      </div>`;
+  }
+
   const oldStrip = area.querySelector('.date-capsules');
   const keepScroll = oldStrip ? oldStrip.scrollLeft : null;
   area.innerHTML = `
     <div style="display:flex; justify-content:flex-end; margin-bottom:6px;"><button class="mm-today" onclick="agendaToday()">Today</button></div>
     ${capsulesHtml}
+    ${examCountdownHtml}
     ${liveIslandHtml}
     ${rollBannerHtml}
     ${singleCardHtml}
