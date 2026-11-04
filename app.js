@@ -2919,7 +2919,7 @@ function scheduleClassNotifications(todaysClasses, ymdStr) {
     const utcMidnight = new Date(Date.UTC(y, m - 1, d));
     
     for (const [t, data] of Object.entries(todaysClasses)) {
-        if (data.type === 'free' || data.type === 'lunch' || data.cancelled || data.hidden) continue;
+        if (data.type === 'event' || data.type === 'free' || data.type === 'lunch' || data.cancelled || data.hidden) continue;
         
         const timeInfo = data.timeInfo || ICS_TIME_MAP[t];
         if (!timeInfo) continue;
@@ -3529,6 +3529,17 @@ function _renderDailyScheduleInner() {
       'MS6230': 'SS', 'MS5613': 'CHS', 'MS5770': 'SM', 'MS6030': 'ADAM', 'MS5750': 'BM',
       'MS6600': 'GCG', 'MS6022': 'AIM', 'MS6210': 'Bs.Models', 'CORE-LAW': 'LAW'
   };
+  const normalizeScheduleToken = value => String(value || '').trim().replace(/\*/g, '').replace(/\s+/g, ' ').toLowerCase();
+  const knownCourseTokens = new Set(
+      (DATA[quarter]?.subjects || []).flatMap(s => [s.code, s.name, excelAcronyms[s.code]])
+          .filter(Boolean)
+          .map(normalizeScheduleToken)
+  );
+  const activeCourseTokens = new Set(
+      activeSubjects.flatMap(s => [s.code, s.name, excelAcronyms[s.code]])
+          .filter(Boolean)
+          .map(normalizeScheduleToken)
+  );
   const DOMAIN_ICONS = {
       Finance: '📈', Marketing: '🎯', Strategy: '♟️', Ops: '⚙️', HR: '🤝', IS: '💻', Integrative: '🌐', Placement: '🏢'
   };
@@ -3602,32 +3613,25 @@ function _renderDailyScheduleInner() {
               continue;
           }
 
-          const classesInCell = classStr.split('/').map(c => c.trim().toLowerCase());
-          for (const s of activeSubjects) {
-              const acronym = excelAcronyms[s.code] ? excelAcronyms[s.code].toLowerCase() : '';
-              const codeLower = (s.code ? s.code.toLowerCase() : '');
-              const nameLower = (s.name ? s.name.toLowerCase() : '');
+          const scheduleTokens = classStr.split('/').map(c => c.trim()).filter(Boolean);
+          const matchedSubject = activeSubjects.find(s => {
+              const subjectTokens = [s.code, s.name, excelAcronyms[s.code]].filter(Boolean).map(normalizeScheduleToken);
+              return scheduleTokens.some(token => subjectTokens.includes(normalizeScheduleToken(token)));
+          });
+          if (matchedSubject) {
+              dayClasses[t] = { type: 'class', subject: matchedSubject, cancelled, rawStr: classStr, isShifted, shiftedTo };
+              hasCls = true;
+              if (!cancelled) hasActiveCls = true;
+          }
 
-              const isMatch = classesInCell.includes(codeLower) || 
-                              (acronym && classesInCell.includes(acronym)) || 
-                              classesInCell.includes(nameLower) ||
-                              classesInCell.some(c => c === acronym || c === codeLower || c === nameLower);
-
-              if (isMatch) {
-                  let subjCancelled = cancelled;
-                  if (Array.isArray(slotData)) {
-                      const subjObj = slotData.find(e => typeof e === 'object' && e && e.text && (
-                          (e && e.text ? e.text.toLowerCase() : '').includes(codeLower) || 
-                          (acronym && (e && e.text ? e.text.toLowerCase() : '').includes(acronym)) || 
-                          (e && e.text ? e.text.toLowerCase() : '').includes(nameLower)
-                      ));
-                      if (subjObj) subjCancelled = subjObj.strike || subjObj.text.includes('~') || (subjObj && subjObj.text ? subjObj.text.toLowerCase() : '').includes('cancel');
-                  }
-                  dayClasses[t] = { type: 'class', subject: s, cancelled: subjCancelled, rawStr: classStr, isShifted, shiftedTo };
-                  hasCls = true;
-                  if (!subjCancelled) hasActiveCls = true;
-                  break;
-              }
+          const eventText = scheduleTokens
+              .filter(token => !knownCourseTokens.has(normalizeScheduleToken(token)))
+              .join(' / ');
+          if (eventText) {
+              const eventKey = dayClasses[t] ? `${t}+event` : t;
+              dayClasses[eventKey] = { type: 'event', name: eventText, slot: t, cancelled, isShifted, shiftedTo };
+              hasCls = true;
+              if (!cancelled) hasActiveCls = true;
           }
       }
       applyClassUpdates(dayClasses, dateKey ? dateKey.split(' ')[0] : '', activeSubjects);
@@ -3701,6 +3705,7 @@ function _renderDailyScheduleInner() {
       const midnight = new Date(Date.UTC(yy, mm - 1, dd));
       Object.values(dayClasses).forEach(d => {
         if (d.hidden || !d.timeInfo || !d.slot) return;
+        if (d.type === 'event') return;
         const isIcrc = d.type === 'icrc';
         const code = isIcrc ? 'ICRC' : d.subject.code;
         const it = {
@@ -3828,8 +3833,8 @@ function _renderDailyScheduleInner() {
       for (const bData of todayList) {
           const ti = bData.timeInfo;
           const isHappeningNow = currentMins >= ti.sh * 60 + ti.sm && currentMins < ti.eh * 60 + ti.em;
-          const subjectName = bData.type === 'icrc' ? 'ICRC Placement Prep' : bData.subject.name;
-          const room = bData.type === 'icrc' ? null : bData.subject.room;
+          const subjectName = bData.type === 'icrc' ? 'ICRC Placement Prep' : (bData.type === 'event' ? bData.name : bData.subject.name);
+          const room = bData.type === 'icrc' || bData.type === 'event' ? null : bData.subject.room;
 
           if (isHappeningNow) {
               ongoingClassFound = { name: subjectName, room, label: classTimeLabel(bData, todaySlots, SLOT_LABELS) };
@@ -3914,7 +3919,7 @@ function _renderDailyScheduleInner() {
           }
           const slotClasses = Object.values(dayClasses).filter(d => d.slot === t);
           if (slotClasses.length) {
-              slotClasses.forEach(d => finalBlocks.push({ type: 'class', t, data: d }));
+              slotClasses.forEach(d => finalBlocks.push({ type: d.type === 'event' ? 'event' : 'class', t, data: d }));
           } else {
               const last = finalBlocks[finalBlocks.length - 1];
               const slotTi = ICS_TIME_MAP[t];
@@ -3924,7 +3929,7 @@ function _renderDailyScheduleInner() {
               } else {
                   const block = { type: 'free', start: t.split('-')[0], end: t.split('-')[1], endMins: slotTi.eh * 60 + slotTi.em };
                   // A class that ran over (new time) eats into the following free time
-                  const prevTi = last && last.type === 'class' && !last.data.cancelled && !last.data.hidden ? last.data.timeInfo : null;
+                  const prevTi = last && (last.type === 'class' || last.type === 'event') && !last.data.cancelled && !last.data.hidden ? last.data.timeInfo : null;
                   const prevEnd = prevTi ? prevTi.eh * 60 + prevTi.em : 0;
                   if (prevEnd > slotTi.sh * 60 + slotTi.sm) {
                       block.startMins = prevEnd;
@@ -3961,6 +3966,18 @@ function _renderDailyScheduleInner() {
               <div class="ios-divider-break">
                   <span>☕</span>
                   <span>Free Time · <strong style="color:var(--tx); font-weight:700;">${freeStart} – ${freeEnd}</strong></span>
+              </div>`;
+          } else if (b.type === 'event') {
+              const data = b.data;
+              const formattedSlot = classTimeLabel(data, dailySlots, SLOT_LABELS);
+              timelineEventsHtml += `
+              <div class="ios-class-item${data.cancelled ? ' cancelled' : ''}">
+                  <div class="ios-class-top">
+                      <div class="ios-class-time"><span class="ios-time-badge">🕒 ${formattedSlot}</span></div>
+                      <div class="ios-class-meta"><span class="ios-pill" style="color:var(--tx-info); background:var(--bg);">📌 Event</span></div>
+                  </div>
+                  <div class="ios-class-title"${data.cancelled ? ' style="text-decoration:line-through; opacity:0.6;"' : ''}>${escHtml(data.name)}</div>
+                  ${data.cancelled ? '<div class="ios-class-sub">Cancelled in schedule</div>' : ''}
               </div>`;
           } else if (b.type === 'class') {
               const data = b.data;

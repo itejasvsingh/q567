@@ -62,6 +62,10 @@ function syncTimetableToFirebase() {
     if(h === 'Birthdays') bIdx = i;
     if(timeCols.indexOf(h) !== -1) dIdx[h] = i;
   }
+
+  function normalizeSlotText(value) {
+    return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+  }
   
   for(var r=1; r<dailyValues.length; r++){
     var row = dailyValues[r];
@@ -117,10 +121,20 @@ function syncTimetableToFirebase() {
       var normTc = tc.replace(' - ', '-').replace(' ', '');
       
       var fbSlot = fbDay[normTc];
+      var val = dIdx[tc] !== undefined ? String(row[dIdx[tc]]).trim() : '';
+      var hasSheetValue = val && val.toLowerCase() !== 'nan';
       var isProtected = false;
       if (fbSlot) {
           if (Array.isArray(fbSlot)) {
-              isProtected = true; // Any array (multiple classes in one slot) created by admin panel is protected
+              var existingText = fbSlot.map(function(entry) {
+                return typeof entry === 'object' && entry ? (entry.text || '') : String(entry);
+              }).join(' / ');
+              var hasExplicitOverride = fbSlot.some(function(entry) {
+                return typeof entry === 'object' && entry &&
+                  (entry.manuallyEdited || entry.isShifted || entry.shiftedTo);
+              });
+              isProtected = hasExplicitOverride ||
+                (hasSheetValue && normalizeSlotText(existingText) === normalizeSlotText(val));
           } else if (typeof fbSlot === 'object') {
               isProtected = fbSlot.manuallyEdited || fbSlot.isShifted || fbSlot.shiftedTo;
           }
@@ -129,12 +143,9 @@ function syncTimetableToFirebase() {
       if (isProtected) {
           slots[normTc] = fbSlot;
       } else {
-          if(dIdx[tc] !== undefined){
-            var val = String(row[dIdx[tc]]).trim();
-            if(val && val.toLowerCase() !== 'nan') {
-              var isStrikethrough = dailyFontLines[r][dIdx[tc]] === 'line-through';
-              slots[normTc] = { text: val, strike: isStrikethrough };
-            }
+          if(hasSheetValue) {
+            var isStrikethrough = dailyFontLines[r][dIdx[tc]] === 'line-through';
+            slots[normTc] = { text: val, strike: isStrikethrough };
           }
       }
     }
