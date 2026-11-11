@@ -108,6 +108,11 @@ function applyPreferences(prefObj) {
     saveOfflineCopy('mbaplanner_hidden_sessions', prefObj.hiddenSessions);
   }
 
+  // 6b. Agenda items marked as "over" (done)
+  if (prefObj.overSessions && typeof prefObj.overSessions === 'object') {
+    saveOfflineCopy('mbaplanner_over_sessions', prefObj.overSessions);
+  }
+
   // 7. Student Name Sync
   if (prefObj.studentName) {
     try {
@@ -149,6 +154,7 @@ function savePreferencesForRoll(roll) {
     theme: localStorage.getItem('mbaplanner_theme') || 'system',
     studentName: sName,
     hiddenSessions: getHiddenSessions(),
+    overSessions: getOverSessions(),
     updatedAt: Date.now()
   };
 
@@ -3372,6 +3378,41 @@ window.toggleHideClass = function(sessionId) {
   renderDailySchedule();
 };
 
+function getOverSessions() {
+  return loadOfflineCopy('mbaplanner_over_sessions') || {};
+}
+
+function agendaSafeId(raw) {
+  return String(raw || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+function renderOverToggleHtml(itemId, isOver) {
+  const safeId = agendaSafeId(itemId);
+  return `<label class="agenda-over-toggle${isOver ? ' checked' : ''}" title="Mark as done / over" onclick="event.stopPropagation()">
+      <input type="checkbox" ${isOver ? 'checked' : ''} onchange="markAgendaOver('${safeId}', this.checked)">
+      <span>Done</span>
+  </label>`;
+}
+
+// Mark an agenda card (class, event, or exam) as completed/over locally and in
+// the student's roll_preferences record in Firebase.
+window.markAgendaOver = function(itemId, isOver) {
+  const safeId = agendaSafeId(itemId);
+  const over = getOverSessions();
+  if (isOver) over[safeId] = true;
+  else delete over[safeId];
+  saveOfflineCopy('mbaplanner_over_sessions', over);
+
+  const card = document.getElementById(`agenda-${safeId}`);
+  if (card) {
+    card.classList.toggle('completed-agenda', Boolean(isOver));
+    const lbl = card.querySelector('.agenda-over-toggle');
+    if (lbl) lbl.classList.toggle('checked', Boolean(isOver));
+  }
+
+  savePreferencesForRoll();
+};
+
 // Layer shared updates + personal hides onto a day's parsed classes.
 // Every entry gets .slot and .timeInfo so callers never need ICS_TIME_MAP.
 function applyClassUpdates(dayClasses, ymd, activeSubjects) {
@@ -3774,7 +3815,7 @@ function _renderDailyScheduleInner() {
   activeSubjects.forEach(s => {
       getSubjectExams(s, quarter).forEach(ex => {
           if (!ex.ymd) return;
-          (examsByYmd[ex.ymd] = examsByYmd[ex.ymd] || []).push({ name: s.name, ex });
+          (examsByYmd[ex.ymd] = examsByYmd[ex.ymd] || []).push({ code: s.code, name: s.name, ex });
       });
   });
   Object.values(examsByYmd).forEach(list => {
@@ -4062,6 +4103,7 @@ function _renderDailyScheduleInner() {
   try {
       classAttMap = JSON.parse(localStorage.getItem('mbaplanner_class_attendance')) || {};
   } catch(e) {}
+  const overSessions = getOverSessions();
 
   let timelineEventsHtml = '';
   if (hasCls) {
@@ -4087,11 +4129,16 @@ function _renderDailyScheduleInner() {
           } else if (b.type === 'event') {
               const data = b.data;
               const formattedSlot = classTimeLabel(data, dailySlots, SLOT_LABELS);
+              const eventOverId = agendaSafeId(`event_${ymd}_${data.slot || b.t}`);
+              const isEventOver = !data.cancelled && !!overSessions[eventOverId];
               timelineEventsHtml += `
-              <div class="ios-class-item${data.cancelled ? ' cancelled' : ''}">
+              <div id="agenda-${eventOverId}" class="ios-class-item${data.cancelled ? ' cancelled' : ''}${isEventOver ? ' completed-agenda' : ''}">
                   <div class="ios-class-top">
                       <div class="ios-class-time"><span class="ios-time-badge">🕒 ${formattedSlot}</span></div>
-                      <div class="ios-class-meta"><span class="ios-pill" style="color:var(--tx-info); background:var(--bg);">📌 Event</span></div>
+                      <div class="ios-class-meta">
+                          <span class="ios-pill" style="color:var(--tx-info); background:var(--bg);">📌 Event</span>
+                          ${!data.cancelled ? renderOverToggleHtml(eventOverId, isEventOver) : ''}
+                      </div>
                   </div>
                   <div class="ios-class-title"${data.cancelled ? ' style="text-decoration:line-through; opacity:0.6;"' : ''}>${escHtml(data.name)}</div>
                   ${data.cancelled ? '<div class="ios-class-sub">Cancelled in schedule</div>' : ''}
@@ -4192,12 +4239,16 @@ function _renderDailyScheduleInner() {
                   statusPillHtml = `<span class="ios-done-pill">Finished</span>`;
               }
 
+              const classOverId = agendaSafeId(`${ymd}_${data.slot || b.t}_${isIcrc ? 'ICRC' : data.subject.code}`);
+              const isMarkedOver = !cancelled && !!overSessions[classOverId];
+
               let itemClass = 'ios-class-item';
               if (cancelled) itemClass += ' cancelled';
               if (isHappeningNow && !cancelled) itemClass += ' ongoing';
+              if (isMarkedOver) itemClass += ' completed-agenda';
 
               timelineEventsHtml += `
-              <div class="${itemClass}">
+              <div id="agenda-${classOverId}" class="${itemClass}">
                   <div class="ios-class-top">
                       <div class="ios-class-time">
                           ${timeBadgeHtml}
@@ -4209,6 +4260,7 @@ function _renderDailyScheduleInner() {
                               : (b.data.isShifted ? warnPill('🔄 Shifted Class') : `<span class="ios-pill" style="color:${domainColor}; background:var(--bg);">${domainIcon} ${domainLabel}</span>`))
                           }
                           ${editBtnHtml}
+                          ${!cancelled ? renderOverToggleHtml(classOverId, isMarkedOver) : ''}
                       </div>
                   </div>
                   <div class="ios-class-title" ${cancelled ? 'style="text-decoration:line-through; opacity:0.6;"' : ''}>
@@ -4276,10 +4328,13 @@ function _renderDailyScheduleInner() {
 
   const examHtml = (examsByYmd[ymd] || []).map(e => {
       const meta = [e.ex.t, e.ex.v, e.ex.m].filter(Boolean).map(escHtml).join(' · ');
+      const examOverId = agendaSafeId(`exam_${ymd}_${e.code || e.name}`);
+      const isExamOver = !!overSessions[examOverId];
       return `
-      <div style="font-size:12px; font-weight:700; color:var(--tx-danger); margin-bottom:10px; background:var(--bg-danger); padding:8px 12px; border-radius:10px; border:0.5px solid var(--bd-danger); display:flex; align-items:center; gap:8px;">
+      <div id="agenda-${examOverId}" class="ios-exam-card${isExamOver ? ' completed-agenda' : ''}">
           <span style="font-size:16px;">📝</span>
-          <span style="flex:1;">Exam · ${escHtml(e.name)}${meta ? `<br><span style="font-weight:600;">${meta}</span>` : ''}</span>
+          <span style="flex:1; min-width:0;"><span class="ios-exam-title">Exam · ${escHtml(e.name)}</span>${meta ? `<br><span class="ios-exam-meta">${meta}</span>` : ''}</span>
+          ${renderOverToggleHtml(examOverId, isExamOver)}
       </div>`;
   }).join('');
 

@@ -856,6 +856,80 @@ body {
   color: var(--tx3);
 }
 
+.ios-exam-card {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tx-danger);
+  margin-bottom: 10px;
+  background: var(--bg-danger);
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 0.5px solid var(--bd-danger);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+.ios-exam-meta {
+  font-weight: 600;
+}
+
+.agenda-over-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2.5px 7px;
+  border-radius: 7px;
+  border: 0.5px solid var(--bd);
+  background: var(--bg);
+  color: var(--tx2);
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+.agenda-over-toggle input[type="checkbox"] {
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  accent-color: #34C759;
+  cursor: pointer;
+}
+.agenda-over-toggle.checked {
+  color: #34C759;
+  border-color: rgba(52, 199, 89, 0.45);
+  background: rgba(52, 199, 89, 0.12);
+}
+
+.ios-class-item.completed-agenda,
+.ios-class-item.ongoing.completed-agenda,
+[data-theme="dark"] .ios-class-item.ongoing.completed-agenda,
+.ios-exam-card.completed-agenda {
+  opacity: 0.55;
+  background: var(--bg3);
+  border: 0.5px solid var(--bd);
+  box-shadow: none;
+  color: var(--tx3);
+}
+.ios-class-item.completed-agenda .ios-class-title,
+.ios-class-item.completed-agenda .ios-class-sub,
+.ios-exam-card.completed-agenda .ios-exam-title,
+.ios-exam-card.completed-agenda .ios-exam-meta {
+  text-decoration: line-through;
+  color: var(--tx3);
+}
+.ios-class-item.completed-agenda .ios-time-badge,
+[data-theme="dark"] .ios-class-item.ongoing.completed-agenda .ios-time-badge {
+  color: var(--tx3) !important;
+  background: var(--bg2) !important;
+  border-color: var(--bd) !important;
+  box-shadow: none !important;
+}
+
 .ios-divider-break {
   display: flex;
   align-items: center;
