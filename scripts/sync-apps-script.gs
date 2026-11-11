@@ -252,6 +252,7 @@ function syncTimetableToFirebase() {
 
   // --- 3. PUSH TO FIREBASE ---
   var payload = { daily: dailyData, weekly: weeklyData };
+  if (existingFirebaseData.exams) payload.exams = existingFirebaseData.exams;
   var options = { method: 'put', contentType: 'application/json', headers: firebaseAuthHeaders(), payload: JSON.stringify(payload) };
   
   try {

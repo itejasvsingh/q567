@@ -20,6 +20,7 @@ let exportQ='Q5';
 let q6AlertShown=false;
 let liveDailyCache = null;
 let liveWeeklyCache = null;
+let liveExamsCache = null;
 var fbApp=null, fbDb=null, groupRef=null;
 
 // ── ROLL NUMBER & PREFERENCES HELPERS ──────────────────────────────
@@ -562,6 +563,120 @@ function renderCalendar(){
   area.innerHTML=html||'<div class="empty-tt">Select electives above to see your schedule.</div>';
 }
 
+const EXAM_MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const EXAM_MONTH_NUM = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+
+function parseExamYmd(d) {
+  if (!d) return '';
+  const str = String(d).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  const m = /^(\d{1,2}) ([A-Za-z]{3})$/.exec(str);
+  if (!m || !EXAM_MONTH_NUM[m[2]]) return '';
+  return `2026-${EXAM_MONTH_NUM[m[2]]}-${m[1].padStart(2, '0')}`;
+}
+
+function formatExamDateShort(ymd) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || '').trim());
+  if (!m) return String(ymd || '');
+  const mon = EXAM_MONTH_NAMES[parseInt(m[2], 10) - 1] || m[2];
+  return `${parseInt(m[3], 10)} ${mon}`;
+}
+
+function formatExamTimeShort(timeStr) {
+  const raw = String(timeStr || '').trim();
+  const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)\s*[-–]\s*(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(raw);
+  if (!m) return raw;
+  const fmtPart = (hh, mm, ap, includeAp) => {
+    const h = parseInt(hh, 10);
+    const t = mm === '00' ? `${h}` : `${h}:${mm}`;
+    return includeAp ? `${t} ${ap.toUpperCase()}` : t;
+  };
+  const ap1 = m[3].toUpperCase();
+  const ap2 = m[6].toUpperCase();
+  return `${fmtPart(m[1], m[2], ap1, ap1 !== ap2)}–${fmtPart(m[4], m[5], ap2, true)}`;
+}
+
+function examStartMins(t) {
+  const raw = String(t || '').trim();
+  const m = /(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?\s*[-–]\s*\d{1,2}(?::\d{2})?\s*(AM|PM)?/i.exec(raw);
+  if (!m) return 9999;
+  let h = parseInt(m[1], 10);
+  const min = parseInt(m[2] || '0', 10);
+  const ap = (m[3] || m[4] || '').toUpperCase();
+  if (ap === 'PM' && h < 12) h += 12;
+  if (ap === 'AM' && h === 12) h = 0;
+  return h * 60 + min;
+}
+
+function normalizeExamList(examVal) {
+  if (!examVal) return [];
+  const arr = Array.isArray(examVal) ? examVal : [examVal];
+  return arr.filter(Boolean).map(ex => {
+    const ymd = ex.ymd || parseExamYmd(ex.d);
+    const d = ex.d || formatExamDateShort(ymd);
+    return { d, ymd, t: ex.t || '', v: ex.v || '', m: ex.m || '' };
+  });
+}
+
+function getLiveExamsRawList() {
+  if (!liveExamsCache || typeof liveExamsCache !== 'object') return [];
+  if (Array.isArray(liveExamsCache)) return liveExamsCache;
+  const out = [];
+  Object.values(liveExamsCache).forEach(val => {
+    if (Array.isArray(val)) out.push(...val);
+    else if (val && typeof val === 'object') {
+      if (val.code && val.date) out.push(val);
+      else Object.values(val).forEach(v2 => { if (v2 && typeof v2 === 'object' && v2.code && v2.date) out.push(v2); });
+    }
+  });
+  return out;
+}
+
+// Returns normalized exam objects for a subject, preferring live Firebase
+// schedule/exams data when present and falling back to data.js.
+function getSubjectExams(subject, quarter) {
+  const q = quarter || (typeof cQ !== 'undefined' && cQ) || 'Q6';
+  const liveSubj = ((DATA[q] && DATA[q].subjects) || []).find(x => x.code === subject.code);
+  const baseRaw = (liveSubj && liveSubj.exam !== undefined) ? liveSubj.exam : subject.exam;
+  const baseList = normalizeExamList(baseRaw);
+
+  const liveRows = getLiveExamsRawList().filter(item => {
+    if (!item || item.code !== subject.code || !item.date) return false;
+    const prog = String(item.program || '');
+    if (q === 'Q6') return !prog || /Q6/i.test(prog);
+    if (q === 'Q5') return /MAKE\s*UP|Q5/i.test(prog);
+    if (q === 'Q7') return /Q7/i.test(prog);
+    return true;
+  });
+
+  if (liveRows.length) {
+    return liveRows.map(item => {
+      const ymd = String(item.date).trim();
+      const d = formatExamDateShort(ymd);
+      const t = formatExamTimeShort(item.time);
+      const v = String(item.venue || '').trim();
+      const match = baseList.find(b => b.ymd === ymd || b.d === d);
+      const m = item.mode || (match ? match.m : '') || (/MAKE\s*UP/i.test(item.program || '') ? 'Make-up' : '');
+      return { d, ymd, t, v, m };
+    });
+  }
+
+  return baseList;
+}
+
+function renderCardExamHtml(s, q) {
+  const exams = getSubjectExams(s, q);
+  if (exams.length) {
+    return exams.map(ex => {
+      const details = [ex.t, ex.v, ex.m].filter(Boolean).map(escHtml).join(' · ');
+      return `<div class="smeta" style="margin-top:4px">📝 Exam ${escHtml(ex.d)}${details ? ` · ${details}` : ''}</div>`;
+    }).join('');
+  }
+  const liveSubj = ((DATA[q] && DATA[q].subjects) || []).find(x => x.code === s.code);
+  const hasExamField = (liveSubj && liveSubj.exam !== undefined) || s.exam !== undefined;
+  return hasExamField ? `<div class="smeta" style="margin-top:4px">📝 No exam</div>` : '';
+}
+
 function renderGrid(){
   const q=cQ,subs=DATA[q].subjects;
   const used=Object.values(sel[q]).map(s=>s.slot);
@@ -597,7 +712,7 @@ function renderGrid(){
           <span class="vb ${VC[s.v]||''}">${s.v}</span>
           · ${s.instructor}
         </div>
-        ${s.exam!==undefined?`<div class="smeta" style="margin-top:4px">${s.exam?`📝 Exam ${s.exam.d} · ${s.exam.t} · ${s.exam.m}`:'📝 No exam'}</div>`:''}
+        ${renderCardExamHtml(s, q)}
       </div>
     </div>`;
   }).join('');
@@ -2383,6 +2498,7 @@ function loadOfflineCopy(key) {
   catch(e) { return null; }
 }
 liveWeeklyCache = liveWeeklyCache || loadOfflineCopy('mbaplanner_weekly_cache');
+liveExamsCache = liveExamsCache || loadOfflineCopy('mbaplanner_exams_cache');
 window._cloudQ6Attendance = window._cloudQ6Attendance || loadOfflineCopy('mbaplanner_cloud_q6_attendance');
 window._cloudQ5Attendance = window._cloudQ5Attendance || loadOfflineCopy('mbaplanner_cloud_q5_attendance');
 window._cloudRollPreferences = window._cloudRollPreferences || loadOfflineCopy('mbaplanner_cloud_roll_preferences');
@@ -2407,6 +2523,34 @@ updateOfflineBanner();
 window.lastSyncedTime = null;
 window._isOfflineFallback = false;
 
+function applyCloudSchedule(data) {
+    if (!data) return;
+    if (data.daily) {
+        liveDailyCache = data.daily;
+        liveWeeklyCache = data.weekly;
+        saveOfflineCopy('mbaplanner_weekly_cache', liveWeeklyCache);
+        window.lastSyncedTime = new Date();
+        window._isOfflineFallback = false;
+        localStorage.setItem('mbaplanner_daily_cache', JSON.stringify({
+            data: liveDailyCache,
+            time: window.lastSyncedTime.getTime()
+        }));
+    }
+    if (data.exams !== undefined) {
+        liveExamsCache = data.exams || null;
+        if (liveExamsCache) saveOfflineCopy('mbaplanner_exams_cache', liveExamsCache);
+        else try { localStorage.removeItem('mbaplanner_exams_cache'); } catch(e) {}
+    } else {
+        liveExamsCache = null;
+        try { localStorage.removeItem('mbaplanner_exams_cache'); } catch(e) {}
+    }
+    if (typeof renderGrid === 'function' && document.getElementById('sgrid')) renderGrid();
+    if (typeof currentView !== 'undefined') {
+        if (currentView === 'daily') renderDailySchedule();
+        if (currentView === 'master') renderMasterSchedule();
+    }
+}
+
 window.refreshLiveSchedule = function(btnElement) {
     if(btnElement) btnElement.innerText = "⏳ Syncing...";
     const ptrEl = document.getElementById('ptr-indicator');
@@ -2416,24 +2560,7 @@ window.refreshLiveSchedule = function(btnElement) {
       // 1. Live Excel Timetable
       fbDb.ref('schedule').once('value').then(snap => {
         const data = snap.val();
-        if(data) {
-            liveDailyCache = data.daily;
-            liveWeeklyCache = data.weekly;
-            saveOfflineCopy('mbaplanner_weekly_cache', liveWeeklyCache);
-            window.lastSyncedTime = new Date();
-            window._isOfflineFallback = false;
-            
-            // Offline Cache
-            localStorage.setItem('mbaplanner_daily_cache', JSON.stringify({
-                data: liveDailyCache,
-                time: window.lastSyncedTime.getTime()
-            }));
-            
-            if (typeof currentView !== 'undefined') {
-                if (currentView === 'daily') renderDailySchedule();
-                if (currentView === 'master') renderMasterSchedule();
-            }
-        }
+        if(data) applyCloudSchedule(data);
         if (ptrEl) ptrEl.style.height = '0px';
         if (btnElement) btnElement.innerText = "✓ Synced";
       }).catch(e => {
@@ -2523,21 +2650,7 @@ if (typeof fbDb !== 'undefined' && fbDb) {
   try {
     fbDb.ref('schedule').on('value', snap => {
       const data = snap.val();
-      if (data && data.daily) {
-        liveDailyCache = data.daily;
-        liveWeeklyCache = data.weekly;
-        saveOfflineCopy('mbaplanner_weekly_cache', liveWeeklyCache);
-        window.lastSyncedTime = new Date();
-        window._isOfflineFallback = false;
-        localStorage.setItem('mbaplanner_daily_cache', JSON.stringify({
-          data: liveDailyCache,
-          time: window.lastSyncedTime.getTime()
-        }));
-        if (typeof currentView !== 'undefined') {
-          if (currentView === 'daily') renderDailySchedule();
-          if (currentView === 'master') renderMasterSchedule();
-        }
-      }
+      if (data) applyCloudSchedule(data);
     });
 
     fbDb.ref('q6_attendance').on('value', snap => {
@@ -3656,23 +3769,27 @@ function _renderDailyScheduleInner() {
       }
       dateKeys = continuousKeys;
   }
-  // Exams for my courses (details live in data.js), keyed by date
-  const MONTH_NUM = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+  // Exams for my courses (live schedule/exams or data.js), keyed by date
   const examsByYmd = {};
   activeSubjects.forEach(s => {
-      const live = ((DATA[quarter] && DATA[quarter].subjects) || []).find(x => x.code === s.code);
-      const ex = (live && live.exam) || s.exam;
-      const m = ex && /^(\d{1,2}) ([A-Za-z]{3})$/.exec(ex.d || '');
-      if (!m || !MONTH_NUM[m[2]]) return;
-      const y = `2026-${MONTH_NUM[m[2]]}-${m[1].padStart(2, '0')}`;
-      (examsByYmd[y] = examsByYmd[y] || []).push({ name: s.name, ex });
+      getSubjectExams(s, quarter).forEach(ex => {
+          if (!ex.ymd) return;
+          (examsByYmd[ex.ymd] = examsByYmd[ex.ymd] || []).push({ name: s.name, ex });
+      });
+  });
+  Object.values(examsByYmd).forEach(list => {
+      list.sort((a, b) => examStartMins(a.ex.t) - examStartMins(b.ex.t));
   });
   const examYmds = Object.keys(examsByYmd).sort();
-  if (examYmds.length && dateKeys.length) {
-      const lastYmd = dateKeys[dateKeys.length - 1].slice(0, 10);
+  if (examYmds.length) {
       const maxExam = examYmds[examYmds.length - 1];
-      if (maxExam > lastYmd) {
-          const c = new Date(lastYmd + 'T00:00:00'); c.setDate(c.getDate() + 1);
+      const startYmd = dateKeys.length ? dateKeys[dateKeys.length - 1].slice(0, 10) : todayYmd;
+      if (!dateKeys.length) {
+          const c0 = new Date(startYmd + 'T00:00:00');
+          dateKeys.push(`${startYmd} ${c0.toLocaleDateString('en-US', { weekday: 'long' })}`);
+      }
+      if (maxExam > startYmd) {
+          const c = new Date(startYmd + 'T00:00:00'); c.setDate(c.getDate() + 1);
           const end = new Date(maxExam + 'T00:00:00');
           while (c <= end) {
               const ymd2 = `${c.getFullYear()}-${String(c.getMonth()+1).padStart(2,'0')}-${String(c.getDate()).padStart(2,'0')}`;
@@ -3681,7 +3798,7 @@ function _renderDailyScheduleInner() {
           }
       }
   }
-  if (!window._selectedAgendaDate || (!liveDailyCache[window._selectedAgendaDate] && !examsByYmd[window._selectedAgendaDate.slice(0, 10)])) {
+  if (!window._selectedAgendaDate || !dateKeys.includes(window._selectedAgendaDate)) {
       const todayMatch = dateKeys.find(k => k.startsWith(todayYmd));
       if (todayMatch) {
           window._selectedAgendaDate = todayMatch;
@@ -4157,11 +4274,14 @@ function _renderDailyScheduleInner() {
   const prevDateKey = currentIndex > 0 ? dateKeys[currentIndex - 1] : null;
   const nextDateKey = currentIndex < dateKeys.length - 1 ? dateKeys[currentIndex + 1] : null;
 
-  const examHtml = (examsByYmd[ymd] || []).map(e => `
+  const examHtml = (examsByYmd[ymd] || []).map(e => {
+      const meta = [e.ex.t, e.ex.v, e.ex.m].filter(Boolean).map(escHtml).join(' · ');
+      return `
       <div style="font-size:12px; font-weight:700; color:var(--tx-danger); margin-bottom:10px; background:var(--bg-danger); padding:8px 12px; border-radius:10px; border:0.5px solid var(--bd-danger); display:flex; align-items:center; gap:8px;">
           <span style="font-size:16px;">📝</span>
-          <span style="flex:1;">Exam · ${escHtml(e.name)}<br><span style="font-weight:600;">${escHtml(e.ex.t)} · ${escHtml(e.ex.v)} · ${escHtml(e.ex.m)}</span></span>
-      </div>`).join('');
+          <span style="flex:1;">Exam · ${escHtml(e.name)}${meta ? `<br><span style="font-weight:600;">${meta}</span>` : ''}</span>
+      </div>`;
+  }).join('');
 
   const singleCardHtml = `
   <div class="ios-day-card" id="card-${currentDateKey.replace(/\s/g, '-')}" data-is-today="${isToday ? 'true' : 'false'}">
