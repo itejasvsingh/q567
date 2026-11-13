@@ -113,6 +113,11 @@ function applyPreferences(prefObj) {
     saveOfflineCopy('mbaplanner_over_sessions', prefObj.overSessions);
   }
 
+  // 6c. Courses marked as completed (filtered out from Daily Agenda classes)
+  if (prefObj.completedCourses && typeof prefObj.completedCourses === 'object') {
+    saveOfflineCopy('mbaplanner_completed_courses', prefObj.completedCourses);
+  }
+
   // 7. Student Name Sync
   if (prefObj.studentName) {
     try {
@@ -155,6 +160,7 @@ function savePreferencesForRoll(roll) {
     studentName: sName,
     hiddenSessions: getHiddenSessions(),
     overSessions: getOverSessions(),
+    completedCourses: getCompletedCourses(),
     updatedAt: Date.now()
   };
 
@@ -565,8 +571,15 @@ function renderCalendar(){
     h+=`<p style="font-size:11px;color:var(--tx3);margin-top:8px">Slot timings will be confirmed when Q7 schedule is published.</p></div>`;
     area.innerHTML=h;return;
   }
+  const isClassesOver = Boolean(DATA[q] && DATA[q].classesOver);
+  const examCallout = isClassesOver
+    ? `<div style="margin-bottom:10px; padding:10px 14px; border-radius:12px; border:0.5px solid var(--bd-warn); background:var(--bg-warn); font-size:12px; color:var(--tx-warn); display:flex; align-items:center; gap:8px;">
+         <span style="font-size:16px;">📝</span>
+         <span><strong>End-Term Exam Period (13–23 Nov 2026)</strong> · Regular weekly classes have concluded. Open Daily Agenda to track exam days and rooms!</span>
+       </div>`
+    : '';
   const html=buildTTHtml(q,false,true);
-  area.innerHTML=html||'<div class="empty-tt">Select electives above to see your schedule.</div>';
+  area.innerHTML=examCallout + (html||'<div class="empty-tt">Select electives above to see your schedule.</div>');
 }
 
 const EXAM_MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -612,6 +625,31 @@ function examStartMins(t) {
   if (ap === 'PM' && h < 12) h += 12;
   if (ap === 'AM' && h === 12) h = 0;
   return h * 60 + min;
+}
+
+function examEndMins(t) {
+  const raw = String(t || '').trim();
+  const m = /(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?/i.exec(raw);
+  if (!m) return 9999;
+  let h = parseInt(m[4], 10);
+  const min = parseInt(m[5] || '0', 10);
+  const ap = (m[6] || m[3] || '').toUpperCase();
+  if (ap === 'PM' && h < 12) h += 12;
+  if (ap === 'AM' && h === 12) h = 0;
+  return h * 60 + min;
+}
+
+function fmtExamFriendlyDate(ymd) {
+  if (!ymd) return '';
+  try {
+    const [y, m, d] = ymd.split('-').map(Number);
+    const dateObj = new Date(Date.UTC(y, m - 1, d));
+    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
+    const monthName = dateObj.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' });
+    return `${dayName}, ${d} ${monthName}`;
+  } catch (e) {
+    return ymd;
+  }
 }
 
 function normalizeExamList(examVal) {
@@ -701,12 +739,14 @@ function renderGrid(){
     const isConf=!isSel&&used.includes(s.slot);
     const isDis=!isSel&&electiveCnt>=4;
     const isHL=hl.has(s.code)&&!isSel&&!isConf&&!isDis;
+    const isCompleted=(isSel||s.isCore)&&isCourseCompleted(s,q);
     let cls='scard';
     if(isSel)cls+=' sel';
     if(s.isCore)cls+=' core';
     else if(isConf)cls+=' conf';
     else if(isDis)cls+=' dis';
     else if(isHL)cls+=' hl';
+    if(isCompleted)cls+=' completed-course';
     
     return `<div class="${cls}" onclick="toggleSubject('${s.code}')">
       <div class="schk">${s.isCore?'🔒':(isSel?'✓':'')}</div>
@@ -719,6 +759,7 @@ function renderGrid(){
           · ${s.instructor}
         </div>
         ${renderCardExamHtml(s, q)}
+        ${(isSel||s.isCore)?`<div style="margin-top:6px">${DATA[q]?.classesOver ? '<span class="course-concluded-badge">🏁 Classes Concluded</span>' : `<button type="button" class="course-done-btn${isCompleted?' on':''}" onclick="event.stopPropagation(); toggleCourseCompleted('${escHtml(s.code)}')">${isCompleted?'🏁 Completed · hidden in Agenda':'✓ Mark course classes done'}</button>`}</div>`:''}
       </div>
     </div>`;
   }).join('');
@@ -758,7 +799,7 @@ function render(){
   renderPlannerRollBanner();
 }
 
-window.renderPlannerRollBanner = function() {
+function renderPlannerRollBanner() {
   const container = document.getElementById('plan-roll-banner');
   if (!container) return;
 
@@ -797,7 +838,8 @@ window.renderPlannerRollBanner = function() {
       </div>
     </div>`;
   }
-};
+}
+window.renderPlannerRollBanner = renderPlannerRollBanner;
 
 window.setRollNumber = function(val) {
   const clean = (val || '').trim().toUpperCase();
@@ -2557,7 +2599,7 @@ function applyCloudSchedule(data) {
     }
 }
 
-window.refreshLiveSchedule = function(btnElement) {
+function refreshLiveSchedule(btnElement) {
     if(btnElement) btnElement.innerText = "⏳ Syncing...";
     const ptrEl = document.getElementById('ptr-indicator');
     if (ptrEl && !btnElement) ptrEl.style.height = '40px';
@@ -2649,7 +2691,8 @@ window.refreshLiveSchedule = function(btnElement) {
         }
       }).catch(e => console.warn('Could not fetch cloud roll preferences.', e));
     }
-};
+}
+window.refreshLiveSchedule = refreshLiveSchedule;
 
 // Continuous Real-Time Listener on Schedule (Excel updates)
 if (typeof fbDb !== 'undefined' && fbDb) {
@@ -3413,6 +3456,35 @@ window.markAgendaOver = function(itemId, isOver) {
   savePreferencesForRoll();
 };
 
+function getCompletedCourses() {
+  return loadOfflineCopy('mbaplanner_completed_courses') || {};
+}
+
+function isCourseCompleted(subject, quarter) {
+  if (!subject || !subject.code) return false;
+  const q = quarter || (typeof cQ !== 'undefined' && cQ) || 'Q6';
+  if (DATA[q] && DATA[q].classesOver) return true;
+  const liveSubj = ((DATA[q] && DATA[q].subjects) || []).find(x => x.code === subject.code);
+  const dataFlag = (liveSubj && liveSubj.isCompleted) || subject.isCompleted;
+  const userMap = getCompletedCourses();
+  if (userMap[subject.code] === false) return false;
+  return Boolean(dataFlag || userMap[subject.code]);
+}
+
+window.toggleCourseCompleted = function(code, forceState) {
+  const map = getCompletedCourses();
+  const q = (typeof cQ !== 'undefined' && cQ) ? cQ : 'Q6';
+  const subj = ((DATA[q] && DATA[q].subjects) || []).find(x => x.code === code) || { code };
+  const next = typeof forceState === 'boolean' ? forceState : !isCourseCompleted(subj, q);
+  if (next) map[code] = true;
+  else if (subj.isCompleted) map[code] = false;
+  else delete map[code];
+  saveOfflineCopy('mbaplanner_completed_courses', map);
+  savePreferencesForRoll();
+  if (typeof renderGrid === 'function' && document.getElementById('sgrid')) renderGrid();
+  if (typeof renderDailySchedule === 'function') renderDailySchedule();
+};
+
 // Layer shared updates + personal hides onto a day's parsed classes.
 // Every entry gets .slot and .timeInfo so callers never need ICS_TIME_MAP.
 function applyClassUpdates(dayClasses, ymd, activeSubjects) {
@@ -3478,6 +3550,7 @@ window.openClassUpdateSheet = function(ymd, slot, code) {
   const existing = ((window._scheduleChanges || {})[ymd] || {})[`${slot}_${code}`] || null;
   const sessionId = `${ymd}_${slot}_${code}`;
   const isHidden = !!getHiddenSessions()[sessionId];
+  const isCompleted = isCourseCompleted(subject, quarter);
   const baseTimes = timeInfoToHHMM(
     (existing && existing.start && existing.end) ? hhmmToTimeInfo(existing.start, existing.end) : (ICS_TIME_MAP[slot] || { sh: 8, sm: 0, eh: 10, em: 0 })
   );
@@ -3533,6 +3606,7 @@ window.openClassUpdateSheet = function(ymd, slot, code) {
     <div style="font-size:11px; color:var(--tx3); margin-top:6px; text-align:center;">Everyone taking ${escHtml(subject.name)} will see this, with your name on it.</div>
     <div style="border-top:.5px solid var(--bd); margin:14px 0 0; padding-top:12px;">
       <button class="modal-close" style="margin-top:0;" onclick="toggleHideClass('${sessionId}')">${isHidden ? '👁 Show this class again' : "🙈 Hide this class for me only (I'm not attending)"}</button>
+      <button class="modal-close" style="margin-top:8px;" onclick="toggleCourseCompleted('${code}'); closeClassUpdateSheet();">${isCompleted ? '📚 Show this course in Agenda again' : '🏁 Course completed (hide all its classes from Agenda)'}</button>
     </div>
     <button class="modal-close" onclick="closeClassUpdateSheet()">Close</button>
   </div>`;
@@ -3650,6 +3724,8 @@ function _renderDailyScheduleInner() {
   coreCourses.forEach(s => { activeMap[s.code] = s; });
   chosenElectives.forEach(s => { activeMap[s.code] = s; });
   const activeSubjects = Object.values(activeMap);
+  const completedAgendaSubjects = activeSubjects.filter(s => isCourseCompleted(s, quarter));
+  const agendaSubjects = activeSubjects.filter(s => !isCourseCompleted(s, quarter));
 
   if (activeSubjects.length === 0) {
       area.innerHTML = '<div class="empty-tt">Select electives in My Planner to see your live schedule.</div>';
@@ -3727,6 +3803,16 @@ function _renderDailyScheduleInner() {
       const dayClasses = {};
       let hasCls = false;
       let hasActiveCls = false;
+      const ymd = dateKey ? dateKey.split(' ')[0] : '';
+      const isClassesOverForDay = Boolean(
+          (DATA[quarter]?.classesOver && ymd >= '2026-11-13') ||
+          (ymd >= '2026-11-13')
+      );
+
+      // When regular classes have concluded for the quarter, do not parse recurring class slots
+      if (isClassesOverForDay) {
+          return { dayClasses, hasCls: false, hasActiveCls: false };
+      }
 
       for (const t of (dailySlots ? timeOrder : [])) {
           if (t === '12pm-1pm') continue;
@@ -3768,7 +3854,7 @@ function _renderDailyScheduleInner() {
           }
 
           const scheduleTokens = classStr.split('/').map(c => c.trim()).filter(Boolean);
-          const matchedSubject = activeSubjects.find(s => {
+          const matchedSubject = agendaSubjects.find(s => {
               const subjectTokens = [s.code, s.name, excelAcronyms[s.code]].filter(Boolean).map(normalizeScheduleToken);
               return scheduleTokens.some(token => subjectTokens.includes(normalizeScheduleToken(token)));
           });
@@ -3788,7 +3874,7 @@ function _renderDailyScheduleInner() {
               if (!cancelled) hasActiveCls = true;
           }
       }
-      applyClassUpdates(dayClasses, dateKey ? dateKey.split(' ')[0] : '', activeSubjects);
+      applyClassUpdates(dayClasses, dateKey ? dateKey.split(' ')[0] : '', agendaSubjects);
       hasCls = Object.keys(dayClasses).length > 0;
       hasActiveCls = Object.values(dayClasses).some(d => !d.cancelled && !d.hidden);
       return { dayClasses, hasCls, hasActiveCls };
@@ -3822,21 +3908,21 @@ function _renderDailyScheduleInner() {
       list.sort((a, b) => examStartMins(a.ex.t) - examStartMins(b.ex.t));
   });
   const examYmds = Object.keys(examsByYmd).sort();
-  if (examYmds.length) {
-      const maxExam = examYmds[examYmds.length - 1];
-      const startYmd = dateKeys.length ? dateKeys[dateKeys.length - 1].slice(0, 10) : todayYmd;
-      if (!dateKeys.length) {
-          const c0 = new Date(startYmd + 'T00:00:00');
-          dateKeys.push(`${startYmd} ${c0.toLocaleDateString('en-US', { weekday: 'long' })}`);
-      }
-      if (maxExam > startYmd) {
-          const c = new Date(startYmd + 'T00:00:00'); c.setDate(c.getDate() + 1);
-          const end = new Date(maxExam + 'T00:00:00');
-          while (c <= end) {
-              const ymd2 = `${c.getFullYear()}-${String(c.getMonth()+1).padStart(2,'0')}-${String(c.getDate()).padStart(2,'0')}`;
-              dateKeys.push(`${ymd2} ${c.toLocaleDateString('en-US', { weekday: 'long' })}`);
-              c.setDate(c.getDate() + 1);
-          }
+  const maxExamPeriod = '2026-11-23';
+  const maxExam = examYmds.length ? examYmds[examYmds.length - 1] : maxExamPeriod;
+  const targetEndYmd = maxExam > maxExamPeriod ? maxExam : maxExamPeriod;
+  const startYmd = dateKeys.length ? dateKeys[dateKeys.length - 1].slice(0, 10) : todayYmd;
+  if (!dateKeys.length) {
+      const c0 = new Date(startYmd + 'T00:00:00');
+      dateKeys.push(`${startYmd} ${c0.toLocaleDateString('en-US', { weekday: 'long' })}`);
+  }
+  if (targetEndYmd > startYmd) {
+      const c = new Date(startYmd + 'T00:00:00'); c.setDate(c.getDate() + 1);
+      const end = new Date(targetEndYmd + 'T00:00:00');
+      while (c <= end) {
+          const ymd2 = `${c.getFullYear()}-${String(c.getMonth()+1).padStart(2,'0')}-${String(c.getDate()).padStart(2,'0')}`;
+          dateKeys.push(`${ymd2} ${c.toLocaleDateString('en-US', { weekday: 'long' })}`);
+          c.setDate(c.getDate() + 1);
       }
   }
   if (!window._selectedAgendaDate || !dateKeys.includes(window._selectedAgendaDate)) {
@@ -3879,7 +3965,7 @@ function _renderDailyScheduleInner() {
         items.push(it);
       });
     });
-    const subj = activeSubjects.map(x => ({ c: x.code, n: x.name, a: excelAcronyms[x.code] || '' }));
+    const subj = agendaSubjects.map(x => ({ c: x.code, n: x.name, a: excelAcronyms[x.code] || '' }));
     const abs = {};
     Object.entries(marks).forEach(([id, st]) => {
       if (st !== 'A') return;
@@ -3913,7 +3999,7 @@ function _renderDailyScheduleInner() {
       
       capsulesHtml += `
       <div id="capsule-${dateString.replace(/\s/g, '-')}" 
-           class="capsule ${isSelected ? 'selected' : ''} ${(hasActiveCls || examsByYmd[ymd]) ? 'has-class' : (hasCls ? 'has-cancelled' : '')}" 
+           class="capsule ${isSelected ? 'selected' : ''} ${(hasActiveCls || examsByYmd[ymd]) ? 'has-class' : (hasCls ? 'has-cancelled' : '')}${examsByYmd[ymd] ? ' has-exam' : ''}" 
            onclick="selectAgendaDate('${dateString}')">
           <span class="dow">${shortDay}</span>
           <span class="num">${dd}</span>
@@ -3975,7 +4061,35 @@ function _renderDailyScheduleInner() {
       </div>`;
   }
 
-  // Live Island Widget (tracks today's real-time classes in Dynamic Island style)
+  // Live Island Widget (tracks today's real-time classes or exams in Dynamic Island style)
+  let ongoingExamFound = null;
+  let nextExamTodayFound = null;
+  const todayExams = examsByYmd[todayYmd] || [];
+  for (const item of todayExams) {
+      const sMins = examStartMins(item.ex.t);
+      const eMins = examEndMins(item.ex.t);
+      if (currentMins >= sMins && currentMins < eMins) {
+          ongoingExamFound = item;
+          break;
+      } else if (currentMins < sMins) {
+          if (!nextExamTodayFound || sMins < examStartMins(nextExamTodayFound.ex.t)) {
+              nextExamTodayFound = item;
+          }
+      }
+  }
+
+  // Look for next upcoming exam across future days (if no active exam today)
+  let nextUpcomingExam = null;
+  let nextUpcomingExamDate = null;
+  const sortedFutureExamDates = Object.keys(examsByYmd).sort().filter(y => y > todayYmd);
+  for (const fYmd of sortedFutureExamDates) {
+      if ((examsByYmd[fYmd] || []).length > 0) {
+          nextUpcomingExamDate = fYmd;
+          nextUpcomingExam = examsByYmd[fYmd][0];
+          break;
+      }
+  }
+
   let ongoingClassFound = null;
   let nextClassFound = null;
   const todayKey = dateKeys.find(k => k.startsWith(todayYmd));
@@ -4011,7 +4125,27 @@ function _renderDailyScheduleInner() {
   }
 
   let liveIslandHtml = '';
-  if (ongoingClassFound) {
+  if (ongoingExamFound) {
+      liveIslandHtml = `
+      <div class="ios-live-island" style="background:rgba(255,59,48,0.12); border-color:rgba(255,59,48,0.4);">
+          <div class="ios-island-left">
+              <span class="ios-island-dot" style="background:#FF3B30; box-shadow:0 0 8px rgba(255,59,48,0.7);"></span>
+              <span class="ios-island-badge" style="background:#FF3B30; color:#fff;">LIVE EXAM</span>
+              <span class="ios-island-title" style="color:var(--tx);">${escHtml(ongoingExamFound.name)}</span>
+          </div>
+          <span class="ios-island-loc" style="color:var(--tx);">📍 ${escHtml(ongoingExamFound.ex.v || 'Exam Hall')} · <strong>${escHtml(ongoingExamFound.ex.t)}</strong></span>
+      </div>`;
+  } else if (nextExamTodayFound) {
+      liveIslandHtml = `
+      <div class="ios-live-island" style="background:rgba(255,149,0,0.12); border-color:rgba(255,149,0,0.4);">
+          <div class="ios-island-left">
+              <span class="ios-island-dot" style="background:#FF9500; box-shadow:0 0 8px rgba(255,149,0,0.7);"></span>
+              <span class="ios-island-badge up-next" style="background:#FF9500; color:#fff;">EXAM TODAY</span>
+              <span class="ios-island-title" style="color:var(--tx);">${escHtml(nextExamTodayFound.name)}</span>
+          </div>
+          <span class="ios-island-loc" style="color:var(--tx);">📍 ${escHtml(nextExamTodayFound.ex.v || 'Exam Hall')} · <strong>${escHtml(nextExamTodayFound.ex.t)}</strong></span>
+      </div>`;
+  } else if (ongoingClassFound) {
       const activeSlotLabel = ongoingClassFound.label;
       liveIslandHtml = `
       <div class="ios-live-island">
@@ -4031,6 +4165,18 @@ function _renderDailyScheduleInner() {
               <span class="ios-island-title">${nextClassFound.name}</span>
           </div>
           <span id="pulse-next-countdown" class="ios-island-loc">📍 ${nextClassFound.room ? `Rm ${nextClassFound.room} · ` : ''}in ...</span>
+      </div>`;
+  } else if (nextUpcomingExam) {
+      liveIslandHtml = `
+      <div class="ios-live-island" style="justify-content:center; padding:9px 14px; gap:8px;">
+          <span style="font-size:14px;">📝</span>
+          <span style="font-size:12px; font-weight:700; color:var(--tx);">Next Exam: <strong>${escHtml(nextUpcomingExam.name)}</strong> · ${fmtExamFriendlyDate(nextUpcomingExamDate)} (${escHtml(nextUpcomingExam.ex.t)} · ${escHtml(nextUpcomingExam.ex.v)})</span>
+      </div>`;
+  } else if (Boolean(DATA[quarter]?.classesOver || todayYmd >= '2026-11-13')) {
+      liveIslandHtml = `
+      <div class="ios-live-island" style="justify-content:center; padding:9px 14px; gap:8px;">
+          <span style="font-size:14px;">🎓</span>
+          <span style="font-size:12px; font-weight:700; color:var(--tx);">All regular classes are over! Good luck with end-terms 📝</span>
       </div>`;
   } else if (todayKey && currentDateKey === todayKey) {
       liveIslandHtml = `
@@ -4282,7 +4428,16 @@ function _renderDailyScheduleInner() {
       }
       timelineEventsHtml += `</div>`;
   } else if (!(examsByYmd[ymd] || []).length) {
-      timelineEventsHtml += `<div style="font-size:12.5px; color:var(--tx3); padding: 28px 0; text-align:center; border: 0.5px dashed var(--bd); border-radius: 14px; background: var(--bg2);">☕ No classes scheduled for this day. Enjoy your break!</div>`;
+      if (Boolean(DATA[quarter]?.classesOver || ymd >= '2026-11-13')) {
+          timelineEventsHtml += `
+          <div class="ios-study-day-card">
+              <div style="font-size:24px; margin-bottom:6px;">📖</div>
+              <div style="font-weight:700; color:var(--tx); font-size:13.5px;">Study Day · No Exams Scheduled</div>
+              <div style="font-size:12px; color:var(--tx3); margin-top:4px;">All regular classes are over. Focus on your exam revision! 🎯</div>
+          </div>`;
+      } else {
+          timelineEventsHtml += `<div style="font-size:12.5px; color:var(--tx3); padding: 28px 0; text-align:center; border: 0.5px dashed var(--bd); border-radius: 14px; background: var(--bg2);">☕ No classes scheduled for this day. Enjoy your break!</div>`;
+      }
   }
 
   // Format Date Title
@@ -4338,6 +4493,10 @@ function _renderDailyScheduleInner() {
       </div>`;
   }).join('');
 
+  const completedBannerHtml = (completedAgendaSubjects.length && !DATA[quarter]?.classesOver)
+      ? `<div class="agenda-completed-footer"><span>🏁 Hidden completed:</span> ${completedAgendaSubjects.map(s => `<button type="button" class="agenda-restore-chip" onclick="toggleCourseCompleted('${escHtml(s.code)}')" title="Show classes in Agenda again">${escHtml(s.name)} ✕</button>`).join(' ')}</div>`
+      : '';
+
   const singleCardHtml = `
   <div class="ios-day-card" id="card-${currentDateKey.replace(/\s/g, '-')}" data-is-today="${isToday ? 'true' : 'false'}">
       <div class="ios-day-header">
@@ -4352,6 +4511,7 @@ function _renderDailyScheduleInner() {
       ${examHtml}
       ${birthdayHtml}
       ${timelineEventsHtml}
+      ${completedBannerHtml}
       ${typeof messMenuCardHtml === 'function' ? messMenuCardHtml(ymd) : ''}
   </div>`;
 

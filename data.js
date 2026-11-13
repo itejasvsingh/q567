@@ -28,7 +28,7 @@ const DATA={
     {slot:'VV',code:'MS6910',name:'Global Business Management',instructor:'C B Rao',v:'Strategy',room:'253'},
     {slot:'VV',code:'MS5070',name:'Software Product Management',instructor:'Nargis Pervin',v:'IS',room:'401'},
   ]},
-  Q6:{label:'Q6 — 24 Sep–13 Nov 2026',slots:{
+  Q6:{label:'Q6 — 24 Sep–13 Nov 2026',classesOver:true,slots:{
     PP:[{d:'Monday',t:'8am-10am'},{d:'Wednesday',t:'1pm-3pm'}],
     QQ:[{d:'Tuesday',t:'8am-10am'},{d:'Thursday',t:'10am-12pm'}],
     RR:[{d:'Wednesday',t:'5pm-7pm'},{d:'Friday',t:'1pm-3pm'}],
