@@ -23,6 +23,106 @@ let liveWeeklyCache = null;
 let liveExamsCache = null;
 var fbApp=null, fbDb=null, groupRef=null;
 
+// ── ADMIN & ROLL HELPERS ──────────────────────────────────────────
+const ADMIN_ROLL = 'MS25A071';
+function isCourseAdmin() {
+  return getActiveRollNo() === ADMIN_ROLL;
+}
+
+function playCheerfulChime() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.07);
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime + idx * 0.07);
+      gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + idx * 0.07 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + idx * 0.07 + 0.38);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + idx * 0.07);
+      osc.stop(ctx.currentTime + idx * 0.07 + 0.4);
+    });
+  } catch (err) {}
+}
+
+function triggerNurturingCelebration(event) {
+  if (event && typeof event.stopPropagation === 'function') {
+    event.stopPropagation();
+  }
+  playCheerfulChime();
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+    try { navigator.vibrate([40, 50, 40, 70]); } catch (e) {}
+  }
+
+  if (typeof document === 'undefined') return;
+  const old = document.getElementById('cheerful-nurturing-overlay');
+  if (old) old.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'cheerful-nurturing-overlay';
+  overlay.className = 'cheerful-overlay-container';
+
+  const card = document.createElement('div');
+  card.className = 'cheerful-yeah-card';
+
+  card.innerHTML = `
+    <div class="cheerful-yeah-badge">🌸 Mindfulness & Growth 🌸</div>
+    <div class="cheerful-yeah-title">
+      <span>Yeah!</span>
+      <span class="cheerful-pop-emoji">✨🧘‍♀️🎉</span>
+    </div>
+    <div class="cheerful-yeah-sub">Nurturing the Inner You</div>
+    <div style="font-size:12px; font-weight:600; color:rgba(46,16,34,0.78); margin-top:4px;">Embrace calm, focus & positive energy ✨</div>
+  `;
+
+  const emojis = ['🌸', '✨', '💛', '🎉', '🧘‍♀️', '🌼', '⭐', '💖', '🌟', '🌱', '🥳', '💫', '🌻', '🌺'];
+  const particleCount = 28;
+  for (let i = 0; i < particleCount; i++) {
+    const p = document.createElement('div');
+    p.className = 'cheerful-particle';
+    p.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+
+    const angle = (Math.PI * 2 * i) / particleCount + (Math.random() - 0.5) * 0.3;
+    const distance = 110 + Math.random() * 180;
+    const tx = Math.cos(angle) * distance;
+    const ty = Math.sin(angle) * distance;
+    const rot = (Math.random() - 0.5) * 540;
+    const scale = 0.9 + Math.random() * 0.8;
+    const delay = Math.random() * 0.15;
+
+    if (p.style) {
+      if (typeof p.style.setProperty === 'function') {
+        p.style.setProperty('--tx', `${tx}px`);
+        p.style.setProperty('--ty', `${ty}px`);
+        p.style.setProperty('--rot', `${rot}deg`);
+        p.style.setProperty('--s', `${scale}`);
+      } else {
+        p.style['--tx'] = `${tx}px`;
+        p.style['--ty'] = `${ty}px`;
+        p.style['--rot'] = `${rot}deg`;
+        p.style['--s'] = `${scale}`;
+      }
+      p.style.animationDelay = `${delay}s`;
+    }
+
+    card.appendChild(p);
+  }
+
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+
+  setTimeout(() => {
+    overlay.remove();
+  }, 2400);
+}
+window.triggerNurturingCelebration = triggerNurturingCelebration;
+
 // ── ROLL NUMBER & PREFERENCES HELPERS ──────────────────────────────
 function getActiveRollNo() {
   return (localStorage.getItem('mbaplanner_roll_no') || '').trim().toUpperCase();
@@ -416,7 +516,10 @@ function clickDomCard(d){
 }
 
 function toggleSubject(code){
-  const q=cQ,subj=DATA[q].subjects.find(s=>s.code===code);
+  const q=cQ,subj=((DATA[q]&&DATA[q].subjects)||[]).find(s=>s.code===code);
+  if (code === 'MS5754' || (subj && subj.name && /nurturing/i.test(subj.name))) {
+    if (typeof triggerNurturingCelebration === 'function') triggerNurturingCelebration();
+  }
   if(!subj)return;
   if(subj.isCore) { 
     alert("Core courses are automatically included in your timetable and excluded from the 4-elective limit. They cannot be removed."); 
@@ -552,7 +655,10 @@ function buildTTHtml(q,compact,interactive){
         return;
       }
       const s=lk[day]&&lk[day][slot];
-      if(s)h+=`<div class="tcell has"><div class="tc-slot">Slot ${s.slot}</div>${s.room?`<div class="tc-room">📍 Room ${s.room}</div>`:''}<div class="tc-name">${s.name}</div><div class="tc-instr">${s.instructor}</div></div>`;
+      if(s) {
+        const isNurturing = (s.code === 'MS5754' || (s.name && /nurturing/i.test(s.name)));
+        h+=`<div class="tcell has${isNurturing ? ' tc-nurturing' : ''}"${isNurturing ? ' onclick="triggerNurturingCelebration(event)" style="cursor:pointer;" title="Yeah! Nurturing the Inner You 🌸"' : ''}><div class="tc-slot">Slot ${s.slot}</div>${s.room?`<div class="tc-room">📍 Room ${s.room}</div>`:''}<div class="tc-name">${s.name}</div><div class="tc-instr">${s.instructor}</div></div>`;
+      }
       else h+=`<div class="tcell emp"></div>`;
     });
     h+='</div>';
@@ -759,7 +865,7 @@ function renderGrid(){
           · ${s.instructor}${s.email ? ` <a href="mailto:${escHtml(s.email)}" onclick="event.stopPropagation();" style="color:var(--tx-info); text-decoration:none; margin-left:4px;" title="Email faculty">✉️ ${escHtml(s.email)}</a>` : ''}
         </div>
         ${renderCardExamHtml(s, q)}
-        ${(isSel||s.isCore)?`<div style="margin-top:6px">${DATA[q]?.classesOver ? '<span class="course-concluded-badge">🏁 Classes Concluded</span>' : `<button type="button" class="course-done-btn${isCompleted?' on':''}" onclick="event.stopPropagation(); toggleCourseCompleted('${escHtml(s.code)}')">${isCompleted?'🏁 Completed · hidden in Agenda':'✓ Mark course classes done'}</button>`}</div>`:''}
+        ${(isSel||s.isCore)?`<div style="margin-top:6px">${DATA[q]?.classesOver ? '<span class="course-concluded-badge">🏁 Classes Concluded</span>' : (getActiveRollNo() === ADMIN_ROLL ? `<button type="button" class="course-done-btn${isCompleted?' on':''}" onclick="event.stopPropagation(); toggleCourseCompleted('${escHtml(s.code)}')">${isCompleted?'🏁 Completed · hidden in Agenda':'✓ Mark course classes done'}</button>` : (isCompleted ? '<span class="course-concluded-badge">🏁 Completed</span>' : ''))}</div>`:''}
       </div>
     </div>`;
   }).join('');
@@ -2740,7 +2846,17 @@ if (typeof fbDb !== 'undefined' && fbDb) {
         if (typeof renderCompareView === 'function' && typeof currentView !== 'undefined' && currentView === 'compare') {
           renderCompareView();
         }
+        if (typeof renderGrid === 'function' && document.getElementById('sgrid')) renderGrid();
+        if (typeof renderDailySchedule === 'function') renderDailySchedule();
       }
+    });
+
+    fbDb.ref('shared_completed_courses').on('value', snap => {
+      const val = snap.val() || {};
+      window._sharedCompletedCourses = val;
+      saveOfflineCopy('mbaplanner_shared_completed_courses', val);
+      if (typeof renderGrid === 'function' && document.getElementById('sgrid')) renderGrid();
+      if (typeof renderDailySchedule === 'function') renderDailySchedule();
     });
   } catch(e) {}
 
@@ -3466,12 +3582,31 @@ function isCourseCompleted(subject, quarter) {
   if (DATA[q] && DATA[q].classesOver) return true;
   const liveSubj = ((DATA[q] && DATA[q].subjects) || []).find(x => x.code === subject.code);
   const dataFlag = (liveSubj && liveSubj.isCompleted) || subject.isCompleted;
+
+  // Check admin MS25A071 cloud preferences or shared completed courses
+  const adminPrefs = (window._cloudRollPreferences && window._cloudRollPreferences[ADMIN_ROLL]) ||
+                     ((typeof loadOfflineCopy === 'function' ? loadOfflineCopy('mbaplanner_cloud_roll_preferences') : null) || {})[ADMIN_ROLL];
+  const adminMap = (adminPrefs && adminPrefs.completedCourses) ||
+                   (window._sharedCompletedCourses || (typeof loadOfflineCopy === 'function' ? loadOfflineCopy('mbaplanner_shared_completed_courses') : null) || {});
+
   const userMap = getCompletedCourses();
+  if (getActiveRollNo() === ADMIN_ROLL) {
+    if (userMap[subject.code] === false) return false;
+    if (userMap[subject.code] === true) return true;
+  }
+
+  if (adminMap && adminMap[subject.code] === false) return false;
+  if (adminMap && adminMap[subject.code] === true) return true;
+
   if (userMap[subject.code] === false) return false;
   return Boolean(dataFlag || userMap[subject.code]);
 }
 
 window.toggleCourseCompleted = function(code, forceState) {
+  if (getActiveRollNo() !== ADMIN_ROLL) {
+    alert('Only admin (MS25A071) can mark a course as completed.');
+    return;
+  }
   const map = getCompletedCourses();
   const q = (typeof cQ !== 'undefined' && cQ) ? cQ : 'Q6';
   const subj = ((DATA[q] && DATA[q].subjects) || []).find(x => x.code === code) || { code };
@@ -3480,7 +3615,13 @@ window.toggleCourseCompleted = function(code, forceState) {
   else if (subj.isCompleted) map[code] = false;
   else delete map[code];
   saveOfflineCopy('mbaplanner_completed_courses', map);
+  saveOfflineCopy('mbaplanner_shared_completed_courses', map);
   savePreferencesForRoll();
+  if (fbDb) {
+    try {
+      fbDb.ref('shared_completed_courses').set(map);
+    } catch(e) {}
+  }
   if (typeof renderGrid === 'function' && document.getElementById('sgrid')) renderGrid();
   if (typeof renderDailySchedule === 'function') renderDailySchedule();
 };
@@ -3606,7 +3747,7 @@ window.openClassUpdateSheet = function(ymd, slot, code) {
     <div style="font-size:11px; color:var(--tx3); margin-top:6px; text-align:center;">Everyone taking ${escHtml(subject.name)} will see this, with your name on it.</div>
     <div style="border-top:.5px solid var(--bd); margin:14px 0 0; padding-top:12px;">
       <button class="modal-close" style="margin-top:0;" onclick="toggleHideClass('${sessionId}')">${isHidden ? '👁 Show this class again' : "🙈 Hide this class for me only (I'm not attending)"}</button>
-      <button class="modal-close" style="margin-top:8px;" onclick="toggleCourseCompleted('${code}'); closeClassUpdateSheet();">${isCompleted ? '📚 Show this course in Agenda again' : '🏁 Course completed (hide all its classes from Agenda)'}</button>
+      ${getActiveRollNo() === ADMIN_ROLL ? `<button class="modal-close" style="margin-top:8px;" onclick="toggleCourseCompleted('${code}'); closeClassUpdateSheet();">${isCompleted ? '📚 Show this course in Agenda again' : '🏁 Course completed (hide all its classes from Agenda)'}</button>` : ''}
     </div>
     <button class="modal-close" onclick="closeClassUpdateSheet()">Close</button>
   </div>`;
@@ -4391,10 +4532,12 @@ function _renderDailyScheduleInner() {
               const classOverId = agendaSafeId(`${ymd}_${data.slot || b.t}_${isIcrc ? 'ICRC' : data.subject.code}`);
               const isMarkedOver = !cancelled && !!overSessions[classOverId];
 
+              const isNurturingSubject = (!cancelled && data.subject && (data.subject.code === 'MS5754' || /nurturing/i.test(data.subject.name)));
               let itemClass = 'ios-class-item';
               if (cancelled) itemClass += ' cancelled';
               if (isHappeningNow && !cancelled) itemClass += ' ongoing';
               if (isMarkedOver) itemClass += ' completed-agenda';
+              if (isNurturingSubject) itemClass += ' tc-nurturing';
 
               timelineEventsHtml += `
               <div id="agenda-${classOverId}" class="${itemClass}">
@@ -4412,8 +4555,8 @@ function _renderDailyScheduleInner() {
                           ${!cancelled ? renderOverToggleHtml(classOverId, isMarkedOver) : ''}
                       </div>
                   </div>
-                  <div class="ios-class-title" ${cancelled ? 'style="text-decoration:line-through; opacity:0.6;"' : ''}>
-                      ${subjectName}
+                  <div class="ios-class-title"${cancelled ? ' style="text-decoration:line-through; opacity:0.6;"' : ''}${isNurturingSubject ? ' onclick="triggerNurturingCelebration(event)" style="cursor:pointer;" title="Yeah! Nurturing the Inner You 🌸"' : ''}>
+                      ${subjectName}${isNurturingSubject ? ' 🌸' : ''}
                   </div>
                   <div class="ios-class-sub">${subText}</div>
                   ${updateInfoHtml}
@@ -4496,8 +4639,12 @@ function _renderDailyScheduleInner() {
       </div>`;
   }).join('');
 
+  const isAdminUser = (getActiveRollNo() === ADMIN_ROLL);
   const completedBannerHtml = (completedAgendaSubjects.length && !DATA[quarter]?.classesOver)
-      ? `<div class="agenda-completed-footer"><span>🏁 Hidden completed:</span> ${completedAgendaSubjects.map(s => `<button type="button" class="agenda-restore-chip" onclick="toggleCourseCompleted('${escHtml(s.code)}')" title="Show classes in Agenda again">${escHtml(s.name)} ✕</button>`).join(' ')}</div>`
+      ? `<div class="agenda-completed-footer"><span>🏁 Hidden completed:</span> ${completedAgendaSubjects.map(s => isAdminUser
+          ? `<button type="button" class="agenda-restore-chip" onclick="toggleCourseCompleted('${escHtml(s.code)}')" title="Show classes in Agenda again">${escHtml(s.name)} ✕</button>`
+          : `<span class="agenda-restore-chip" style="cursor:default;" title="Marked completed by admin">${escHtml(s.name)}</span>`
+        ).join(' ')}</div>`
       : '';
 
   const singleCardHtml = `
@@ -4722,7 +4869,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) repo
 // ---- Admin tools (PIN protected) -----------------------------------------
 // The entry only appears when the admin's own roll number is set on this
 // device. The PIN is checked by the database rules, never by this file.
-const ADMIN_ROLL = 'MS25A071';
+// (ADMIN_ROLL is defined above as 'MS25A071')
 function adminEntryVisible() { return getActiveRollNo() === ADMIN_ROLL; }
 function adminPin() { try { return sessionStorage.getItem('mbaplanner_admin_pin') || ''; } catch (e) { return ''; } }
 
