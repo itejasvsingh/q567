@@ -5311,3 +5311,145 @@ document.addEventListener('visibilitychange', presenceTick);
   };
   document.addEventListener('click', handler, true);
 })();
+
+// ==========================================================================
+// Part 1: Interactive WebGL Fluid Background (tkabalin/WebGL-Fluid-Background)
+// ==========================================================================
+function initFluidBackground() {
+  const canvas = document.getElementById('fluid-canvas');
+  if (!canvas || typeof WebGLFluid !== 'function') return;
+
+  try {
+    WebGLFluid(canvas, {
+      IMMEDIATE: true,
+      TRIGGER: 'hover',
+      AUTO: false,
+      INTERVAL: 3000,
+      SIM_RESOLUTION: 128,
+      DYE_RESOLUTION: 1024,
+      CAPTURE_RESOLUTION: 512,
+      DENSITY_DISSIPATION: 1.0,
+      VELOCITY_DISSIPATION: 0.2,
+      PRESSURE: 0.8,
+      PRESSURE_ITERATIONS: 20,
+      CURL: 30,
+      SPLAT_RADIUS: 0.28,
+      SPLAT_FORCE: 6000,
+      SHADING: true,
+      COLORFUL: true,
+      COLOR_UPDATE_SPEED: 10,
+      PAUSED: false,
+      BACK_COLOR: { r: 11, g: 15, b: 20 },
+      TRANSPARENT: true,
+      BLOOM: true,
+      BLOOM_ITERATIONS: 8,
+      BLOOM_RESOLUTION: 256,
+      BLOOM_INTENSITY: 0.7,
+      BLOOM_THRESHOLD: 0.6,
+      BLOOM_SOFT_KNEE: 0.7,
+      SUNRAYS: true,
+      SUNRAYS_RESOLUTION: 196,
+      SUNRAYS_WEIGHT: 1.0
+    });
+
+    // Forward mouse and touch movements across UI containers to the canvas
+    const forwardPointer = (type, clientX, clientY) => {
+      const rect = canvas.getBoundingClientRect();
+      const synth = new MouseEvent(type, {
+        clientX,
+        clientY,
+        bubbles: false,
+        cancelable: true
+      });
+      Object.defineProperty(synth, 'offsetX', { value: clientX - rect.left });
+      Object.defineProperty(synth, 'offsetY', { value: clientY - rect.top });
+      canvas.dispatchEvent(synth);
+    };
+
+    window.addEventListener('mousemove', (e) => {
+      if (e.target !== canvas) forwardPointer('mousemove', e.clientX, e.clientY);
+    }, { passive: true });
+
+    window.addEventListener('mousedown', (e) => {
+      if (e.target !== canvas) forwardPointer('mousedown', e.clientX, e.clientY);
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+      if (e.target !== canvas && e.targetTouches && e.targetTouches.length > 0) {
+        const touch = e.targetTouches[0];
+        forwardPointer('mousemove', touch.clientX, touch.clientY);
+      }
+    }, { passive: true });
+
+  } catch (err) {
+    console.warn('WebGL Fluid Background could not be initialized:', err);
+  }
+}
+
+// ==========================================================================
+// Part 2: Clip-Reveal Page Transition
+// ==========================================================================
+function initPageTransitions() {
+  const overlay = document.getElementById('page-transition-overlay');
+  if (!overlay) return;
+
+  // Reveal transition on DOMContentLoaded: Full Cover -> Slit -> Hidden
+  function revealPage() {
+    overlay.classList.add('full-cover');
+    setTimeout(() => {
+      overlay.classList.remove('full-cover');
+      overlay.classList.add('slit');
+      setTimeout(() => {
+        overlay.classList.remove('slit');
+      }, 300);
+    }, 50);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', revealPage);
+  } else {
+    revealPage();
+  }
+
+  // Animate overlay: Hidden -> Slit -> Full Cover -> window.location.href
+  function navigateWithTransition(url) {
+    if (!overlay) {
+      window.location.href = url;
+      return;
+    }
+    overlay.classList.remove('full-cover');
+    overlay.classList.add('slit');
+    setTimeout(() => {
+      overlay.classList.add('full-cover');
+      setTimeout(() => {
+        window.location.href = url;
+      }, 600);
+    }, 250);
+  }
+
+  // Click event listener to all internal <a> tags to prevent default navigation
+  document.addEventListener('click', (e) => {
+    const anchor = e.target.closest('a');
+    if (!anchor) return;
+
+    const href = anchor.getAttribute('href');
+    if (!href) return;
+    if (href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
+    if (anchor.target && anchor.target !== '_self') return;
+    if (anchor.hasAttribute('download')) return;
+
+    try {
+      const targetUrl = new URL(anchor.href, window.location.href);
+      if (targetUrl.origin === window.location.origin) {
+        e.preventDefault();
+        navigateWithTransition(targetUrl.href);
+      }
+    } catch (err) {}
+  });
+
+  window.navigateWithTransition = navigateWithTransition;
+}
+
+// Initialize Visual Effects
+initFluidBackground();
+initPageTransitions();
