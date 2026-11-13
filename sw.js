@@ -1,15 +1,15 @@
 // Bump this version string every time you deploy a new index.html so
 // returning visitors actually get the update instead of a stale cache.
-const CACHE_NAME = 'mba-planner-v91';
+const CACHE_NAME = 'mba-planner-v92';
 
 const SHELL_FILES = [
   './',
   './index.html',
   './manifest.json',
   './styles.css',
-  './styles.css?v=64',
+  './styles.css?v=65',
   './app.js',
-  './app.js?v=64',
+  './app.js?v=65',
   './data.js',
   './firebase-config.js',
   './mess-menu.js',

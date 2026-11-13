@@ -862,7 +862,7 @@ function renderGrid(){
           <span class="slotb">Slot ${s.slot}</span>
           ${s.room?`<span class="roomb">📍 Room ${s.room}</span>`:''}
           <span class="vb ${VC[s.v]||''}">${s.v}</span>
-          · ${s.instructor}${s.email ? ` <a href="mailto:${escHtml(s.email)}" onclick="event.stopPropagation();" style="color:var(--tx-info); text-decoration:none; margin-left:4px;" title="Email faculty">✉️ ${escHtml(s.email)}</a>` : ''}
+          · ${s.instructor}
         </div>
         ${renderCardExamHtml(s, q)}
         ${(isSel||s.isCore)?`<div style="margin-top:6px">${DATA[q]?.classesOver ? '<span class="course-concluded-badge">🏁 Classes Concluded</span>' : (getActiveRollNo() === ADMIN_ROLL ? `<button type="button" class="course-done-btn${isCompleted?' on':''}" onclick="event.stopPropagation(); toggleCourseCompleted('${escHtml(s.code)}')">${isCompleted?'🏁 Completed · hidden in Agenda':'✓ Mark course classes done'}</button>` : (isCompleted ? '<span class="course-concluded-badge">🏁 Completed</span>' : ''))}</div>`:''}
@@ -4053,8 +4053,11 @@ function _renderDailyScheduleInner() {
   });
   const examYmds = Object.keys(examsByYmd).sort();
   const maxExamPeriod = '2026-11-23';
-  const maxExam = examYmds.length ? examYmds[examYmds.length - 1] : maxExamPeriod;
-  const targetEndYmd = maxExam > maxExamPeriod ? maxExam : maxExamPeriod;
+  const q6PlacementEnd = '2026-12-10';
+  const shaastraSessionStart = '2027-01-02';
+  const agendaCoverageEnd = '2027-01-05';
+  const maxExam = examYmds.length ? examYmds[examYmds.length - 1] : agendaCoverageEnd;
+  const targetEndYmd = maxExam > agendaCoverageEnd ? maxExam : agendaCoverageEnd;
   const startYmd = dateKeys.length ? dateKeys[dateKeys.length - 1].slice(0, 10) : todayYmd;
   if (!dateKeys.length) {
       const c0 = new Date(startYmd + 'T00:00:00');
@@ -4125,11 +4128,15 @@ function _renderDailyScheduleInner() {
 
   // Build Interactive Day Capsules Carousel
   const attSessions = {};
+  const monthNamesShort = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   let capsulesHtml = `<div class="date-capsules">`;
   for (const dateString of dateKeys) {
       const [ymd, dayName] = dateString.split(' ');
       const shortDay = dayName ? dayName.substring(0,3) : '';
-      const dd = ymd ? ymd.split('-')[2] : '';
+      const parts = ymd ? ymd.split('-') : [];
+      const dd = parts[2] || '';
+      const mNum = parseInt(parts[1], 10);
+      const topLabel = (dd === '01' && mNum >= 1 && mNum <= 12) ? monthNamesShort[mNum - 1] : shortDay;
       const isSelected = dateString === currentDateKey;
       const { hasCls, hasActiveCls, dayClasses: capDay } = parseDayClasses(liveDailyCache[dateString], dateString);
       // Held class sessions so far (for the Attendance tab's "not marked" list)
@@ -4145,7 +4152,7 @@ function _renderDailyScheduleInner() {
       <div id="capsule-${dateString.replace(/\s/g, '-')}" 
            class="capsule ${isSelected ? 'selected' : ''} ${(hasActiveCls || examsByYmd[ymd]) ? 'has-class' : (hasCls ? 'has-cancelled' : '')}${examsByYmd[ymd] ? ' has-exam' : ''}" 
            onclick="selectAgendaDate('${dateString}')">
-          <span class="dow">${shortDay}</span>
+          <span class="dow">${topLabel}</span>
           <span class="num">${dd}</span>
           <span class="dot-indicator"></span>
       </div>`;
@@ -4315,6 +4322,24 @@ function _renderDailyScheduleInner() {
       <div class="ios-live-island" style="justify-content:center; padding:9px 14px; gap:8px;">
           <span style="font-size:14px;">📝</span>
           <span style="font-size:12px; font-weight:700; color:var(--tx);">Next Exam: <strong>${escHtml(nextUpcomingExam.name)}</strong> · ${fmtExamFriendlyDate(nextUpcomingExamDate)} (${escHtml(nextUpcomingExam.ex.t)} · ${escHtml(nextUpcomingExam.ex.v)})</span>
+      </div>`;
+  } else if (todayYmd >= '2027-01-02') {
+      liveIslandHtml = `
+      <div class="ios-live-island" style="justify-content:center; padding:9px 14px; gap:8px;">
+          <span style="font-size:14px;">🚀</span>
+          <span style="font-size:12px; font-weight:700; color:var(--tx);">Shaastra Tech Fest · New Session Begins! 🎪</span>
+      </div>`;
+  } else if (todayYmd >= '2026-12-11') {
+      liveIslandHtml = `
+      <div class="ios-live-island" style="justify-content:center; padding:9px 14px; gap:8px;">
+          <span style="font-size:14px;">❄️</span>
+          <span style="font-size:12px; font-weight:700; color:var(--tx);">Winter Vacation & Winter Internship · Session starts 2 Jan 🏔️</span>
+      </div>`;
+  } else if (todayYmd >= '2026-11-24') {
+      liveIslandHtml = `
+      <div class="ios-live-island" style="justify-content:center; padding:9px 14px; gap:8px;">
+          <span style="font-size:14px;">💼</span>
+          <span style="font-size:12px; font-weight:700; color:var(--tx);">Q6 Placement Season active · Drives & Updates through 10 Dec 🎯</span>
       </div>`;
   } else if (Boolean(DATA[quarter]?.classesOver || todayYmd >= '2026-11-13')) {
       liveIslandHtml = `
@@ -4574,10 +4599,31 @@ function _renderDailyScheduleInner() {
       }
       timelineEventsHtml += `</div>`;
   } else if (!(examsByYmd[ymd] || []).length) {
-      if (Boolean(DATA[quarter]?.classesOver || ymd >= '2026-11-13')) {
+      if (ymd >= '2027-01-02') {
+          timelineEventsHtml += `
+          <div class="ios-study-day-card" style="border: 0.5px solid rgba(255, 149, 0, 0.4); background: rgba(255, 149, 0, 0.06); text-align:center; padding:24px 16px;">
+              <div style="font-size:28px; margin-bottom:8px;">🚀🎪</div>
+              <div style="font-weight:800; color:var(--tx); font-size:14.5px;">Shaastra Tech Fest · New Session Begins!</div>
+              <div style="font-size:12.5px; color:var(--tx2); margin-top:6px; line-height:1.5;">IIT Madras Shaastra Tech Festival kicks off the new session. Welcome to Q7! 🌟</div>
+          </div>`;
+      } else if (ymd >= '2026-12-11') {
+          timelineEventsHtml += `
+          <div class="ios-study-day-card" style="border: 0.5px solid rgba(90, 200, 250, 0.35); background: rgba(90, 200, 250, 0.06); text-align:center; padding:24px 16px;">
+              <div style="font-size:28px; margin-bottom:8px;">❄️</div>
+              <div style="font-weight:800; color:var(--tx); font-size:14.5px;">Winter Vacation / Winter Internship</div>
+              <div style="font-size:12.5px; color:var(--tx2); margin-top:6px; line-height:1.5;">Q6 officially concluded on 10 Dec. Term break for winter internships, industry projects & recharge. New session starts 2nd Jan with Shaastra Fest! 🏔️</div>
+          </div>`;
+      } else if (ymd >= '2026-11-24') {
+          timelineEventsHtml += `
+          <div class="ios-study-day-card" style="border: 0.5px solid rgba(0, 122, 255, 0.35); background: rgba(0, 122, 255, 0.05); text-align:center; padding:24px 16px;">
+              <div style="font-size:28px; margin-bottom:8px;">💼</div>
+              <div style="font-weight:800; color:var(--tx); font-size:14.5px;">Placement Drives & Updates</div>
+              <div style="font-size:12.5px; color:var(--tx2); margin-top:6px; line-height:1.5;">End-term exams concluded on 23 Nov. Q6 placement drives & company updates continue through 10 Dec. Check placement notices & ICRC alerts! 🎯</div>
+          </div>`;
+      } else if (Boolean(DATA[quarter]?.classesOver || ymd >= '2026-11-13')) {
           timelineEventsHtml += `
           <div class="ios-study-day-card">
-              <div style="font-size:24px; margin-bottom:6px;">📖</div>
+              <div style="font-size:26px; margin-bottom:6px;">📖</div>
               <div style="font-weight:700; color:var(--tx); font-size:13.5px;">Study Day · No Exams Scheduled</div>
               <div style="font-size:12px; color:var(--tx3); margin-top:4px;">All regular classes are over. Focus on your exam revision! 🎯</div>
           </div>`;
