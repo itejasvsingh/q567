@@ -227,6 +227,15 @@ function applyPreferences(prefObj) {
       if (attInput) attInput.value = prefObj.studentName;
     } catch(e) {}
   }
+
+  // 8. Fluid Background Setting
+  if (prefObj.fluidBg) {
+    if (typeof setFluidBackground === 'function') {
+      setFluidBackground(prefObj.fluidBg === 'on', false);
+    } else {
+      localStorage.setItem('mbaplanner_fluid_bg', prefObj.fluidBg);
+    }
+  }
 }
 
 function savePreferencesForRoll(roll) {
@@ -257,6 +266,7 @@ function savePreferencesForRoll(roll) {
     classAttendance: classAtt,
     reminder30m: localStorage.getItem('mbaplanner_reminder_30m') || 'on',
     theme: localStorage.getItem('mbaplanner_theme') || 'system',
+    fluidBg: localStorage.getItem('mbaplanner_fluid_bg') || 'off',
     studentName: sName,
     hiddenSessions: getHiddenSessions(),
     overSessions: getOverSessions(),
@@ -2909,6 +2919,8 @@ function flushPendingOfflineWrites() {
       </div>`;
       const floatingTheme = document.getElementById('theme-toggle');
       if (floatingTheme) floatingTheme.style.display = 'none';
+      const floatingFluid = document.getElementById('fluid-toggle-btn');
+      if (floatingFluid) floatingFluid.style.display = 'none';
 
       const drawerHTML = `
       ${topbarHtml}
@@ -2940,6 +2952,18 @@ function flushPendingOfflineWrites() {
           </div>
           <label class="ios-switch">
             <input type="checkbox" id="drawer-alert-checkbox" onchange="toggle30mAlertFromDrawer(this.checked)">
+            <span class="ios-slider"></span>
+          </label>
+        </div>
+
+        <!-- WebGL Fluid Background Toggle in Menu -->
+        <div class="drawer-setting-row">
+          <div class="drawer-setting-info">
+            <span class="drawer-setting-title">🌊 Fluid Background</span>
+            <span class="drawer-setting-sub" id="drawer-fluid-status-text">Default: Off</span>
+          </div>
+          <label class="ios-switch">
+            <input type="checkbox" id="drawer-fluid-checkbox" onchange="setFluidBackground(this.checked)">
             <span class="ios-slider"></span>
           </label>
         </div>
@@ -3040,6 +3064,12 @@ window.updateDrawerSettingsUI = function() {
     }
 
     document.querySelectorAll('[data-theme-mode]').forEach(b => b.classList.toggle('active-p', b.dataset.themeMode === themeMode()));
+
+    const isFluidOn = (typeof isFluidBgActive === 'function') && isFluidBgActive();
+    const drawerFluidCb = document.getElementById('drawer-fluid-checkbox');
+    const drawerFluidText = document.getElementById('drawer-fluid-status-text');
+    if (drawerFluidCb) drawerFluidCb.checked = isFluidOn;
+    if (drawerFluidText) drawerFluidText.textContent = isFluidOn ? 'On · Interactive WebGL' : 'Off · Default Clean';
 };
 
 window.toggle30mAlertFromDrawer = function(checked) {
@@ -5313,9 +5343,71 @@ document.addEventListener('visibilitychange', presenceTick);
 })();
 
 // ==========================================================================
-// Part 1: Interactive WebGL Fluid Background (tkabalin/WebGL-Fluid-Background)
+// Part 1: Interactive WebGL Fluid Background (Optional Secondary Background)
+// Default is clean standard background ("nothing"); secondary is fluid BG.
 // ==========================================================================
-function initFluidBackground() {
+let _fluidSimInitialized = false;
+
+function isFluidBgActive() {
+  return localStorage.getItem('mbaplanner_fluid_bg') === 'on';
+}
+
+function updateFluidUI(active) {
+  const hdrLabel = document.getElementById('hdr-fluid-label');
+  const hdrBtn = document.getElementById('hdr-fluid-btn');
+  const floatBtn = document.getElementById('fluid-toggle-btn');
+  const drawerCb = document.getElementById('drawer-fluid-checkbox');
+  const drawerText = document.getElementById('drawer-fluid-status-text');
+
+  if (hdrLabel) hdrLabel.textContent = active ? 'Fluid BG: On' : 'Fluid BG: Off';
+  if (hdrBtn) {
+    hdrBtn.style.borderColor = active ? 'var(--bd-info)' : 'var(--bd)';
+    hdrBtn.style.background = active ? 'var(--bg-info)' : 'var(--bg2)';
+    hdrBtn.style.color = active ? 'var(--tx-info)' : 'var(--tx)';
+  }
+  if (floatBtn) {
+    floatBtn.style.borderColor = active ? 'var(--bd-info)' : 'var(--bd)';
+    floatBtn.style.background = active ? 'var(--bg-info)' : 'var(--bg2)';
+    floatBtn.title = active ? 'Background: Fluid Active (Tap for Default)' : 'Background: Default (Tap for Fluid)';
+  }
+  if (drawerCb) drawerCb.checked = Boolean(active);
+  if (drawerText) drawerText.textContent = active ? 'On (Interactive WebGL)' : 'Off (Default Clean)';
+}
+
+function applyFluidBackground(active) {
+  const canvas = document.getElementById('fluid-canvas');
+  if (active) {
+    document.body.classList.add('fluid-bg-active');
+    if (canvas) canvas.style.display = 'block';
+    if (!_fluidSimInitialized) {
+      _startFluidSimulation();
+      _fluidSimInitialized = true;
+    }
+  } else {
+    document.body.classList.remove('fluid-bg-active');
+    if (canvas) canvas.style.display = 'none';
+  }
+  updateFluidUI(active);
+}
+
+function setFluidBackground(active, shouldSave = true) {
+  const state = active ? 'on' : 'off';
+  localStorage.setItem('mbaplanner_fluid_bg', state);
+  applyFluidBackground(active);
+  if (shouldSave && typeof savePreferencesForRoll === 'function') {
+    savePreferencesForRoll();
+  }
+}
+
+function toggleFluidBackground() {
+  setFluidBackground(!isFluidBgActive());
+}
+
+window.isFluidBgActive = isFluidBgActive;
+window.setFluidBackground = setFluidBackground;
+window.toggleFluidBackground = toggleFluidBackground;
+
+function _startFluidSimulation() {
   const canvas = document.getElementById('fluid-canvas');
   if (!canvas || typeof WebGLFluid !== 'function') return;
 
@@ -5352,8 +5444,8 @@ function initFluidBackground() {
       SUNRAYS_WEIGHT: 1.0
     });
 
-    // Forward mouse and touch movements across UI containers to the canvas
     const forwardPointer = (type, clientX, clientY) => {
+      if (!isFluidBgActive()) return;
       const rect = canvas.getBoundingClientRect();
       const synth = new MouseEvent(type, {
         clientX,
@@ -5450,6 +5542,6 @@ function initPageTransitions() {
   window.navigateWithTransition = navigateWithTransition;
 }
 
-// Initialize Visual Effects
-initFluidBackground();
+// Initialize Visual Effects (Default: Clean standard background)
+applyFluidBackground(isFluidBgActive());
 initPageTransitions();

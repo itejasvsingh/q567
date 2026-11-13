@@ -59,7 +59,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="webgl-fluid.js"></script>
-<link rel="stylesheet" href="styles.css?v=67">
+<link rel="stylesheet" href="styles.css?v=68">
 </head>
 <body>
 <canvas id="fluid-canvas"></canvas>
@@ -85,6 +85,7 @@
   })();
 </script>
 <button id="theme-toggle" onclick="toggleTheme()" style="position:fixed; bottom:20px; right:20px; z-index:9999; background:var(--bg2); border:.5px solid var(--bd); border-radius:50%; width:50px; height:50px; font-size:20px; cursor:pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2); display:flex; align-items:center; justify-content:center;-webkit-tap-highlight-color:transparent;">🌗</button>
+<button id="fluid-toggle-btn" onclick="toggleFluidBackground()" title="Background: Default (Tap for Fluid)" style="position:fixed; bottom:78px; right:20px; z-index:9999; background:var(--bg2); border:.5px solid var(--bd); border-radius:50%; width:50px; height:50px; font-size:20px; cursor:pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2); display:flex; align-items:center; justify-content:center;-webkit-tap-highlight-color:transparent; transition: all 0.2s;">🌊</button>
 <div class="page">
 
 <div class="hdr" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
@@ -92,6 +93,7 @@
     <h1>IIT Madras MBA — Elective Planner by TJ</h1>
     <p>Q5: Jul–Sep 2026 · Q6: Oct–Dec 2026 · Q7: Jan–Mar 2027 · 12 electives total</p>
   </div>
+  <button id="hdr-fluid-btn" onclick="toggleFluidBackground()" style="background:var(--bg2); color:var(--tx); border:.5px solid var(--bd); border-radius:8px; padding:8px 12px; font-size:12px; font-weight:700; cursor:pointer; font-family:var(--font); white-space:nowrap; flex-shrink:0; margin-left:8px; display:inline-flex; align-items:center; gap:6px;"><span>🌊</span> <span id="hdr-fluid-label">Fluid BG: Off</span></button>
   <button id="hdr-feedback-btn" onclick="openFeedback()" style="background:var(--bg2); color:var(--tx); border:.5px solid var(--bd); border-radius:8px; padding:8px 12px; font-size:12px; font-weight:700; cursor:pointer; font-family:var(--font); white-space:nowrap; flex-shrink:0; margin-left:8px;">💬 Feedback</button>
   <button id="hdr-admin-btn" onclick="openAdminSheet()" style="display:none; background:var(--bg2); color:var(--tx); border:.5px solid var(--bd); border-radius:8px; padding:8px 12px; font-size:12px; font-weight:700; cursor:pointer; font-family:var(--font); white-space:nowrap; flex-shrink:0; margin-left:8px;">🔐 Admin</button>
   <button id="hdr-install-btn" onclick="handleInstallClick()" style="display:none; background:var(--bg-info); color:var(--tx-info); border:.5px solid var(--bd-info); border-radius:8px; padding:8px 14px; font-size:12px; font-weight:700; cursor:pointer; font-family:var(--font); white-space:nowrap; flex-shrink:0; margin-left:12px;">📲 Install App</button>
@@ -165,7 +167,7 @@
     document.getElementById('export-modal-container').innerHTML = await fetchView('components/export-modal.html');
     
     const script = document.createElement('script');
-    script.src = 'app.js?v=67';
+    script.src = 'app.js?v=68';
     document.body.appendChild(script);
   }
   initApp();
