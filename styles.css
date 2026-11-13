@@ -30,6 +30,9 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
   pointer-events: none;
   display: none;
   background-color: #000000;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  will-change: transform;
 }
 
 /* ── Secondary Option: WebGL Fluid Active (Pitch Black Canvas with Dark Glass UI) ── */
@@ -93,6 +96,40 @@ body.fluid-bg-active .sub-drawer,
 body.fluid-bg-active .drawer-backdrop {
   backdrop-filter: blur(14px) saturate(180%);
   -webkit-backdrop-filter: blur(14px) saturate(180%);
+}
+
+/* ── Clip-Reveal Page Transition Overlay (Fast 0.3s Optimized) ── */
+#page-transition-overlay,
+.clip-reveal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #1a1a1a;
+  z-index: 9999;
+  pointer-events: none;
+  /* State 1 (Hidden) */
+  clip-path: polygon(0% 50%, 100% 50%, 100% 50%, 0% 50%);
+  -webkit-clip-path: polygon(0% 50%, 100% 50%, 100% 50%, 0% 50%);
+  transition: clip-path 0.3s cubic-bezier(0.77, 0, 0.175, 1);
+  -webkit-transition: -webkit-clip-path 0.3s cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+/* State 2 (Slit) */
+#page-transition-overlay.slit,
+.clip-reveal-overlay.slit {
+  pointer-events: auto;
+  clip-path: polygon(0% 45%, 100% 45%, 100% 55%, 0% 55%);
+  -webkit-clip-path: polygon(0% 45%, 100% 45%, 100% 55%, 0% 55%);
+}
+
+/* State 3 (Full Cover) */
+#page-transition-overlay.full-cover,
+.clip-reveal-overlay.full-cover {
+  pointer-events: auto;
+  clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
+  -webkit-clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
 }
 
 /* ── Top Slim Ambient Progress Bar ── */

@@ -5436,8 +5436,8 @@ function _startFluidSimulation() {
       TRIGGER: 'hover',
       AUTO: false,
       INTERVAL: 3000,
-      SIM_RESOLUTION: 128,
-      DYE_RESOLUTION: 1024,
+      SIM_RESOLUTION: 64,
+      DYE_RESOLUTION: 512,
       CAPTURE_RESOLUTION: 512,
       DENSITY_DISSIPATION: 1.0,
       VELOCITY_DISSIPATION: 0.2,
@@ -5452,15 +5452,8 @@ function _startFluidSimulation() {
       PAUSED: false,
       BACK_COLOR: { r: 0, g: 0, b: 0 },
       TRANSPARENT: false,
-      BLOOM: true,
-      BLOOM_ITERATIONS: 8,
-      BLOOM_RESOLUTION: 256,
-      BLOOM_INTENSITY: 0.8,
-      BLOOM_THRESHOLD: 0.6,
-      BLOOM_SOFT_KNEE: 0.7,
-      SUNRAYS: true,
-      SUNRAYS_RESOLUTION: 196,
-      SUNRAYS_WEIGHT: 1.0
+      BLOOM: false,
+      SUNRAYS: false
     });
 
     const forwardPointer = (type, clientX, clientY) => {
@@ -5519,5 +5512,65 @@ function triggerProgressBar() {
 
 window.triggerProgressBar = triggerProgressBar;
 
-// Initialize Visual Effects (Default: Clean standard background)
+// ==========================================================================
+// Fast Clip-Reveal Page Transition (Optimized 0.3s / 150ms)
+// ==========================================================================
+function initPageTransitions() {
+  const overlay = document.getElementById('page-transition-overlay') || document.querySelector('.clip-reveal-overlay');
+  if (!overlay) return;
+
+  function revealPage() {
+    overlay.classList.add('full-cover');
+    setTimeout(() => {
+      overlay.classList.remove('full-cover');
+      overlay.classList.add('slit');
+      setTimeout(() => {
+        overlay.classList.remove('slit');
+      }, 150); // reduced from 300ms to 150ms
+    }, 30);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', revealPage);
+  } else {
+    revealPage();
+  }
+
+  function navigateWithTransition(url) {
+    if (!overlay) {
+      window.location.href = url;
+      return;
+    }
+    overlay.classList.remove('full-cover');
+    overlay.classList.add('slit');
+    setTimeout(() => {
+      overlay.classList.add('full-cover');
+      setTimeout(() => {
+        window.location.href = url;
+      }, 300); // reduced from 600ms to 300ms
+    }, 150);   // reduced from 250ms to 150ms
+  }
+
+  document.addEventListener('click', (e) => {
+    const anchor = e.target.closest('a');
+    if (!anchor) return;
+    const href = anchor.getAttribute('href');
+    if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
+    if (anchor.target && anchor.target !== '_self') return;
+    if (anchor.hasAttribute('download')) return;
+
+    try {
+      const targetUrl = new URL(anchor.href, window.location.href);
+      if (targetUrl.origin === window.location.origin) {
+        e.preventDefault();
+        navigateWithTransition(targetUrl.href);
+      }
+    } catch (err) {}
+  });
+
+  window.navigateWithTransition = navigateWithTransition;
+}
+
+// Initialize Visual Effects
 applyFluidBackground(isFluidBgActive());
+initPageTransitions();
