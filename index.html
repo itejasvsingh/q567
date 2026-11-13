@@ -59,31 +59,11 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="webgl-fluid.js"></script>
-<link rel="stylesheet" href="styles.css?v=69">
+<link rel="stylesheet" href="styles.css?v=70">
 </head>
 <body>
+<div id="app-progress-bar"></div>
 <canvas id="fluid-canvas"></canvas>
-<div id="page-transition-overlay" class="full-cover"></div>
-<script>
-  (function() {
-    function reveal() {
-      var overlay = document.getElementById('page-transition-overlay');
-      if (!overlay) return;
-      setTimeout(function() {
-        overlay.classList.remove('full-cover');
-        overlay.classList.add('slit');
-        setTimeout(function() {
-          overlay.classList.remove('slit');
-        }, 300);
-      }, 50);
-    }
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', reveal);
-    } else {
-      reveal();
-    }
-  })();
-</script>
 <button id="theme-toggle" onclick="toggleTheme()" style="position:fixed; bottom:20px; right:20px; z-index:9999; background:var(--bg2); border:.5px solid var(--bd); border-radius:50%; width:50px; height:50px; font-size:20px; cursor:pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2); display:flex; align-items:center; justify-content:center;-webkit-tap-highlight-color:transparent;">🌗</button>
 <button id="fluid-toggle-btn" onclick="toggleFluidBackground()" title="Background: Default (Tap for Fluid)" style="position:fixed; bottom:78px; right:20px; z-index:9999; background:var(--bg2); border:.5px solid var(--bd); border-radius:50%; width:50px; height:50px; font-size:20px; cursor:pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2); display:flex; align-items:center; justify-content:center;-webkit-tap-highlight-color:transparent; transition: all 0.2s;">🌊</button>
 <div class="page">
@@ -110,12 +90,12 @@
 
 <div id="push-prompt"></div>
 
-<div id="view-plan"></div>
-<div id="view-daily" style="display:none"></div>
-<div id="view-compare" style="display:none"></div>
-<div id="view-menu" style="display:none"></div>
-<div id="view-att" style="display:none"></div>
-<div id="view-master" style="display:none"></div>
+<div id="view-plan" class="view-pane view-pane-active"></div>
+<div id="view-daily" class="view-pane" style="display:none"></div>
+<div id="view-compare" class="view-pane" style="display:none"></div>
+<div id="view-menu" class="view-pane" style="display:none"></div>
+<div id="view-att" class="view-pane" style="display:none"></div>
+<div id="view-master" class="view-pane" style="display:none"></div>
 </div>
 
 <!-- ALERT MODAL FOR Q6 MISTAKE -->
@@ -167,7 +147,7 @@
     document.getElementById('export-modal-container').innerHTML = await fetchView('components/export-modal.html');
     
     const script = document.createElement('script');
-    script.src = 'app.js?v=69';
+    script.src = 'app.js?v=70';
     document.body.appendChild(script);
   }
   initApp();

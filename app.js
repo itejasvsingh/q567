@@ -1425,6 +1425,8 @@ function dismissCompareHint(){
 
 function switchView(v){
   currentView=v;
+  if (typeof triggerProgressBar === 'function') triggerProgressBar();
+
   document.getElementById('vtab-plan')?.classList.toggle('on', v==='plan');
   document.getElementById('vtab-att')?.classList.toggle('on', v==='att');
   document.getElementById('vtab-compare')?.classList.toggle('on', v==='compare');
@@ -1432,12 +1434,21 @@ function switchView(v){
   document.getElementById('vtab-daily')?.classList.toggle('on', v==='daily');
   document.getElementById('vtab-master')?.classList.toggle('on', v==='master');
   
-  if(document.getElementById('view-plan')) document.getElementById('view-plan').style.display = v==='plan' ? '' : 'none';
-  if(document.getElementById('view-att')) document.getElementById('view-att').style.display = v==='att' ? '' : 'none';
-  if(document.getElementById('view-compare')) document.getElementById('view-compare').style.display = v==='compare' ? '' : 'none';
-  if(document.getElementById('view-menu')) document.getElementById('view-menu').style.display = v==='menu' ? '' : 'none';
-  if(document.getElementById('view-daily')) document.getElementById('view-daily').style.display = v==='daily' ? '' : 'none';
-  if(document.getElementById('view-master')) document.getElementById('view-master').style.display = v==='master' ? '' : 'none';
+  const allViews = ['plan', 'att', 'compare', 'menu', 'daily', 'master'];
+  allViews.forEach(name => {
+    const el = document.getElementById('view-' + name);
+    if (!el) return;
+    if (name === v) {
+      el.style.display = '';
+      el.classList.remove('view-pane-active');
+      void el.offsetWidth;
+      el.classList.add('view-pane-active');
+    } else {
+      el.style.display = 'none';
+      el.classList.remove('view-pane-active');
+    }
+  });
+
   if (v !== 'daily' && window._nextClassInterval) {
       clearInterval(window._nextClassInterval);
       window._nextClassInterval = null;
@@ -3883,6 +3894,9 @@ function _renderDailyScheduleInner() {
 
   const area = document.getElementById('daily-render');
   if (!area) return;
+  area.classList.remove('schedule-glide');
+  void area.offsetWidth;
+  area.classList.add('schedule-glide');
   const quarter = (typeof cQ !== 'undefined' && cQ) ? cQ : 'Q6';
   
   // In Q6, Behavioural lab (MS5529) & Business Models (MS6210) are Mandatory Core
@@ -5484,69 +5498,26 @@ function _startFluidSimulation() {
 }
 
 // ==========================================================================
-// Part 2: Clip-Reveal Page Transition
+// Native Top Progress Bar & Smooth Dashboard Navigation
 // ==========================================================================
-function initPageTransitions() {
-  const overlay = document.getElementById('page-transition-overlay');
-  if (!overlay) return;
-
-  // Reveal transition on DOMContentLoaded: Full Cover -> Slit -> Hidden
-  function revealPage() {
-    overlay.classList.add('full-cover');
+function triggerProgressBar() {
+  const bar = document.getElementById('app-progress-bar');
+  if (!bar) return;
+  bar.classList.add('active');
+  bar.style.width = '35%';
+  setTimeout(() => {
+    bar.style.width = '85%';
     setTimeout(() => {
-      overlay.classList.remove('full-cover');
-      overlay.classList.add('slit');
+      bar.style.width = '100%';
       setTimeout(() => {
-        overlay.classList.remove('slit');
-      }, 300);
-    }, 50);
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', revealPage);
-  } else {
-    revealPage();
-  }
-
-  // Animate overlay: Hidden -> Slit -> Full Cover -> window.location.href
-  function navigateWithTransition(url) {
-    if (!overlay) {
-      window.location.href = url;
-      return;
-    }
-    overlay.classList.remove('full-cover');
-    overlay.classList.add('slit');
-    setTimeout(() => {
-      overlay.classList.add('full-cover');
-      setTimeout(() => {
-        window.location.href = url;
-      }, 600);
-    }, 250);
-  }
-
-  // Click event listener to all internal <a> tags to prevent default navigation
-  document.addEventListener('click', (e) => {
-    const anchor = e.target.closest('a');
-    if (!anchor) return;
-
-    const href = anchor.getAttribute('href');
-    if (!href) return;
-    if (href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
-    if (anchor.target && anchor.target !== '_self') return;
-    if (anchor.hasAttribute('download')) return;
-
-    try {
-      const targetUrl = new URL(anchor.href, window.location.href);
-      if (targetUrl.origin === window.location.origin) {
-        e.preventDefault();
-        navigateWithTransition(targetUrl.href);
-      }
-    } catch (err) {}
-  });
-
-  window.navigateWithTransition = navigateWithTransition;
+        bar.classList.remove('active');
+        setTimeout(() => { bar.style.width = '0%'; }, 220);
+      }, 150);
+    }, 120);
+  }, 60);
 }
+
+window.triggerProgressBar = triggerProgressBar;
 
 // Initialize Visual Effects (Default: Clean standard background)
 applyFluidBackground(isFluidBgActive());
-initPageTransitions();

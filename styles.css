@@ -95,35 +95,92 @@ body.fluid-bg-active .drawer-backdrop {
   -webkit-backdrop-filter: blur(14px) saturate(180%);
 }
 
-/* ── Clip-Reveal Page Transition Overlay ── */
-#page-transition-overlay {
+/* ── Top Slim Ambient Progress Bar ── */
+#app-progress-bar {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-color: #1a1a1a;
-  z-index: 9999;
+  width: 0%;
+  height: 2.5px;
+  background: linear-gradient(90deg, #1e7a4b 0%, #30d158 50%, #5fd08a 100%);
+  z-index: 10000;
   pointer-events: none;
-  /* State 1 (Hidden) */
-  clip-path: polygon(0% 50%, 100% 50%, 100% 50%, 0% 50%);
-  -webkit-clip-path: polygon(0% 50%, 100% 50%, 100% 50%, 0% 50%);
-  transition: clip-path 0.6s cubic-bezier(0.77, 0, 0.175, 1);
-  -webkit-transition: -webkit-clip-path 0.6s cubic-bezier(0.77, 0, 0.175, 1);
+  opacity: 0;
+  transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+  box-shadow: 0 0 8px rgba(48, 209, 88, 0.6);
+}
+#app-progress-bar.active {
+  opacity: 1;
 }
 
-/* State 2 (Slit) */
-#page-transition-overlay.slit {
-  pointer-events: auto;
-  clip-path: polygon(0% 45%, 100% 45%, 100% 55%, 0% 55%);
-  -webkit-clip-path: polygon(0% 45%, 100% 45%, 100% 55%, 0% 55%);
+/* ── Modern View & Content Transitions ── */
+@keyframes viewFadeGlide {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* State 3 (Full Cover) */
-#page-transition-overlay.full-cover {
-  pointer-events: auto;
-  clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
-  -webkit-clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
+.view-pane-active {
+  animation: viewFadeGlide 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Smooth Page Entrance ── */
+@keyframes appEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Daily Agenda Date Change Glide ── */
+@keyframes scheduleGlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.schedule-glide {
+  animation: scheduleGlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Tactile Micro-Interactions (Springy Press Feedback) ── */
+.view-tab {
+  transition: transform 0.14s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease, color 0.15s ease;
+}
+.view-tab:active {
+  transform: scale(0.95);
+}
+
+.scard {
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.scard:not(.conf):not(.dis):not(.core):active {
+  transform: scale(0.985);
+}
+
+.chip, .fchip {
+  transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), background 0.12s, color 0.12s;
+}
+.chip:active, .fchip:active {
+  transform: scale(0.96);
+}
+
+.ios-day-card {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
 }
 
 .page{max-width:960px;margin:0 auto;padding:1.25rem 1rem 6rem;overflow-x:hidden}
