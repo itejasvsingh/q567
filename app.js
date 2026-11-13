@@ -4054,8 +4054,10 @@ function _renderDailyScheduleInner() {
   const examYmds = Object.keys(examsByYmd).sort();
   const maxExamPeriod = '2026-11-23';
   const q6PlacementEnd = '2026-12-10';
-  const shaastraSessionStart = '2027-01-02';
-  const agendaCoverageEnd = '2027-01-05';
+  const shaastraStart = '2027-01-02';
+  const shaastraEnd = '2027-01-06';
+  const q7SessionStart = '2027-01-04';
+  const agendaCoverageEnd = '2027-01-10';
   const maxExam = examYmds.length ? examYmds[examYmds.length - 1] : agendaCoverageEnd;
   const targetEndYmd = maxExam > agendaCoverageEnd ? maxExam : agendaCoverageEnd;
   const startYmd = dateKeys.length ? dateKeys[dateKeys.length - 1].slice(0, 10) : todayYmd;
@@ -4323,17 +4325,29 @@ function _renderDailyScheduleInner() {
           <span style="font-size:14px;">📝</span>
           <span style="font-size:12px; font-weight:700; color:var(--tx);">Next Exam: <strong>${escHtml(nextUpcomingExam.name)}</strong> · ${fmtExamFriendlyDate(nextUpcomingExamDate)} (${escHtml(nextUpcomingExam.ex.t)} · ${escHtml(nextUpcomingExam.ex.v)})</span>
       </div>`;
-  } else if (todayYmd >= '2027-01-02') {
+  } else if (todayYmd >= '2027-01-04' && todayYmd <= '2027-01-06') {
+      liveIslandHtml = `
+      <div class="ios-live-island" style="justify-content:center; padding:9px 14px; gap:8px;">
+          <span style="font-size:14px;">🎓</span>
+          <span style="font-size:12px; font-weight:700; color:var(--tx);">Q7 Session Commences! · Shaastra Fest (2–6 Jan) 🚀🎪</span>
+      </div>`;
+  } else if (todayYmd >= '2027-01-02' && todayYmd < '2027-01-04') {
       liveIslandHtml = `
       <div class="ios-live-island" style="justify-content:center; padding:9px 14px; gap:8px;">
           <span style="font-size:14px;">🚀</span>
-          <span style="font-size:12px; font-weight:700; color:var(--tx);">Shaastra Tech Fest · New Session Begins! 🎪</span>
+          <span style="font-size:12px; font-weight:700; color:var(--tx);">Shaastra Tech Fest (2–6 Jan) · Q7 Starts Monday 4 Jan 🎪</span>
+      </div>`;
+  } else if (todayYmd > '2027-01-06') {
+      liveIslandHtml = `
+      <div class="ios-live-island" style="justify-content:center; padding:9px 14px; gap:8px;">
+          <span style="font-size:14px;">🎓</span>
+          <span style="font-size:12px; font-weight:700; color:var(--tx);">Q7 Academic Session in Progress</span>
       </div>`;
   } else if (todayYmd >= '2026-12-11') {
       liveIslandHtml = `
       <div class="ios-live-island" style="justify-content:center; padding:9px 14px; gap:8px;">
           <span style="font-size:14px;">❄️</span>
-          <span style="font-size:12px; font-weight:700; color:var(--tx);">Winter Vacation & Winter Internship · Session starts 2 Jan 🏔️</span>
+          <span style="font-size:12px; font-weight:700; color:var(--tx);">Winter Vacation & Winter Internship · Q7 starts 4 Jan (Shaastra 2–6 Jan) 🏔️</span>
       </div>`;
   } else if (todayYmd >= '2026-11-24') {
       liveIslandHtml = `
@@ -4599,19 +4613,33 @@ function _renderDailyScheduleInner() {
       }
       timelineEventsHtml += `</div>`;
   } else if (!(examsByYmd[ymd] || []).length) {
-      if (ymd >= '2027-01-02') {
+      if (ymd >= '2027-01-04' && ymd <= '2027-01-06') {
           timelineEventsHtml += `
-          <div class="ios-study-day-card" style="border: 0.5px solid rgba(255, 149, 0, 0.4); background: rgba(255, 149, 0, 0.06); text-align:center; padding:24px 16px;">
+          <div class="ios-study-day-card" style="border: 0.5px solid rgba(255, 149, 0, 0.45); background: rgba(255, 149, 0, 0.06); text-align:center; padding:24px 16px;">
+              <div style="font-size:28px; margin-bottom:8px;">🎓🎪</div>
+              <div style="font-weight:800; color:var(--tx); font-size:14.5px;">Q7 Session Commences · Shaastra Fest (2–6 Jan)</div>
+              <div style="font-size:12.5px; color:var(--tx2); margin-top:6px; line-height:1.5;">Welcome to Q7! Academic session officially begins today, Monday 4 Jan, alongside IIT Madras Shaastra Tech Fest events (2–6 Jan). 🌟</div>
+          </div>`;
+      } else if (ymd >= '2027-01-02' && ymd < '2027-01-04') {
+          timelineEventsHtml += `
+          <div class="ios-study-day-card" style="border: 0.5px solid rgba(255, 149, 0, 0.45); background: rgba(255, 149, 0, 0.06); text-align:center; padding:24px 16px;">
               <div style="font-size:28px; margin-bottom:8px;">🚀🎪</div>
-              <div style="font-weight:800; color:var(--tx); font-size:14.5px;">Shaastra Tech Fest · New Session Begins!</div>
-              <div style="font-size:12.5px; color:var(--tx2); margin-top:6px; line-height:1.5;">IIT Madras Shaastra Tech Festival kicks off the new session. Welcome to Q7! 🌟</div>
+              <div style="font-weight:800; color:var(--tx); font-size:14.5px;">Shaastra Tech Fest (2–6 Jan 2027)</div>
+              <div style="font-size:12.5px; color:var(--tx2); margin-top:6px; line-height:1.5;">IIT Madras Shaastra Festival is live! New academic session Q7 officially commences on Monday, 4th January. 🎪✨</div>
+          </div>`;
+      } else if (ymd > '2027-01-06') {
+          timelineEventsHtml += `
+          <div class="ios-study-day-card" style="border: 0.5px solid var(--bd); background: var(--bg2); text-align:center; padding:24px 16px;">
+              <div style="font-size:28px; margin-bottom:8px;">📚</div>
+              <div style="font-weight:800; color:var(--tx); font-size:14.5px;">Q7 Academic Session Active</div>
+              <div style="font-size:12.5px; color:var(--tx2); margin-top:6px; line-height:1.5;">Q7 classes in progress. Select your electives in My Planner to track your weekly schedule! 🎯</div>
           </div>`;
       } else if (ymd >= '2026-12-11') {
           timelineEventsHtml += `
           <div class="ios-study-day-card" style="border: 0.5px solid rgba(90, 200, 250, 0.35); background: rgba(90, 200, 250, 0.06); text-align:center; padding:24px 16px;">
               <div style="font-size:28px; margin-bottom:8px;">❄️</div>
               <div style="font-weight:800; color:var(--tx); font-size:14.5px;">Winter Vacation / Winter Internship</div>
-              <div style="font-size:12.5px; color:var(--tx2); margin-top:6px; line-height:1.5;">Q6 officially concluded on 10 Dec. Term break for winter internships, industry projects & recharge. New session starts 2nd Jan with Shaastra Fest! 🏔️</div>
+              <div style="font-size:12.5px; color:var(--tx2); margin-top:6px; line-height:1.5;">Q6 officially concluded on 10 Dec. Term break for winter internships, industry projects & recharge. Shaastra Fest runs 2–6 Jan, and Q7 classes start on 4th January! 🏔️</div>
           </div>`;
       } else if (ymd >= '2026-11-24') {
           timelineEventsHtml += `

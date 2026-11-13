@@ -53,7 +53,7 @@ const DATA={
     {slot:'WW',code:'MS6600',name:'Global Corporate Governance',instructor:'Arun Kumar G',v:'Finance',room:'252',exam:{d:'19 Nov',t:'10 AM–12 PM',v:'101',m:'Pen & paper'}},
     {slot:'VV',code:'MS6230',name:'Strategic Sourcing',instructor:'Arshinder Kaur',v:'Ops',room:'253',exam:{d:'19 Nov',t:'3:30–6:30 PM',v:'101'}}
   ]},
-  Q7:{label:'Q7 — Jan–Mar 2027',slots:{
+  Q7:{label:'Q7 — 4 Jan–Mar 2027',slots:{
     MP:[{d:'Monday',t:'8am-10am'},{d:'Wednesday',t:'1pm-3pm'}],
     MQ:[{d:'Tuesday',t:'8am-10am'},{d:'Thursday',t:'10am-12pm'}],
     MR:[{d:'Wednesday',t:'8am-10am'},{d:'Friday',t:'1pm-3pm'}],
