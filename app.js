@@ -756,7 +756,7 @@ function renderGrid(){
           <span class="slotb">Slot ${s.slot}</span>
           ${s.room?`<span class="roomb">📍 Room ${s.room}</span>`:''}
           <span class="vb ${VC[s.v]||''}">${s.v}</span>
-          · ${s.instructor}
+          · ${s.instructor}${s.email ? ` <a href="mailto:${escHtml(s.email)}" onclick="event.stopPropagation();" style="color:var(--tx-info); text-decoration:none; margin-left:4px;" title="Email faculty">✉️ ${escHtml(s.email)}</a>` : ''}
         </div>
         ${renderCardExamHtml(s, q)}
         ${(isSel||s.isCore)?`<div style="margin-top:6px">${DATA[q]?.classesOver ? '<span class="course-concluded-badge">🏁 Classes Concluded</span>' : `<button type="button" class="course-done-btn${isCompleted?' on':''}" onclick="event.stopPropagation(); toggleCourseCompleted('${escHtml(s.code)}')">${isCompleted?'🏁 Completed · hidden in Agenda':'✓ Mark course classes done'}</button>`}</div>`:''}
@@ -3757,7 +3757,10 @@ function _renderDailyScheduleInner() {
   const excelAcronyms = {
       'MS5015': 'DT', 'MS6580': 'SDM', 'MS5460': 'CM', 'MS5690': 'CF', 'MS5529': 'B.Lab',
       'MS6230': 'SS', 'MS5613': 'CHS', 'MS5770': 'SM', 'MS6030': 'ADAM', 'MS5750': 'BM',
-      'MS6600': 'GCG', 'MS6022': 'AIM', 'MS6210': 'Bs.Models', 'CORE-LAW': 'LAW'
+      'MS6600': 'GCG', 'MS6022': 'AIM', 'MS6210': 'Bs.Models', 'CORE-LAW': 'LAW',
+      'MS6310': 'CIM', 'MS5550': 'ORA', 'MS5112': 'SO', 'MS5680': 'IF', 'MS6710': 'FRM',
+      'MS5729': 'SMC', 'MS5642': 'AI-CYBER', 'MS6590': 'CRM', 'MS5715': 'BoP',
+      'MS6720': 'ISM', 'MS5725': 'SFCM', 'MS5754': 'NIY', 'MS6930': 'ENT', 'MS6991': 'MRP'
   };
   const normalizeScheduleToken = value => String(value || '').trim().replace(/\*/g, '').replace(/\s+/g, ' ').toLowerCase();
   const knownCourseTokens = new Set(
