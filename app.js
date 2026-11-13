@@ -5395,7 +5395,10 @@ function applyFluidBackground(active) {
     document.documentElement.classList.add('fluid-bg-active');
     const metaTheme = document.getElementById('meta-theme-color');
     if (metaTheme) metaTheme.setAttribute('content', '#000000');
-    if (canvas) canvas.style.display = 'block';
+    if (canvas) {
+      canvas.style.display = 'block';
+      if (typeof canvas.resume === 'function') canvas.resume();
+    }
     if (!_fluidSimInitialized) {
       _startFluidSimulation();
       _fluidSimInitialized = true;
@@ -5404,7 +5407,10 @@ function applyFluidBackground(active) {
     document.body.classList.remove('fluid-bg-active');
     document.documentElement.classList.remove('fluid-bg-active');
     if (typeof applyTheme === 'function') applyTheme();
-    if (canvas) canvas.style.display = 'none';
+    if (canvas) {
+      canvas.style.display = 'none';
+      if (typeof canvas.pause === 'function') canvas.pause();
+    }
   }
   updateFluidUI(active);
 }
@@ -5511,6 +5517,44 @@ function triggerProgressBar() {
 }
 
 window.triggerProgressBar = triggerProgressBar;
+
+// ── Mobile Haptic Feedback ──
+function triggerHaptic(ms = 10) {
+  try {
+    if ('vibrate' in navigator) navigator.vibrate(ms);
+  } catch (e) {}
+}
+window.triggerHaptic = triggerHaptic;
+
+// ── Auto-Pause WebGL Fluid when tab is hidden to save battery ──
+document.addEventListener('visibilitychange', () => {
+  const canvas = document.getElementById('fluid-canvas');
+  if (!canvas) return;
+  if (document.hidden) {
+    if (typeof canvas.pause === 'function') canvas.pause();
+  } else if (isFluidBgActive()) {
+    if (typeof canvas.resume === 'function') canvas.resume();
+  }
+});
+
+// ── Global Power-User Keyboard Shortcuts (1-6 Views, T Theme, F Fluid) ──
+window.addEventListener('keydown', (e) => {
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+  const viewKeys = { '1': 'plan', '2': 'daily', '3': 'master', '4': 'att', '5': 'compare', '6': 'menu' };
+  if (viewKeys[e.key]) {
+    switchView(viewKeys[e.key]);
+    triggerHaptic(10);
+  } else if (e.key === 't' || e.key === 'T') {
+    toggleTheme();
+    triggerHaptic(10);
+  } else if (e.key === 'f' || e.key === 'F') {
+    toggleFluidBackground();
+    triggerHaptic(10);
+  }
+});
 
 // Initialize Visual Effects (Default: Clean standard background)
 applyFluidBackground(isFluidBgActive());

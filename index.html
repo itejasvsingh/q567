@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>IIT Madras MBA — Elective Planner by Tejasv Singh</title>
 
 <!-- PWA: lets this be added to the home screen and open like a real app -->
@@ -59,13 +59,13 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="webgl-fluid.js" defer></script>
-<link rel="stylesheet" href="styles.css?v=72">
+<link rel="stylesheet" href="styles.css?v=73">
 </head>
 <body>
 <div id="app-progress-bar"></div>
 <canvas id="fluid-canvas"></canvas>
-<button id="theme-toggle" onclick="toggleTheme()" style="position:fixed; bottom:20px; right:20px; z-index:9999; background:var(--bg2); border:.5px solid var(--bd); border-radius:50%; width:50px; height:50px; font-size:20px; cursor:pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2); display:flex; align-items:center; justify-content:center;-webkit-tap-highlight-color:transparent;">🌗</button>
-<button id="fluid-toggle-btn" onclick="toggleFluidBackground()" title="Background: Default (Tap for Fluid)" style="position:fixed; bottom:78px; right:20px; z-index:9999; background:var(--bg2); border:.5px solid var(--bd); border-radius:50%; width:50px; height:50px; font-size:20px; cursor:pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2); display:flex; align-items:center; justify-content:center;-webkit-tap-highlight-color:transparent; transition: all 0.2s;">🌊</button>
+<button id="theme-toggle" onclick="toggleTheme()" style="position:fixed; bottom:calc(20px + env(safe-area-inset-bottom)); right:20px; z-index:9999; background:var(--bg2); border:.5px solid var(--bd); border-radius:50%; width:50px; height:50px; font-size:20px; cursor:pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2); display:flex; align-items:center; justify-content:center;-webkit-tap-highlight-color:transparent;">🌗</button>
+<button id="fluid-toggle-btn" onclick="toggleFluidBackground()" title="Background: Default (Tap for Fluid)" style="position:fixed; bottom:calc(78px + env(safe-area-inset-bottom)); right:20px; z-index:9999; background:var(--bg2); border:.5px solid var(--bd); border-radius:50%; width:50px; height:50px; font-size:20px; cursor:pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2); display:flex; align-items:center; justify-content:center;-webkit-tap-highlight-color:transparent; transition: all 0.2s;">🌊</button>
 <div class="page">
 
 <div class="hdr" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
@@ -147,7 +147,7 @@
     document.getElementById('export-modal-container').innerHTML = await fetchView('components/export-modal.html');
     
     const script = document.createElement('script');
-    script.src = 'app.js?v=72';
+    script.src = 'app.js?v=73';
     document.body.appendChild(script);
   }
   initApp();
