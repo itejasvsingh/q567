@@ -5378,6 +5378,9 @@ function applyFluidBackground(active) {
   const canvas = document.getElementById('fluid-canvas');
   if (active) {
     document.body.classList.add('fluid-bg-active');
+    document.documentElement.classList.add('fluid-bg-active');
+    const metaTheme = document.getElementById('meta-theme-color');
+    if (metaTheme) metaTheme.setAttribute('content', '#000000');
     if (canvas) canvas.style.display = 'block';
     if (!_fluidSimInitialized) {
       _startFluidSimulation();
@@ -5385,6 +5388,8 @@ function applyFluidBackground(active) {
     }
   } else {
     document.body.classList.remove('fluid-bg-active');
+    document.documentElement.classList.remove('fluid-bg-active');
+    if (typeof applyTheme === 'function') applyTheme();
     if (canvas) canvas.style.display = 'none';
   }
   updateFluidUI(active);
@@ -5431,12 +5436,12 @@ function _startFluidSimulation() {
       COLORFUL: true,
       COLOR_UPDATE_SPEED: 10,
       PAUSED: false,
-      BACK_COLOR: { r: 11, g: 15, b: 20 },
-      TRANSPARENT: true,
+      BACK_COLOR: { r: 0, g: 0, b: 0 },
+      TRANSPARENT: false,
       BLOOM: true,
       BLOOM_ITERATIONS: 8,
       BLOOM_RESOLUTION: 256,
-      BLOOM_INTENSITY: 0.7,
+      BLOOM_INTENSITY: 0.8,
       BLOOM_THRESHOLD: 0.6,
       BLOOM_SOFT_KNEE: 0.7,
       SUNRAYS: true,

@@ -29,22 +29,44 @@ body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px
   z-index: -1;
   pointer-events: none;
   display: none;
+  background-color: #000000;
 }
 
-/* ── Secondary Option: WebGL Fluid Active ── */
+/* ── Secondary Option: WebGL Fluid Active (Pitch Black Canvas with Dark Glass UI) ── */
+html.fluid-bg-active {
+  background-color: #000000 !important;
+}
 body.fluid-bg-active {
   background: transparent !important;
-  --bg: rgba(255,255,255,0.82);
-  --bg2: rgba(243,247,242,0.85);
-  --bg3: rgba(227,236,229,0.88);
-}
-html[data-theme="dark"] body.fluid-bg-active {
-  --bg: rgba(18,20,26,0.82);
-  --bg2: rgba(28,30,38,0.84);
-  --bg3: rgba(44,46,56,0.88);
+  color: #ffffff !important;
+  --bg: rgba(18, 20, 26, 0.78);
+  --bg2: rgba(28, 30, 38, 0.82);
+  --bg3: rgba(44, 46, 56, 0.86);
+  --tx: #ffffff;
+  --tx2: #a1a1a6;
+  --tx3: #6e6e73;
+  --bd: rgba(255, 255, 255, 0.14);
+  --bd2: rgba(255, 255, 255, 0.24);
+  --bd-info: rgba(95, 208, 138, 0.35);
+  --bg-info: rgba(95, 208, 138, 0.18);
+  --tx-info: #5fd08a;
+  --bd-warn: rgba(255, 159, 10, 0.35);
+  --bg-warn: rgba(255, 159, 10, 0.16);
+  --tx-warn: #ff9f0a;
+  --bd-danger: rgba(255, 69, 58, 0.35);
+  --bg-danger: rgba(255, 69, 58, 0.16);
+  --tx-danger: #ff453a;
 }
 body.fluid-bg-active #fluid-canvas {
   display: block;
+}
+
+body.fluid-bg-active .search-input,
+body.fluid-bg-active input[type="text"],
+body.fluid-bg-active input[type="search"] {
+  background: rgba(28, 30, 38, 0.88);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 /* Dashboard Glassmorphism active only when Fluid BG is switched on */
