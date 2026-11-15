@@ -84,3 +84,53 @@ const DATA={
     {slot:'MS',code:'MS6991',name:'Management Research Project',instructor:'Saji Mathew',v:'Integrative',email:''}
   ]}
 };
+
+const MAIN_NOTION_REPO_URL = 'https://domsiitm.notion.site/Course-Outlines-Repository-DoMS-IITM-849b1cbf0de44327b8a0f0e4584a1e6c';
+
+const COURSE_OUTLINES = {
+  // Q7 Courses
+  'MS5680': { url: 'https://domsiitm.notion.site/0e9f47a95b954f979dd4adccd8653c3e', title: 'International Finance Outline (PDF)', hasDoc: true },
+  'MS6710': { url: 'https://domsiitm.notion.site/db95737def3449e897e09b169b5e5255', title: 'Financial Risk Management Outline (XLSX)', hasDoc: true },
+  'MS5729': { url: 'https://domsiitm.notion.site/78c34d9304644ca2b51213fb3cef3a9d', title: 'Social Media Computing Outline (PDF)', hasDoc: true },
+  'MS6590': { url: 'https://domsiitm.notion.site/335c81588bd54eec85ceaef20584038b', title: 'Customer Relationship Marketing Outline (PDF)', hasDoc: true },
+  'MS6930': { url: 'https://domsiitm.notion.site/804fd0698b1e45cca99ab9b62831e6e8', title: 'Introduction to Entrepreneurship Outline', hasDoc: true },
+  'MS5550': { url: 'https://domsiitm.notion.site/8d11551a276041788c34b0d2e0e1fec5', title: 'Operations Research Applications on Notion', hasDoc: false },
+  'MS5715': { url: 'https://domsiitm.notion.site/56042aa5f54e40e7b6484442da533a7a', title: 'Marketing at the Bottom of the Pyramid on Notion', hasDoc: false },
+  'MS6720': { url: 'https://domsiitm.notion.site/f8fabe6a335c4199a00dd4c5b910ce16', title: 'Industrial and Services Marketing on Notion', hasDoc: false },
+
+  // Q6 Courses
+  'MS5015': { url: 'https://domsiitm.notion.site/ac7c5b5123694f3ebe49e193dd990827', title: 'Design Thinking Course Content (DOCX)', hasDoc: true },
+  'MS5690': { url: 'https://domsiitm.notion.site/f8b137ba7a204683a5ef05e5ffe361f3', title: 'Computational Finance Outline (PDF)', hasDoc: true },
+  'MS6230': { url: 'https://domsiitm.notion.site/474995b57312498f84ab469ad42af935', title: 'Strategic Sourcing Course Outline (DOC)', hasDoc: true },
+  'MS5070': { url: 'https://domsiitm.notion.site/53e32446c70c4614a37132f4d6804bb2', title: 'Software Product Management Outline (PDF)', hasDoc: true },
+  'MS5235': { url: 'https://domsiitm.notion.site/9750d3d538a24631bed78945bc99f641', title: 'Operations Forensics Course Outline (PDF)', hasDoc: true },
+  'MS6032': { url: 'https://domsiitm.notion.site/2c474752077c48ba8652bc2828311161', title: 'Predictive and Prescriptive Analytics (PDF)', hasDoc: true },
+  'MS5460': { url: 'https://domsiitm.notion.site/9493200016a94ecd8001056977b07fb1', title: 'Compensation Management on Notion', hasDoc: false },
+  'MS5613': { url: 'https://domsiitm.notion.site/719ea04a0a454fb09ece0642907e0d42', title: 'Corporate Hedging Strategies on Notion', hasDoc: false },
+  'MS5750': { url: 'https://domsiitm.notion.site/28199c42e74b440aa9941f6b2f7172b7', title: 'Brand Management on Notion', hasDoc: false },
+  'MS5770': { url: 'https://domsiitm.notion.site/cc6412cdf0b64c008c315019d69682ca', title: 'Strategic Marketing on Notion', hasDoc: false },
+  'MS6600': { url: 'https://domsiitm.notion.site/fd0050d274a64efdab2ad013e3573bfe', title: 'Global Corporate Governance on Notion', hasDoc: false },
+
+  // Q5 Courses
+  'MS5011': { url: 'https://domsiitm.notion.site/0f5b918a6cf74e1eaf05ab817245ad82', title: 'Strategic HRM Overview (PDF)', hasDoc: true },
+  'MS5012': { url: 'https://domsiitm.notion.site/f63b46110f514d86b1e48fc2080e60c0', title: 'Data Driven Decision Making for HR (DOCX)', hasDoc: true },
+  'MS5410': { url: 'https://domsiitm.notion.site/3a13f562cbe646bca45879d723e659d5', title: 'Talent Acquisition & Management Outline (PDF)', hasDoc: true },
+  'MS5420': { url: 'https://domsiitm.notion.site/a03276afbdc541ce85266b41fae76609', title: 'Training and Development on Notion', hasDoc: false },
+  'MS5510': { url: 'https://domsiitm.notion.site/5e2e507a7b4944e7bc6d69bda47a575e', title: 'Logistics and Distribution Management on Notion', hasDoc: false },
+  'MS5530': { url: 'https://domsiitm.notion.site/286be8c60e78457fbd1bd3db09efb847', title: 'Managing Career on Notion', hasDoc: false },
+  'MS5560': { url: 'https://domsiitm.notion.site/9750d3d538a24631bed78945bc99f641', title: 'Services & Operations Management Outline (DOC)', hasDoc: true },
+  'MS5570': { url: 'https://domsiitm.notion.site/faead054c47642ff82d5b3ffedcf42cc', title: 'Heuristics in Decision Making on Notion', hasDoc: false },
+  'MS5610': { url: 'https://domsiitm.notion.site/1217b53410524a4c883b0520dbb1ae5a', title: 'Security Analysis & Portfolio Mgmt (PDF)', hasDoc: true },
+  'MS5612': { url: 'https://domsiitm.notion.site/1449c8d773324ea0afc014864914245c', title: 'Real Options Valuation Handout (PDF)', hasDoc: true },
+  'MS5640': { url: 'https://domsiitm.notion.site/04f83cd501be4d8aba38d7a016e02a51', title: 'Mergers and Acquisitions Outline (PDF)', hasDoc: true },
+  'MS5670': { url: 'https://domsiitm.notion.site/768f6b12f191414894f6536a5135d1b5', title: 'Financial Institutions and Markets on Notion', hasDoc: false },
+  'MS5710': { url: 'https://domsiitm.notion.site/11d9d95572d4490eabaecb354e395c00', title: 'Consumer Behavior Outline (PDF)', hasDoc: true },
+  'MS5720': { url: 'https://domsiitm.notion.site/6cd8485af57c48f4b17cc67775271227', title: 'Advertising & Publicity Outline (PDF)', hasDoc: true },
+  'MS5760': { url: 'https://domsiitm.notion.site/f01290ccd20b4f90af43f36164181cba', title: 'Marketing on the Internet (DOCX)', hasDoc: true },
+  'MS5921': { url: 'https://domsiitm.notion.site/c52a04bfa82a4aef8407f35a302d857f', title: 'Technology Foresight and Innovation on Notion', hasDoc: false },
+  'MS6170': { url: 'https://domsiitm.notion.site/f448906bc2d041deb7532b1716563a1f', title: 'Project Management on Notion', hasDoc: false },
+  'MS6840': { url: 'https://domsiitm.notion.site/2c474752077c48ba8652bc2828311161', title: 'Business Intelligence & Analytics (PDF)', hasDoc: true },
+  'MS6880': { url: 'https://domsiitm.notion.site/713c8b7cdfce4889ad98af66593c6604', title: 'Cyber Security and Privacy Outline (PDF)', hasDoc: true },
+  'MS6910': { url: 'https://domsiitm.notion.site/d7433e940cb245889ad4e81494713ac9', title: 'Global Business Management (PDF)', hasDoc: true },
+  'MS7210': { url: 'https://domsiitm.notion.site/21384a1abd48417989c6159dd8115c03', title: 'Topics in Decision Theory on Notion', hasDoc: false }
+};

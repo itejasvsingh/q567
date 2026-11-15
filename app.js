@@ -858,6 +858,7 @@ function renderGrid(){
     const isDis=!isSel&&electiveCnt>=4;
     const isHL=hl.has(s.code)&&!isSel&&!isConf&&!isDis;
     const isCompleted=(isSel||s.isCore)&&isCourseCompleted(s,q);
+    const outline=(typeof COURSE_OUTLINES !== 'undefined' && COURSE_OUTLINES[s.code]);
     let cls='scard';
     if(isSel)cls+=' sel';
     if(s.isCore)cls+=' core';
@@ -875,6 +876,7 @@ function renderGrid(){
           ${s.room?`<span class="roomb">📍 Room ${s.room}</span>`:''}
           <span class="vb ${VC[s.v]||''}">${s.v}</span>
           · ${s.instructor}
+          ${outline ? ` · <a href="${outline.url}" target="_blank" rel="noopener noreferrer" class="outline-pill" onclick="event.stopPropagation()" title="${escHtml(outline.title || 'Course Outline')}">📄 Outline ↗</a>` : ''}
         </div>
         ${renderCardExamHtml(s, q)}
         ${(isSel||s.isCore)?`<div style="margin-top:6px">${DATA[q]?.classesOver ? '<span class="course-concluded-badge">🏁 Classes Concluded</span>' : (getActiveRollNo() === ADMIN_ROLL ? `<button type="button" class="course-done-btn${isCompleted?' on':''}" onclick="event.stopPropagation(); toggleCourseCompleted('${escHtml(s.code)}')">${isCompleted?'🏁 Completed · hidden in Agenda':'✓ Mark course classes done'}</button>` : (isCompleted ? '<span class="course-concluded-badge">🏁 Completed</span>' : ''))}</div>`:''}
