@@ -83,6 +83,10 @@ function syncTimetableToFirebase() {
     try {
       var merges = dailyRange.getMergedRanges();
       for(var m=0; m<merges.length; m++) {
+        if (Date.now() - startTime > 20000) {
+          Logger.log("⚠️ Merged ranges parsing reached 20s guard. Breaking early to avoid RPC hang.");
+          break;
+        }
         var range = merges[m];
         var sRow = range.getRow() - 1;
         var sCol = range.getColumn() - 1;
@@ -121,6 +125,9 @@ function syncTimetableToFirebase() {
       return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
     }
     
+    var lastRawDate = null;
+    var lastDayStr = '';
+
     for(var r=1; r<dailyValues.length; r++){
       // Safety timeout guard: terminate cleanly before trigger limit
       if (Date.now() - startTime > MAX_RUNTIME_MS) {
@@ -132,20 +139,28 @@ function syncTimetableToFirebase() {
       var rawDate = row[0];
       var dayStr = String(row[1]).trim();
       
-      // Backfill Date if in merged range
+      // Backfill Date if in merged range or continuation row
       if (!rawDate || String(rawDate).trim() === '') {
         var mergedValDate = getMergeValue(r, 0);
         if (mergedValDate !== null) {
           rawDate = mergedValDate;
+        } else if (lastRawDate) {
+          rawDate = lastRawDate;
         }
+      } else {
+        lastRawDate = rawDate;
       }
 
-      // Backfill Day if in merged range
+      // Backfill Day if in merged range or continuation row
       if (!dayStr) {
         var mergedValDay = getMergeValue(r, 1);
         if (mergedValDay !== null) {
           dayStr = String(mergedValDay).trim();
+        } else if (lastDayStr) {
+          dayStr = lastDayStr;
         }
+      } else {
+        lastDayStr = dayStr;
       }
 
       if(!rawDate) {

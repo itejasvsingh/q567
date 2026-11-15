@@ -876,9 +876,9 @@ function renderGrid(){
           ${s.room?`<span class="roomb">📍 Room ${s.room}</span>`:''}
           <span class="vb ${VC[s.v]||''}">${s.v}</span>
           · ${s.instructor}
-          ${outline ? ` · <a href="${outline.url}" target="_blank" rel="noopener noreferrer" class="outline-pill" onclick="event.stopPropagation()" title="${escHtml(outline.title || 'Course Outline')}">📄 Outline ↗</a>` : ''}
         </div>
         ${renderCardExamHtml(s, q)}
+        ${outline ? `<div class="scard-outline-row"><a href="${outline.file}" target="_blank" rel="noopener noreferrer" class="scard-outline-btn" onclick="event.stopPropagation()" title="Directly open ${escHtml(outline.title || 'Course Outline')}"><span class="outline-icon">📄</span><span>Course Outline</span><span class="outline-format">${(outline.ext || 'PDF').toUpperCase()}</span><span class="outline-arrow">↗</span></a></div>` : ''}
         ${(isSel||s.isCore)?`<div style="margin-top:6px">${DATA[q]?.classesOver ? '<span class="course-concluded-badge">🏁 Classes Concluded</span>' : (getActiveRollNo() === ADMIN_ROLL ? `<button type="button" class="course-done-btn${isCompleted?' on':''}" onclick="event.stopPropagation(); toggleCourseCompleted('${escHtml(s.code)}')">${isCompleted?'🏁 Completed · hidden in Agenda':'✓ Mark course classes done'}</button>` : (isCompleted ? '<span class="course-concluded-badge">🏁 Completed</span>' : ''))}</div>`:''}
       </div>
     </div>`;

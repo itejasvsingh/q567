@@ -261,10 +261,14 @@ body.fluid-bg-active .drawer-backdrop {
 .sel-ctr strong{color:var(--tx)}
 .repo-link-btn{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--tx-info);background:var(--bg-info);border:.5px solid var(--bd-info);border-radius:20px;padding:3px 10px;text-decoration:none;-webkit-tap-highlight-color:transparent;transition:opacity .15s ease, transform .15s ease}
 .repo-link-btn:hover{opacity:.85;transform:translateY(-1px)}
-.outline-pill{display:inline-flex;align-items:center;gap:2px;font-size:10px;font-weight:600;color:var(--tx-info);background:var(--bg-info);border:.5px solid var(--bd-info);border-radius:12px;padding:1px 6px;text-decoration:none;-webkit-tap-highlight-color:transparent;vertical-align:middle;margin-left:4px;transition:opacity .15s ease, background .15s ease}
-.outline-pill:hover{opacity:.85;background:var(--bg3)}
+.scard-outline-row{margin-top:7px;display:flex}
+.scard-outline-btn{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--tx-info);background:var(--bg-info);border:.5px solid var(--bd-info);border-radius:6px;padding:3px 8px;text-decoration:none;-webkit-tap-highlight-color:transparent;transition:all .15s ease}
+.scard-outline-btn:hover{background:var(--bg3);border-color:var(--tx-info);transform:translateY(-1px)}
+.scard-outline-btn .outline-format{font-size:9px;font-weight:700;color:#fff;background:var(--tx-info);padding:1px 4px;border-radius:3px;letter-spacing:.3px}
+.scard-outline-btn .outline-arrow{font-size:11px;opacity:.8}
 body.fluid-bg-active .repo-link-btn,
-body.fluid-bg-active .outline-pill{background:rgba(43,108,176,0.25);border-color:rgba(99,179,237,0.4);color:#90cdf4}
+body.fluid-bg-active .scard-outline-btn{background:rgba(43,108,176,0.25);border-color:rgba(99,179,237,0.4);color:#90cdf4}
+body.fluid-bg-active .scard-outline-btn .outline-format{background:#2b6cb0;color:#fff}
 .wmsg{font-size:12px;color:var(--tx-danger);padding:7px 11px;background:var(--bg-danger);border-radius:var(--r);border:.5px solid var(--bd-danger);margin-bottom:9px;display:none}
 
 /* ── SEARCH ── */
