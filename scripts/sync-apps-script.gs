@@ -53,10 +53,20 @@ function syncTimetableToFirebase() {
       Logger.log("Could not fetch existing Firebase data (" + e.message + "). Proceeding with full overwrite.");
     }
     
-    // --- 4. PARSE DAILY AGENDA (Sheet 'Q6 Full') ---
-    var dailySheet = ss.getSheetByName('Q6 Full');
+    // --- 4. PARSE DAILY AGENDA (Dynamic Quarter Discovery: Q7 Full, Q6 Full, or regex fallback) ---
+    var dailySheet = ss.getSheetByName('Q7 Full') || ss.getSheetByName('Q6 Full');
     if (!dailySheet) {
-      Logger.log("Warning: 'Q6 Full' sheet not found in spreadsheet.");
+      var allSheets = ss.getSheets();
+      for (var s = 0; s < allSheets.length; s++) {
+        var sName = allSheets[s].getName();
+        if (/full/i.test(sName) || /daily/i.test(sName)) {
+          dailySheet = allSheets[s];
+          break;
+        }
+      }
+    }
+    if (!dailySheet) {
+      Logger.log("Warning: No Daily/Full schedule sheet ('Q7 Full' or 'Q6 Full') found in spreadsheet.");
       return;
     }
 
@@ -270,8 +280,18 @@ function syncTimetableToFirebase() {
         }
     }
     
-    // --- 5. PARSE WEEKLY SCHEDULE (Sheet 'Q6 Weekly') ---
-    var weeklySheet = ss.getSheetByName('Q6 Weekly');
+    // --- 5. PARSE WEEKLY SCHEDULE (Dynamic Quarter Discovery: Q7 Weekly, Q6 Weekly, or regex fallback) ---
+    var weeklySheet = ss.getSheetByName('Q7 Weekly') || ss.getSheetByName('Q6 Weekly');
+    if (!weeklySheet) {
+      var allSheetsWeekly = ss.getSheets();
+      for (var sw = 0; sw < allSheetsWeekly.length; sw++) {
+        var swName = allSheetsWeekly[sw].getName();
+        if (/weekly/i.test(swName)) {
+          weeklySheet = allSheetsWeekly[sw];
+          break;
+        }
+      }
+    }
     var weeklyData = {};
     if (weeklySheet) {
       var weeklyRange = weeklySheet.getDataRange();
@@ -340,7 +360,7 @@ function syncTimetableToFirebase() {
     }
 
     // --- 6. PUSH TO FIREBASE WITH RETRY ---
-    var payload = { daily: dailyData, weekly: weeklyData };
+    var payload = { daily: dailyData, weekly: weeklyData, lastSynced: new Date().toISOString() };
     if (existingFirebaseData.exams) payload.exams = existingFirebaseData.exams;
     var options = {
       method: 'put',
@@ -358,6 +378,25 @@ function syncTimetableToFirebase() {
         if (pCode >= 200 && pCode < 300) {
           Logger.log("✅ Successfully synced 1:1 sheet replica to Firebase!");
           pushSuccess = true;
+          // Record sync telemetry to /sync_health
+          try {
+            var healthUrl = firebaseUrl.replace('/schedule.json', '/sync_health.json');
+            UrlFetchApp.fetch(healthUrl, {
+              method: 'put',
+              contentType: 'application/json',
+              headers: firebaseAuthHeaders(),
+              payload: JSON.stringify({
+                status: 'healthy',
+                lastSuccess: new Date().toISOString(),
+                durationMs: Date.now() - startTime,
+                dailyDays: Object.keys(dailyData).length,
+                weeklyDays: Object.keys(weeklyData).length,
+                dailySheetUsed: dailySheet.getName(),
+                weeklySheetUsed: weeklySheet ? weeklySheet.getName() : null
+              }),
+              muteHttpExceptions: true
+            });
+          } catch(he) {}
           break;
         } else {
           Logger.log("Firebase PUT attempt " + pAttempt + " returned status " + pCode + ": " + putRes.getContentText().slice(0, 200));
@@ -369,6 +408,20 @@ function syncTimetableToFirebase() {
     }
   } catch(fatalError) {
     Logger.log("❌ Fatal error in syncTimetableToFirebase: " + fatalError.message + "\nStack: " + fatalError.stack);
+    try {
+      var healthUrlErr = firebaseUrl.replace('/schedule.json', '/sync_health.json');
+      UrlFetchApp.fetch(healthUrlErr, {
+        method: 'patch',
+        contentType: 'application/json',
+        headers: firebaseAuthHeaders(),
+        payload: JSON.stringify({
+          status: 'error',
+          lastError: fatalError.message,
+          lastFailedAt: new Date().toISOString()
+        }),
+        muteHttpExceptions: true
+      });
+    } catch(he) {}
   } finally {
     try {
       lock.releaseLock();

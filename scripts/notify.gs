@@ -557,9 +557,17 @@ function describeChange_(c) {
 }
 
 function dbGet_(path, query) {
-  var url = NOTIFY_DB + path + '.json' + (query ? '?' + query.replace(/"/g, '%22').replace(/\$/g, '%24') : '');
-  var r = UrlFetchApp.fetch(url, { headers: authHeader_(), muteHttpExceptions: true });
-  return JSON.parse(r.getContentText());
+  try {
+    var url = NOTIFY_DB + path + '.json' + (query ? '?' + query.replace(/"/g, '%22').replace(/\$/g, '%24') : '');
+    var r = UrlFetchApp.fetch(url, { headers: authHeader_(), muteHttpExceptions: true });
+    if (r.getResponseCode() === 200) {
+      var text = r.getContentText();
+      return text ? JSON.parse(text) : null;
+    }
+  } catch(e) {
+    Logger.log('dbGet_ error on ' + path + ': ' + e.message);
+  }
+  return null;
 }
 
 function authHeader_() { return { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }; }
