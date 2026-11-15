@@ -6,7 +6,7 @@ const CDOMS=['Finance','HR','Marketing','IS','Ops','Strategy']; // core (non-int
 const DCOL={Finance:'#2b6cb0',HR:'#0e7c86',Marketing:'#c2761b',IS:'#6b52ae',Ops:'#b4492e',Strategy:'#a23b66',Integrative:'#6b7a70'};
 const VC={Finance:'vF',HR:'vH',Marketing:'vM',IS:'vI',Ops:'vO',Strategy:'vS',Integrative:'vX'};
 
-let cQ='Q6';
+let cQ='Q7';
 let sel={Q5:{},Q6:{},Q7:{}};
 let goals={minor:false,major:false,dual:false};
 let goalMinorDom='';
@@ -636,7 +636,9 @@ function _setupInstallPopupUI() {
 
 function switchQ(q){
   cQ=q;
-  document.querySelectorAll('.qtab').forEach((t,i)=>t.classList.toggle('on',['Q6','Q5','Q7'][i]===q));
+  document.querySelectorAll('.qtab').forEach(t => {
+    t.classList.toggle('on', t.id === 'tab-' + q);
+  });
 
   render();
 }
@@ -3733,7 +3735,7 @@ function closeClassUpdateSheet() {
 window.closeClassUpdateSheet = closeClassUpdateSheet;
 
 window.openClassUpdateSheet = function(ymd, slot, code) {
-  const quarter = (typeof cQ !== 'undefined' && cQ) ? cQ : 'Q6';
+  const quarter = (ymd && ymd >= '2027-01-01') ? 'Q7' : 'Q6';
   const subject = (DATA[quarter].subjects || []).find(s => s.code === code);
   if (!subject) return;
   const existing = ((window._scheduleChanges || {})[ymd] || {})[`${slot}_${code}`] || null;
@@ -3904,7 +3906,8 @@ function _renderDailyScheduleInner() {
   area.classList.remove('schedule-glide');
   void area.offsetWidth;
   area.classList.add('schedule-glide');
-  const quarter = (typeof cQ !== 'undefined' && cQ) ? cQ : 'Q6';
+  const selectedYmd = (window._selectedAgendaDate || '').slice(0, 10);
+  const quarter = (selectedYmd && selectedYmd >= '2027-01-01') ? 'Q7' : 'Q6';
   
   // In Q6, Behavioural lab (MS5529) & Business Models (MS6210) are Mandatory Core
   const coreCourses = (DATA[quarter] && DATA[quarter].subjects) 
@@ -4093,11 +4096,17 @@ function _renderDailyScheduleInner() {
   }
   // Exams for my courses (live schedule/exams or data.js), keyed by date
   const examsByYmd = {};
-  activeSubjects.forEach(s => {
-      getSubjectExams(s, quarter).forEach(ex => {
-          if (!ex.ymd) return;
-          (examsByYmd[ex.ymd] = examsByYmd[ex.ymd] || []).push({ code: s.code, name: s.name, ex });
+  ['Q6', 'Q7'].forEach(q => {
+    const qCourses = [
+      ...((DATA[q] && DATA[q].subjects) ? DATA[q].subjects.filter(s => s.isCore) : []),
+      ...Object.values(sel[q] || {})
+    ];
+    qCourses.forEach(s => {
+      getSubjectExams(s, q).forEach(ex => {
+        if (!ex.ymd) return;
+        (examsByYmd[ex.ymd] = examsByYmd[ex.ymd] || []).push({ code: s.code, name: s.name, ex });
       });
+    });
   });
   Object.values(examsByYmd).forEach(list => {
       list.sort((a, b) => examStartMins(a.ex.t) - examStartMins(b.ex.t));
