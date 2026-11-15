@@ -243,9 +243,8 @@ body.fluid-bg-active .drawer-backdrop {
 .dc-st{font-size:10px;font-weight:600}
 .st0{color:var(--tx3)}.st-min{color:var(--tx-info)}.st-maj{color:var(--tx-success)}
 
-/* ── QUARTER TABS + FILTER ── */
-.ctrl{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:1rem}
-@media(max-width:480px){.ctrl{flex-direction:column;align-items:stretch}.fbar{width:100%}}
+/* ── QUARTER TABS ── */
+.ctrl{display:flex;justify-content:flex-start;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:1rem}
 .qtabs{display:flex;gap:6px;flex-wrap:wrap}
 .qtab{padding:8px 16px;border-radius:var(--r);border:.5px solid var(--bd2);background:transparent;color:var(--tx2);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent;position:relative;min-height:40px;display:flex;align-items:center}
 .qtab.on{background:var(--bg-info);color:var(--tx-info);border-color:var(--bd-info)}

@@ -897,8 +897,11 @@ function render(){
   const wm=document.getElementById('wmsg');
   wm.style.display=electiveCnt>=4?'block':'none';
 
-  const verts=[...new Set(subs.map(s=>s.v))].sort();
-  document.getElementById('fchips').innerHTML=['All',...verts].map(v=>`<button class="fchip${fDom===v?' on':''}" onclick="setFilter('${v}')">${v}</button>`).join('');
+  const fchipsEl = document.getElementById('fchips');
+  if (fchipsEl) {
+    const verts=[...new Set(subs.map(s=>s.v))].sort();
+    fchipsEl.innerHTML=['All',...verts].map(v=>`<button class="fchip${fDom===v?' on':''}" onclick="setFilter('${v}')">${v}</button>`).join('');
+  }
 
   renderGrid();
 
@@ -1242,10 +1245,13 @@ function exportICS(q){
 }
 
 function renderSupply(){
+  const supplyGrid = document.getElementById('supply-grid');
+  if (!supplyGrid) return;
   const q=cQ;
   const subs=DATA[q].subjects.filter(s=>!s.isCore);
   const total=subs.length;
-  document.getElementById('supply-qlabel').textContent=q+' — '+total+' electives';
+  const qlabel = document.getElementById('supply-qlabel');
+  if (qlabel) qlabel.textContent=q+' — '+total+' electives';
 
   const avail={};
   DOMS.forEach(d=>avail[d]=0);
@@ -1279,9 +1285,10 @@ function renderSupply(){
     </div>`;
   }).filter(Boolean);
 
-  document.getElementById('supply-grid').innerHTML=cards.join('');
+  supplyGrid.innerHTML=cards.join('');
 
   const noteEl=document.getElementById('supply-note');
+  if (!noteEl) return;
   const allGood = total>=13;
   if(warnings.length){
     const prefix = q==='Q7'
