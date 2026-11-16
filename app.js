@@ -1425,6 +1425,7 @@ function loadFromURL(){
 let myName='';
 let myGroupCode='';
 let roster={}; 
+let cmpDismissedKeys = new Set(JSON.parse(sessionStorage.getItem('cmp_dismissed_keys') || '[]'));
 let compareQ='Q7';
 let compareFilter='all'; 
 let currentView='plan';
@@ -1586,7 +1587,14 @@ function cmpConnect(){
   if (codeInput && !codeInput.value) codeInput.value = code;
 
   myName = name;
-  if (name) localStorage.setItem('mbaplanner_myname', name);
+  if (name) {
+    localStorage.setItem('mbaplanner_myname', name);
+    const selfKey = sanitizeKey(name);
+    if (cmpDismissedKeys.has(selfKey)) {
+      cmpDismissedKeys.delete(selfKey);
+      try { sessionStorage.setItem('cmp_dismissed_keys', JSON.stringify([...cmpDismissedKeys])); } catch(e){}
+    }
+  }
   joinGroup(code);
 
   if(!name){
@@ -1604,6 +1612,10 @@ function cmpConnect(){
 
 function joinGroup(code){
   if(!fbDb) return;
+  if (myGroupCode && myGroupCode !== code) {
+    cmpDismissedKeys.clear();
+    try { sessionStorage.removeItem('cmp_dismissed_keys'); } catch(e){}
+  }
   myGroupCode=code;
   compareFilter='all';
   localStorage.setItem('mbaplanner_groupcode', code);
@@ -1685,16 +1697,74 @@ function flashError(el){
   setTimeout(()=>{ el.style.borderColor=orig; },1100);
 }
 
+function isKeyDismissed(k) {
+  if (!k) return false;
+  return cmpDismissedKeys.has(k) || cmpDismissedKeys.has(k.toLowerCase());
+}
+
 function removeFromRoster(key){
-  if(!groupRef) return;
-  groupRef.child(key).remove();
-  if(key===sanitizeKey(myName)){
+  if(!key) return;
+
+  // 1. Mark as dismissed so cmpParticipants won't re-inject from cloud preferences
+  cmpDismissedKeys.add(key);
+  cmpDismissedKeys.add(key.toLowerCase());
+  try {
+    sessionStorage.setItem('cmp_dismissed_keys', JSON.stringify([...cmpDismissedKeys]));
+  } catch(e){}
+
+  // 2. Remove from local in-memory roster
+  if(roster){
+    delete roster[key];
+    const kLower = key.toLowerCase();
+    Object.keys(roster).forEach(rk => {
+      if (rk.toLowerCase() === kLower) delete roster[rk];
+    });
+  }
+
+  // 3. Remove from Firebase group if connected
+  if(groupRef){
+    try {
+      groupRef.child(key).remove().catch(err => {
+        console.warn('Firebase group child remove error:', err);
+      });
+    } catch(err) {
+      console.warn('Firebase remove exception:', err);
+    }
+  }
+
+  // 4. If current user removed themselves, clear active user state
+  let currentName = (myName || localStorage.getItem('mbaplanner_myname') || '').trim();
+  if (!currentName) {
+    const activeRoll = getActiveRollNo();
+    if (activeRoll && typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB[activeRoll] && CLASS_ATTENDANCE_DB[activeRoll].name) {
+      currentName = CLASS_ATTENDANCE_DB[activeRoll].name;
+    } else if (activeRoll) {
+      currentName = activeRoll;
+    }
+  }
+  const myKey = sanitizeKey(currentName);
+  if(key === myKey || key === sanitizeKey(myName) || isKeyDismissed(myName)){
     myName='';
+    localStorage.removeItem('mbaplanner_myname');
     const nameInp = document.getElementById('cmp-name-input');
     if (nameInp) nameInp.value='';
   }
+
+  // 5. If filter was active on this person, reset to all
   if(compareFilter===key) compareFilter='all';
+
+  // 6. Immediately re-render compare view
+  renderCompareView();
 }
+window.removeFromRoster = removeFromRoster;
+
+window.cmpRestoreDismissed = function(){
+  cmpDismissedKeys.clear();
+  try {
+    sessionStorage.removeItem('cmp_dismissed_keys');
+  } catch(e){}
+  renderCompareView();
+};
 
 function cmpSetFilter(key){
   compareFilter=(compareFilter===key)?'all':key;
@@ -1706,6 +1776,7 @@ function setCompareQ(q){ compareQ=q; renderCompareView(); }
 function cmpParticipants(){
   const parts={};
   Object.keys(roster).forEach(k=>{
+    if (isKeyDismissed(k)) return;
     const rawPlan=roster[k]||{};
     const plan={};
     ['Q5','Q6','Q7'].forEach(q=>{
@@ -1724,6 +1795,7 @@ function cmpParticipants(){
           label = CLASS_ATTENDANCE_DB[roll].name;
         }
         const key = sanitizeKey(label);
+        if (isKeyDismissed(key) || isKeyDismissed(label) || isKeyDismissed(roll)) return;
         if (!parts[key]) {
           const plan = {};
           ['Q5', 'Q6', 'Q7'].forEach(q => {
@@ -1756,7 +1828,9 @@ function cmpParticipants(){
   }
   if(currentName){
     const key=sanitizeKey(currentName);
-    parts[key]={label:currentName, plan:getMyEncodedPlan()};
+    if (!isKeyDismissed(key) && !isKeyDismissed(currentName)) {
+      parts[key]={label:currentName, plan:getMyEncodedPlan()};
+    }
   }
   return parts;
 }
@@ -1851,7 +1925,17 @@ function renderCmpFriends(){
   const row=document.getElementById('cmp-friends-row');
   const empty=document.getElementById('cmp-empty');
   if(!row) return;
-  if(!keys.length){ row.innerHTML=''; if (empty) empty.style.display='block'; return; }
+  if(!keys.length){ 
+    let emptyHtml = '';
+    if (cmpDismissedKeys.size > 0) {
+      emptyHtml = `<div class="cmp-chip" onclick="cmpRestoreDismissed()" style="cursor:pointer; border:1px dashed var(--bd); color:var(--tx2); font-size:11px; background:var(--bg2);" title="Restore all removed people">
+        <span>↺</span> <span>Restore hidden (${cmpDismissedKeys.size})</span>
+      </div>`;
+    }
+    row.innerHTML=emptyHtml; 
+    if (empty) empty.style.display=keys.length ? 'none' : 'block'; 
+    return; 
+  }
   if (empty) empty.style.display='none';
 
   let currentName = (myName || localStorage.getItem('mbaplanner_myname') || '').trim();
@@ -1899,9 +1983,15 @@ function renderCmpFriends(){
       <span class="cmp-chip-name">${parts[k].label}${isMe?' (you)':''}</span>
       ${matchPill}
       <span class="cmp-chip-count">${count} electives</span>
-      <span class="cmp-chip-x" onclick="event.stopPropagation();removeFromRoster('${keyEsc}')" title="Remove from group">✕</span>
+      <span class="cmp-chip-x" onclick="event.stopPropagation();event.preventDefault();removeFromRoster('${keyEsc}');return false;" title="Remove from group">✕</span>
     </div>`;
   }).join('');
+
+  if (cmpDismissedKeys.size > 0) {
+    html += `<div class="cmp-chip" onclick="cmpRestoreDismissed()" style="cursor:pointer; border:1px dashed var(--bd); color:var(--tx2); font-size:11px; background:var(--bg2);" title="Restore all removed people">
+      <span>↺</span> <span>Restore hidden (${cmpDismissedKeys.size})</span>
+    </div>`;
+  }
 
   if (others.length === 0) {
     html += `<div style="font-size:12px; color:var(--tx2); padding:6px 12px; background:var(--bg2); border-radius:8px; border:0.5px dashed var(--bd); margin-left:4px; display:inline-flex; align-items:center; gap:6px;">
@@ -2268,6 +2358,14 @@ window.cmpSelectClassmate = function(key, name, roll) {
   const searchInput = document.getElementById('cmp-search-input');
   if (dropdown) dropdown.style.display = 'none';
   if (searchInput) searchInput.value = '';
+
+  // Un-dismiss if previously dismissed
+  if (cmpDismissedKeys.has(key)) {
+    cmpDismissedKeys.delete(key);
+    try {
+      sessionStorage.setItem('cmp_dismissed_keys', JSON.stringify([...cmpDismissedKeys]));
+    } catch(e){}
+  }
 
   if (!roster[key]) {
     let studentPlan = null;

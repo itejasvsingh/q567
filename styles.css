@@ -479,8 +479,28 @@ html[data-theme="dark"] .pill-scarce{background:#3d1800;color:#f0997b}
 .cmp-chip.active{border-color:var(--bd-success);background:var(--bg-success);box-shadow:0 0 0 1px var(--bd-success) inset}
 .cmp-allchip{font-size:12px;font-weight:700;color:var(--tx2)}
 .cmp-allchip.active{border-color:var(--bd-info);background:var(--bg-info);color:var(--tx-info);box-shadow:0 0 0 1px var(--bd-info) inset}
-.cmp-chip-x{cursor:pointer;color:var(--tx3);font-weight:700;font-size:14px;padding:4px 6px;margin:-4px -4px -4px 0;-webkit-tap-highlight-color:transparent}
-.cmp-chip-x:hover{color:var(--tx-danger)}
+.cmp-chip-x {
+  cursor: pointer;
+  color: var(--tx3);
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  margin-left: 4px;
+  transition: all 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  flex-shrink: 0;
+}
+.cmp-chip-x:hover, .cmp-chip-x:active {
+  color: #fff !important;
+  background: var(--tx-danger, #e24b4b);
+}
 .cmp-empty{text-align:center;padding:1.75rem 1rem;color:var(--tx3);font-size:12px;border:.5px dashed var(--bd);border-radius:var(--rl);line-height:1.6}
 .cmp-qtabs{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap}
 .cmp-qtab{padding:8px 16px;border-radius:var(--r);border:.5px solid var(--bd2);background:transparent;color:var(--tx2);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent;min-height:40px;display:flex;align-items:center}
