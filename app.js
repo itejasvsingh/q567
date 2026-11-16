@@ -1912,7 +1912,6 @@ function getCmpOverlapInfo(friendKey, q) {
 function renderCompareView(){
   renderCmpFriends();
   renderCmpVsCard();
-  renderCmpFreeTime();
   renderCmpQtabs();
   renderCmpLegend();
   renderCmpGrid();
@@ -2103,66 +2102,6 @@ function renderCmpVsCard(){
   `;
 }
 
-function renderCmpFreeTime(){
-  const freeSec = document.getElementById('cmp-free-sec');
-  if (!freeSec) return;
-
-  const parts = cmpFilteredParticipants();
-  const keys = Object.keys(parts);
-  const q = compareQ;
-
-  if (keys.length < 2 || !DATA[q] || !DATA[q].slots) {
-    freeSec.style.display = 'none';
-    freeSec.innerHTML = '';
-    return;
-  }
-
-  // Find slots where NO ONE in the current view has class
-  const occupied = {};
-  keys.forEach(k => {
-    const plan = (parts[k] && parts[k].plan && parts[k].plan[q]) ? parts[k].plan[q] : {};
-    Object.values(plan).forEach(s => {
-      (DATA[q].slots[s.slot] || []).forEach(({ d, t }) => {
-        occupied[`${d}_${t}`] = true;
-      });
-    });
-  });
-
-  const checkTimeslots = ['8am-10am', '10am-12pm', '1pm-3pm', '3pm-5pm', '5pm-7pm'];
-  const checkDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-  const freeList = [];
-
-  checkDays.forEach(d => {
-    checkTimeslots.forEach(t => {
-      if (!occupied[`${d}_${t}`]) {
-        freeList.push({ d, t });
-      }
-    });
-  });
-
-  if (freeList.length === 0) {
-    freeSec.style.display = 'none';
-    return;
-  }
-
-  const pillsHtml = freeList.map(slot => 
-    `<span class="cmp-free-pill">☕ ${slot.d.slice(0,3)} ${slot.t}</span>`
-  ).join('');
-
-  freeSec.style.display = 'block';
-  freeSec.innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-      <div style="font-size:12px; font-weight:700; color:var(--tx-success); display:flex; align-items:center; gap:6px;">
-        <span>☕</span> <span>Mutual Free Windows in ${q} (${freeList.length * 2} hrs total)</span>
-      </div>
-      <span style="font-size:11px; color:var(--tx3);">Everyone in view is free at these times</span>
-    </div>
-    <div class="cmp-free-pills">
-      ${pillsHtml}
-    </div>
-  `;
-}
-
 function renderCmpQtabs(){
   document.getElementById('cmp-qtabs').innerHTML=['Q7','Q6','Q5'].map(q=>
     `<button class="cmp-qtab${compareQ===q?' on':''}" onclick="setCompareQ('${q}')">${q}</button>`
@@ -2219,11 +2158,7 @@ function renderCmpGrid(){
     TIMESLOTS.forEach(slot=>{
       if(slot==='12pm-1pm'){ h+=`<div class="cmp-lc lc-click" onclick="switchView('menu')" title="See today's mess menu">🍽 lunch</div>`; return; }
       const occ=(lk[day]&&lk[day][slot])||[];
-      if(!occ.length){
-        const isFreeTogether = keys.length >= 2;
-        h+=`<div class="cmp-cell emp${isFreeTogether ? ' cmp-free-together' : ''}">${isFreeTogether ? '<div class="cmp-free-tag">☕ Free together</div>' : ''}</div>`;
-        return;
-      }
+      if(!occ.length){ h+=`<div class="cmp-cell emp"></div>`; return; }
       const codes=new Set(occ.map(o=>o.subj.code));
       const together = occ.length>=2 && codes.size===1;
       const clash = codes.size>=2;
