@@ -12,7 +12,7 @@ def sanitize_key(k):
     return k
 
 def main():
-    url = "https://docs.google.com/spreadsheets/d/1FyiqG6ArbYoEtmZWPnXjfwnjNNm1CO89pfz2WV2_bYY/export?format=xlsx"
+    url = "https://docs.google.com/spreadsheets/d/1M_3UxXdXSL3-hwWeuuX7Ahn2fd1pJX71ujcRqkvFGUE/export?format=xlsx"
     print("Downloading Excel from:", url)
     xls = pd.ExcelFile(url)
     

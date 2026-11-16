@@ -1,7 +1,25 @@
 <div class="panel">
-  <div class="panel-title">🗓️ Q6 Weekly Timetable (All Electives)</div>
-  <p style="font-size:12px; color:var(--tx2); margin-bottom: 15px;">Use this grid to visualize clashes and open slots before making your final selections. Core courses are marked with 🔒.</p>
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:12px;">
+    <div>
+      <div class="panel-title" id="master-tt-title">🗓️ Q7 Weekly Timetable (All Electives)</div>
+      <p style="font-size:12px; color:var(--tx2); margin-top:4px; margin-bottom:0;">Use this grid to visualize clashes and open slots before making your final selections. Core courses are marked with 🔒.</p>
+    </div>
+    <div class="qtabs" style="margin:0;">
+      <button class="qtab on" onclick="switchMasterQ('Q7')" id="mtab-Q7">Q7</button>
+      <button class="qtab"    onclick="switchMasterQ('Q6')" id="mtab-Q6">Q6</button>
+      <button class="qtab"    onclick="switchMasterQ('Q5')" id="mtab-Q5">Q5</button>
+    </div>
+  </div>
   <div class="swipe-hint">↔ swipe to see the full week</div>
   <div class="tt-wrap"><div id="master-tt-render" style="min-width: 650px;"></div></div>
+  <div class="legend" style="margin-top:14px;">
+    <div class="leg"><div class="leg-dot" style="background:var(--col-F)"></div>Finance</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--col-HR)"></div>HR</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--col-M)"></div>Marketing</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--col-IS)"></div>IS</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--col-O)"></div>Ops</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--col-S)"></div>Strategy</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--col-X)"></div>Integrative</div>
+  </div>
 </div>
 

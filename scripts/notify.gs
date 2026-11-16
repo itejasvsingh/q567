@@ -311,7 +311,7 @@ function matchesSubj_(text, subj) {
 // setupAnnounceSheet once to create it). Type a title and message, then type
 // TEST (only you get it) or SEND (everyone). It goes out within 5 minutes.
 // Every device with notifications on receives it (students cannot opt out).
-var ANNOUNCE_SHEET_ID = '1FyiqG6ArbYoEtmZWPnXjfwnjNNm1CO89pfz2WV2_bYY';
+var ANNOUNCE_SHEET_ID = '1M_3UxXdXSL3-hwWeuuX7Ahn2fd1pJX71ujcRqkvFGUE';
 
 function setupAnnounceSheet() {
   var ss = SpreadsheetApp.openById(ANNOUNCE_SHEET_ID);

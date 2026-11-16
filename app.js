@@ -3277,27 +3277,77 @@ function scheduleClassNotifications(todaysClasses, ymdStr) {
     }
 }
 
-// --- DAILY AGENDA LOGIC ---
+// --- MASTER / WEEKLY SCHEDULE LOGIC ---
+let masterQ = 'Q7';
+
+function switchMasterQ(q) {
+  masterQ = q;
+  ['Q7', 'Q6', 'Q5'].forEach(tabQ => {
+    const btn = document.getElementById('mtab-' + tabQ);
+    if (btn) btn.classList.toggle('on', tabQ === q);
+  });
+  const title = document.getElementById('master-tt-title');
+  if (title) title.textContent = `🗓️ ${q} Weekly Timetable (All Electives)`;
+  renderMasterSchedule();
+}
+
 function renderMasterSchedule() {
   const area = document.getElementById('master-tt-render');
   if (!area) return;
 
-  if (!liveWeeklyCache) {
-      area.innerHTML = navigator.onLine
-        ? '<div class="empty-tt">Loading weekly schedule from database... ⏳</div>'
-        : '<div class="empty-tt">📴 You\'re offline and the weekly schedule hasn\'t been saved on this device yet. Open the app once with internet to make it available offline.</div>';
-      return;
-  }
-
-  // Define standard columns/timeslots from the sheet
+  const currentQ = masterQ || 'Q7';
+  const qData = DATA[currentQ] || DATA.Q7;
+  
+  // Define standard columns/timeslots
   const timeslots = ['8am-10am', '10am-12pm', '12pm-1pm', '1pm-3pm', '3pm-5pm', '5pm-7pm'];
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+  // Check if Saturday has any classes in qData
+  let hasSaturday = false;
+  if (qData && qData.slots) {
+    Object.values(qData.slots).forEach(slotList => {
+      if (Array.isArray(slotList) && slotList.some(item => item.d === 'Saturday')) {
+        hasSaturday = true;
+      }
+    });
+  }
+  const displayDays = hasSaturday ? [...days, 'Saturday'] : days;
+
+  // 1. Build structured map from DATA[currentQ]
+  const subjectGrid = {};
+  displayDays.forEach(d => {
+    subjectGrid[d] = {};
+    timeslots.forEach(t => { subjectGrid[d][t] = []; });
+  });
+
+  if (qData && qData.slots && Array.isArray(qData.subjects)) {
+    qData.subjects.forEach(s => {
+      const slotTimes = qData.slots[s.slot] || [];
+      slotTimes.forEach(({ d, t }) => {
+        if (subjectGrid[d] && subjectGrid[d][t]) {
+          subjectGrid[d][t].push(s);
+        }
+      });
+    });
+  }
+
+  // 2. Determine if liveWeeklyCache has quarter-specific live overrides/sheet data
+  let cloudScheduleForQ = null;
+  if (liveWeeklyCache) {
+    const sampleDay = liveWeeklyCache['Monday'] || liveWeeklyCache['Tuesday'] || {};
+    const sampleText = JSON.stringify(sampleDay);
+    if (currentQ === 'Q6' && (sampleText.includes('Business Models') || sampleText.includes('MS6210') || sampleText.includes('Design Thinking'))) {
+      cloudScheduleForQ = liveWeeklyCache;
+    } else if (currentQ === 'Q7' && (sampleText.includes('Contemporary') || sampleText.includes('MS6310') || sampleText.includes('MS5550') || sampleText.includes('Usha Mohan'))) {
+      cloudScheduleForQ = liveWeeklyCache;
+    }
+  }
 
   let h = `
     <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
       <thead>
         <tr style="background:var(--bg2); border-bottom:2px solid var(--bd);">
-          <th style="padding:10px; border:1px solid var(--bd); width:100px;">Day</th>
+          <th style="padding:10px; border:1px solid var(--bd); width:95px;">Day</th>
           <th style="padding:10px; border:1px solid var(--bd);">8am - 10am</th>
           <th style="padding:10px; border:1px solid var(--bd);">10am - 12pm</th>
           <th style="padding:10px; border:1px solid var(--bd); background:var(--bg3);">12pm - 1pm</th>
@@ -3309,37 +3359,54 @@ function renderMasterSchedule() {
       <tbody>
   `;
 
-  for (const day of days) {
-      const daySlots = liveWeeklyCache[day] || {};
-      h += `<tr>`;
-      h += `<td style="padding:10px; border:1px solid var(--bd); font-weight:700; background:var(--bg2);">${day}</td>`;
+  for (const day of displayDays) {
+    h += `<tr>`;
+    h += `<td style="padding:10px; border:1px solid var(--bd); font-weight:700; background:var(--bg2); white-space:nowrap;">${day}</td>`;
 
-      for (const t of timeslots) {
-          if (t === '12pm-1pm') {
-              h += `<td style="padding:10px; border:1px solid var(--bd); text-align:center; color:var(--tx3); font-style:italic; background:var(--bg3);">Lunch</td>`;
-              continue;
-          }
-
-          const cellData = daySlots[t];
-          if (!cellData) {
-              h += `<td style="padding:10px; border:1px solid var(--bd); color:var(--tx3); text-align:center;">—</td>`;
-          } else {
-              const entries = Array.isArray(cellData) ? cellData : [cellData];
-              let formattedContent = '';
-              for (const entry of entries) {
-                  const text = typeof entry === 'object' ? entry.text : String(entry);
-                  const isStrike = typeof entry === 'object' ? entry.strike : false;
-                  
-                  // Also support legacy manual triggers
-                  const isCancelled = isStrike || text.includes('~') || (text ? text.toLowerCase() : '').includes('cancel') || text.includes('<s>') || text.includes('<strike>');
-                  
-                  const style = isCancelled ? 'text-decoration: line-through; opacity: 0.6; color: var(--tx-warn);' : '';
-                  formattedContent += `<div style="margin-bottom:2px; font-weight:600; ${style}">${text}</div>`;
-              }
-              h += `<td style="padding:10px; border:1px solid var(--bd);">${formattedContent}</td>`;
-          }
+    for (const t of timeslots) {
+      if (t === '12pm-1pm') {
+        h += `<td style="padding:10px; border:1px solid var(--bd); text-align:center; color:var(--tx3); font-style:italic; background:var(--bg3);">🍽️ Lunch</td>`;
+        continue;
       }
-      h += `</tr>`;
+
+      const subjectsInSlot = (subjectGrid[day] && subjectGrid[day][t]) ? subjectGrid[day][t] : [];
+
+      if (subjectsInSlot.length > 0) {
+        let cellHtml = '';
+        subjectsInSlot.forEach(s => {
+          const domCol = DCOL[s.v] || '#6b7a70';
+          const isCore = Boolean(s.isCore);
+          const isNurturing = s.code === 'MS5754' || (s.name && /nurturing/i.test(s.name));
+          
+          cellHtml += `
+            <div style="margin-bottom:6px; padding:6px 8px; border-radius:6px; background:var(--bg3); border-left:3.5px solid ${domCol}; font-size:11.5px; line-height:1.35; ${isNurturing ? 'cursor:pointer;' : ''}" ${isNurturing ? 'onclick="triggerNurturingCelebration(event)" title="Yeah! Nurturing the Inner You 🌸"' : ''}>
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:4px; margin-bottom:2px;">
+                <span style="font-weight:700; color:var(--tx);">${s.code}</span>
+                <span style="font-size:9.5px; padding:1px 5px; border-radius:4px; background:var(--bg2); border:0.5px solid var(--bd); font-weight:600; color:var(--tx2);">Slot ${s.slot}</span>
+              </div>
+              <div style="font-weight:600; color:var(--tx);">${isCore ? '🔒 ' : ''}${s.name}</div>
+              <div style="color:var(--tx2); font-size:10.5px; margin-top:2px;">${s.instructor}${s.room ? ' · <span style="opacity:0.85;">📍 ' + s.room + '</span>' : ''}</div>
+            </div>
+          `;
+        });
+        h += `<td style="padding:8px; border:1px solid var(--bd); vertical-align:top;">${cellHtml}</td>`;
+      } else if (cloudScheduleForQ && cloudScheduleForQ[day] && cloudScheduleForQ[day][t]) {
+        const cellData = cloudScheduleForQ[day][t];
+        const entries = Array.isArray(cellData) ? cellData : [cellData];
+        let formattedContent = '';
+        for (const entry of entries) {
+          const text = typeof entry === 'object' ? entry.text : String(entry);
+          const isStrike = typeof entry === 'object' ? entry.strike : false;
+          const isCancelled = isStrike || text.includes('~') || (text ? text.toLowerCase() : '').includes('cancel') || text.includes('<s>') || text.includes('<strike>');
+          const style = isCancelled ? 'text-decoration: line-through; opacity: 0.6; color: var(--tx-warn);' : '';
+          formattedContent += `<div style="margin-bottom:2px; font-weight:600; ${style}">${text}</div>`;
+        }
+        h += `<td style="padding:10px; border:1px solid var(--bd);">${formattedContent}</td>`;
+      } else {
+        h += `<td style="padding:10px; border:1px solid var(--bd); color:var(--tx3); text-align:center;">—</td>`;
+      }
+    }
+    h += `</tr>`;
   }
 
   h += `</tbody></table>`;

@@ -1,5 +1,5 @@
 function syncTimetableToFirebase() {
-  var sheetId = '1FyiqG6ArbYoEtmZWPnXjfwnjNNm1CO89pfz2WV2_bYY';
+  var sheetId = '1M_3UxXdXSL3-hwWeuuX7Ahn2fd1pJX71ujcRqkvFGUE';
   var firebaseUrl = 'https://q567mba-default-rtdb.asia-southeast1.firebasedatabase.app/schedule.json';
   
   // 1. Concurrency Lock: Prevent multiple scheduled triggers from colliding or hanging together
