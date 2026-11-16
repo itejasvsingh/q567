@@ -17,15 +17,28 @@
       <input class="cmp-input" id="cmp-name-input" placeholder="Your name (leave blank to view anonymously)" maxlength="24" onkeydown="if(event.key==='Enter')cmpConnect()">
       <input class="cmp-input" id="cmp-code-input" placeholder="Group code (e.g. doms-mba-2026)" maxlength="30" onkeydown="if(event.key==='Enter')cmpConnect()">
       <button class="cmp-btn" onclick="cmpConnect()">👥 Compare</button>
+      <button class="cmp-btn" onclick="cmpShareWhatsApp()" style="background:#25D366; color:#fff; border-color:#25D366; display:inline-flex; align-items:center; gap:5px;" title="Share group with friends on WhatsApp">
+        <span>💬</span> <span>Invite on WhatsApp</span>
+      </button>
     </div>
-    <div class="cmp-status" id="cmp-status">Enter your name and a group code, then tap Compare.</div>
+    
+    <div class="cmp-search-wrap">
+      <input type="text" id="cmp-search-input" class="cmp-input" placeholder="🔍 Instant search classmate (e.g. Anjali, Harshith, Tejasv)..." oninput="cmpSearchClassmate(this.value)" autocomplete="off">
+      <div id="cmp-search-results" class="cmp-search-dropdown" style="display:none;"></div>
+    </div>
+    
+    <div class="cmp-status" id="cmp-status" style="margin-top:8px;">Enter your name and a group code, then tap Compare.</div>
   </div>
 
   <div class="cmp-friends-sec">
-    <div class="sec-lbl">Your group <span style="text-transform:none;letter-spacing:0;color:var(--tx3)">— to change your own picks, edit them in My Planner, then come back here and tap Compare again</span></div>
+    <div class="sec-lbl">Your group <span style="text-transform:none;letter-spacing:0;color:var(--tx3)">— tap any friend to view 1-on-1 overlap analysis & common free hours</span></div>
     <div class="cmp-friends-row" id="cmp-friends-row"></div>
     <div class="cmp-empty" id="cmp-empty">Enter your name and group code above, then tap Compare — friends using the same code will show up here.</div>
   </div>
+
+  <div id="cmp-vs-container" style="display:none;"></div>
+
+  <div id="cmp-free-sec" class="cmp-free-sec" style="display:none;"></div>
 
   <div class="cmp-qtabs" id="cmp-qtabs"></div>
 

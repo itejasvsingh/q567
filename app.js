@@ -16,7 +16,7 @@ let goalDualD2='';
 let fDom='All';
 let fFromTracker='';
 let searchQuery='';
-let exportQ='Q5';
+let exportQ='Q7';
 let q6AlertShown=false;
 let liveDailyCache = null;
 let liveWeeklyCache = null;
@@ -1072,7 +1072,7 @@ window.updatePwaDrawerStudent = function() {
 };
 
 function openExport(){
-  const qs=['Q6','Q5','Q7'].filter(q=>Object.keys(sel[q]).length>0);
+  const qs=['Q7','Q6','Q5'].filter(q=>Object.keys(sel[q]).length>0);
   if(!qs.length){alert('Select some electives first!');return;}
   exportQ=qs[0];
   document.getElementById('modal-qs').innerHTML=qs.map(q=>`<button class="mq${exportQ===q?' active':''}" onclick="setExportQ('${q}')">${DATA[q].label}</button>`).join('');
@@ -1385,7 +1385,33 @@ function clearSharedBanner(){
   document.getElementById('shared-banner').classList.remove('show');
 }
 
+function checkGroupFromURL(){
+  const hash = window.location.hash || '';
+  const search = window.location.search || '';
+  const m = hash.match(/group=([^&]*)/) || search.match(/group=([^&]*)/);
+  if (m && m[1]) {
+    const code = decodeURIComponent(m[1]).trim();
+    if (code) {
+      localStorage.setItem('mbaplanner_groupcode', code);
+      const codeInput = document.getElementById('cmp-code-input');
+      if (codeInput) codeInput.value = code;
+      if (typeof switchView === 'function') switchView('compare');
+      setTimeout(() => { if (typeof cmpConnect === 'function') cmpConnect(); }, 150);
+      return true;
+    }
+  }
+  return false;
+}
+
+function cmpShareWhatsApp(){
+  const code = myGroupCode || localStorage.getItem('mbaplanner_groupcode') || 'doms-mba-2026';
+  const url = `${window.location.origin}${window.location.pathname}#compare&group=${encodeURIComponent(code)}`;
+  const text = `Hey! Compare your MBA elective timetable with mine on the planner: ${url}`;
+  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+}
+
 function loadFromURL(){
+  checkGroupFromURL();
   const hash=window.location.hash;
   const match=hash.match(/plan=([^&]*)/);
   if(!match) return false;
@@ -1399,7 +1425,7 @@ function loadFromURL(){
 let myName='';
 let myGroupCode='';
 let roster={}; 
-let compareQ='Q6';
+let compareQ='Q7';
 let compareFilter='all'; 
 let currentView='plan';
 
@@ -1755,8 +1781,64 @@ function cmpFilteredParticipants(){
   return out;
 }
 
+function getCmpOverlapInfo(friendKey, q) {
+  const parts = cmpParticipants();
+  let currentName = (myName || localStorage.getItem('mbaplanner_myname') || '').trim();
+  if (!currentName) {
+    const activeRoll = getActiveRollNo();
+    if (activeRoll && typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB[activeRoll] && CLASS_ATTENDANCE_DB[activeRoll].name) {
+      currentName = CLASS_ATTENDANCE_DB[activeRoll].name;
+    } else if (activeRoll) {
+      currentName = activeRoll;
+    }
+  }
+  const myKey = sanitizeKey(currentName);
+  const myPlan = (parts[myKey] && parts[myKey].plan && parts[myKey].plan[q]) ? parts[myKey].plan[q] : {};
+  const friendPlan = (parts[friendKey] && parts[friendKey].plan && parts[friendKey].plan[q]) ? parts[friendKey].plan[q] : {};
+
+  const commonCodes = Object.keys(myPlan).filter(c => friendPlan[c]);
+  const commonCourses = commonCodes.map(c => myPlan[c] || friendPlan[c]);
+  const myDivergent = Object.keys(myPlan).filter(c => !friendPlan[c]).map(c => myPlan[c]);
+  const friendDivergent = Object.keys(friendPlan).filter(c => !myPlan[c]).map(c => friendPlan[c]);
+
+  const myElectives = Object.values(myPlan).filter(s => !s.isCore).length;
+  const commonElectives = commonCourses.filter(s => !s.isCore).length;
+  const matchPct = myElectives > 0 ? Math.round((commonElectives / myElectives) * 100) : (commonCourses.length > 0 ? 100 : 0);
+
+  // Free slots calculation
+  const freeSlots = [];
+  if (DATA[q] && DATA[q].slots) {
+    const occupied = {};
+    Object.values(myPlan).forEach(s => {
+      (DATA[q].slots[s.slot] || []).forEach(({ d, t }) => { occupied[`${d}_${t}`] = true; });
+    });
+    Object.values(friendPlan).forEach(s => {
+      (DATA[q].slots[s.slot] || []).forEach(({ d, t }) => { occupied[`${d}_${t}`] = true; });
+    });
+
+    const checkTimeslots = ['8am-10am', '10am-12pm', '1pm-3pm', '3pm-5pm', '5pm-7pm'];
+    const checkDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+    checkDays.forEach(d => {
+      checkTimeslots.forEach(t => {
+        if (!occupied[`${d}_${t}`]) freeSlots.push({ d, t });
+      });
+    });
+  }
+
+  return {
+    friendLabel: parts[friendKey] ? parts[friendKey].label : friendKey,
+    commonCourses,
+    myDivergent,
+    friendDivergent,
+    matchPct,
+    freeSlots
+  };
+}
+
 function renderCompareView(){
   renderCmpFriends();
+  renderCmpVsCard();
+  renderCmpFreeTime();
   renderCmpQtabs();
   renderCmpLegend();
   renderCmpGrid();
@@ -1784,11 +1866,20 @@ function renderCmpFriends(){
   const myKey=sanitizeKey(currentName);
   const others=keys.filter(k=>k!==myKey);
 
+  // Sort friends so that classmates with the most shared classes in the active quarter appear first
+  others.sort((a, b) => {
+    const infoA = getCmpOverlapInfo(a, compareQ);
+    const infoB = getCmpOverlapInfo(b, compareQ);
+    return infoB.commonCourses.length - infoA.commonCourses.length;
+  });
+
+  const orderedKeys = (keys.includes(myKey) ? [myKey] : []).concat(others);
+
   let html='';
   if(others.length>0){
-    html+=`<div class="cmp-chip cmp-allchip${compareFilter==='all'?' active':''}" onclick="cmpSetFilter('all')">👥 Everyone</div>`;
+    html+=`<div class="cmp-chip cmp-allchip${compareFilter==='all'?' active':''}" onclick="cmpSetFilter('all')">👥 Everyone (${keys.length})</div>`;
   }
-  html+=keys.map(k=>{
+  html+=orderedKeys.map(k=>{
     const isMe=k===myKey;
     const plan=parts[k].plan;
     const count=['Q5','Q6','Q7'].reduce((a,q)=>a+Object.values(plan[q]||{}).filter(s=>!s.isCore).length,0);
@@ -1796,9 +1887,17 @@ function renderCmpFriends(){
     const color=cmpColorFor(k);
     const isActive=compareFilter===k;
     const keyEsc=k.replace(/'/g,"\\'");
+
+    let matchPill = '';
+    if (!isMe && keys.includes(myKey)) {
+      const overlap = getCmpOverlapInfo(k, compareQ);
+      matchPill = `<span class="cmp-chip-match" title="${overlap.commonCourses.length} classes together in ${compareQ}">🔥 ${overlap.matchPct}%</span>`;
+    }
+
     return `<div class="cmp-chip${isMe?' me':''}${isActive?' active':''}"${isMe?'':` onclick="cmpSetFilter('${keyEsc}')" style="cursor:pointer"`}>
       <div class="cmp-avatar" style="background:${color}">${initial}</div>
       <span class="cmp-chip-name">${parts[k].label}${isMe?' (you)':''}</span>
+      ${matchPill}
       <span class="cmp-chip-count">${count} electives</span>
       <span class="cmp-chip-x" onclick="event.stopPropagation();removeFromRoster('${keyEsc}')" title="Remove from group">✕</span>
     </div>`;
@@ -1813,8 +1912,169 @@ function renderCmpFriends(){
   row.innerHTML=html;
 }
 
+function renderCmpVsCard(){
+  const vsContainer = document.getElementById('cmp-vs-container');
+  if (!vsContainer) return;
+
+  if (compareFilter === 'all') {
+    vsContainer.style.display = 'none';
+    vsContainer.innerHTML = '';
+    return;
+  }
+
+  const parts = cmpParticipants();
+  let currentName = (myName || localStorage.getItem('mbaplanner_myname') || '').trim();
+  if (!currentName) {
+    const activeRoll = getActiveRollNo();
+    if (activeRoll && typeof CLASS_ATTENDANCE_DB !== 'undefined' && CLASS_ATTENDANCE_DB[activeRoll] && CLASS_ATTENDANCE_DB[activeRoll].name) {
+      currentName = CLASS_ATTENDANCE_DB[activeRoll].name;
+    } else if (activeRoll) {
+      currentName = activeRoll;
+    }
+  }
+  const myKey = sanitizeKey(currentName);
+  const friendKey = compareFilter;
+
+  if (!parts[friendKey] || friendKey === myKey) {
+    vsContainer.style.display = 'none';
+    return;
+  }
+
+  const info = getCmpOverlapInfo(friendKey, compareQ);
+  const friendColor = cmpColorFor(friendKey);
+  const myColor = cmpColorFor(myKey);
+
+  let sharedListHtml = info.commonCourses.length > 0 
+    ? info.commonCourses.map(s => {
+        const outline = (typeof COURSE_OUTLINES !== 'undefined' && COURSE_OUTLINES[s.code]) ? COURSE_OUTLINES[s.code] : null;
+        const outlineBtn = outline ? `<a href="${outline.file}" target="_blank" rel="noopener noreferrer" class="scard-outline-btn" style="padding:2px 7px; font-size:10px; text-decoration:none; margin-left:auto;" onclick="event.stopPropagation()">📄 Outline</a>` : '';
+        return `<div class="cmp-vs-item" style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
+          <span>${s.isCore ? '🔒 ' : ''}<strong>${s.code}</strong> — ${s.name} <span class="cmp-tcard-slot" style="font-size:9.5px; padding:1px 5px;">Slot ${s.slot}</span></span>
+          ${outlineBtn}
+        </div>`;
+      }).join('')
+    : '<div style="color:var(--tx3); font-size:11px; font-style:italic;">No shared classes in ' + compareQ + '</div>';
+
+  let divergeMyHtml = info.myDivergent.length > 0
+    ? info.myDivergent.map(s => `<div class="cmp-vs-item"><strong>${s.code}</strong> — ${s.name} <span class="cmp-tcard-slot" style="font-size:9px; padding:1px 4px;">Slot ${s.slot}</span></div>`).join('')
+    : '<div style="color:var(--tx3); font-size:11px; font-style:italic;">None</div>';
+
+  let divergeFriendHtml = info.friendDivergent.length > 0
+    ? info.friendDivergent.map(s => `<div class="cmp-vs-item"><strong>${s.code}</strong> — ${s.name} <span class="cmp-tcard-slot" style="font-size:9px; padding:1px 4px;">Slot ${s.slot}</span></div>`).join('')
+    : '<div style="color:var(--tx3); font-size:11px; font-style:italic;">None</div>';
+
+  let freePillsHtml = info.freeSlots.length > 0
+    ? `<div class="cmp-free-pills">` + info.freeSlots.slice(0, 8).map(slot => 
+        `<span class="cmp-free-pill">☕ ${slot.d.slice(0,3)} ${slot.t}</span>`
+      ).join('') + (info.freeSlots.length > 8 ? `<span class="cmp-free-pill" style="opacity:0.8;">+${info.freeSlots.length - 8} more</span>` : '') + `</div>`
+    : '<div style="color:var(--tx3); font-size:11px; font-style:italic;">No mutual free slots</div>';
+
+  vsContainer.style.display = 'block';
+  vsContainer.innerHTML = `
+    <div class="cmp-vs-card">
+      <div class="cmp-vs-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div style="display:flex; align-items:center;">
+            <div class="cmp-avatar" style="background:${myColor}; border:2px solid var(--bg);">${(currentName.charAt(0)||'Y').toUpperCase()}</div>
+            <div class="cmp-avatar" style="background:${friendColor}; border:2px solid var(--bg); margin-left:-8px;">${(info.friendLabel.charAt(0)||'F').toUpperCase()}</div>
+          </div>
+          <div>
+            <div style="font-size:13.5px; font-weight:800; color:var(--tx);">1-on-1 Overlap: You & ${info.friendLabel}</div>
+            <div style="font-size:11px; color:var(--tx2);">${compareQ} Schedule Match</div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:12px; font-weight:800; padding:4px 10px; border-radius:12px; background:var(--bg-success); color:var(--tx-success); border:1px solid var(--bd-success);">
+            🔥 ${info.matchPct}% Match (${info.commonCourses.length} shared)
+          </span>
+          <button class="cmp-managebtn" onclick="cmpSetFilter('all')" style="font-size:11px; padding:4px 9px;">✕ Show Everyone</button>
+        </div>
+      </div>
+
+      <div class="cmp-vs-grid">
+        <div class="cmp-vs-col">
+          <div class="cmp-vs-col-title" style="color:var(--tx-success);"><span>🎉</span> <span>Classes Together (${info.commonCourses.length})</span></div>
+          ${sharedListHtml}
+        </div>
+        <div class="cmp-vs-col">
+          <div class="cmp-vs-col-title" style="color:var(--tx-info);"><span>🔀</span> <span>Where You Diverge</span></div>
+          <div style="font-size:10px; font-weight:700; color:var(--tx3); text-transform:uppercase; margin-top:2px;">You Take:</div>
+          ${divergeMyHtml}
+          <div style="font-size:10px; font-weight:700; color:var(--tx3); text-transform:uppercase; margin-top:6px;">${info.friendLabel} Takes:</div>
+          ${divergeFriendHtml}
+        </div>
+        <div class="cmp-vs-col">
+          <div class="cmp-vs-col-title" style="color:var(--tx-warn);"><span>☕</span> <span>Both Free (${info.freeSlots.length * 2} hrs/week)</span></div>
+          <p style="font-size:10.5px; color:var(--tx3); margin:0 0 6px 0;">Great for project meetings & canteen hangouts:</p>
+          ${freePillsHtml}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderCmpFreeTime(){
+  const freeSec = document.getElementById('cmp-free-sec');
+  if (!freeSec) return;
+
+  const parts = cmpFilteredParticipants();
+  const keys = Object.keys(parts);
+  const q = compareQ;
+
+  if (keys.length < 2 || !DATA[q] || !DATA[q].slots) {
+    freeSec.style.display = 'none';
+    freeSec.innerHTML = '';
+    return;
+  }
+
+  // Find slots where NO ONE in the current view has class
+  const occupied = {};
+  keys.forEach(k => {
+    const plan = (parts[k] && parts[k].plan && parts[k].plan[q]) ? parts[k].plan[q] : {};
+    Object.values(plan).forEach(s => {
+      (DATA[q].slots[s.slot] || []).forEach(({ d, t }) => {
+        occupied[`${d}_${t}`] = true;
+      });
+    });
+  });
+
+  const checkTimeslots = ['8am-10am', '10am-12pm', '1pm-3pm', '3pm-5pm', '5pm-7pm'];
+  const checkDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const freeList = [];
+
+  checkDays.forEach(d => {
+    checkTimeslots.forEach(t => {
+      if (!occupied[`${d}_${t}`]) {
+        freeList.push({ d, t });
+      }
+    });
+  });
+
+  if (freeList.length === 0) {
+    freeSec.style.display = 'none';
+    return;
+  }
+
+  const pillsHtml = freeList.map(slot => 
+    `<span class="cmp-free-pill">☕ ${slot.d.slice(0,3)} ${slot.t}</span>`
+  ).join('');
+
+  freeSec.style.display = 'block';
+  freeSec.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+      <div style="font-size:12px; font-weight:700; color:var(--tx-success); display:flex; align-items:center; gap:6px;">
+        <span>☕</span> <span>Mutual Free Windows in ${q} (${freeList.length * 2} hrs total)</span>
+      </div>
+      <span style="font-size:11px; color:var(--tx3);">Everyone in view is free at these times</span>
+    </div>
+    <div class="cmp-free-pills">
+      ${pillsHtml}
+    </div>
+  `;
+}
+
 function renderCmpQtabs(){
-  document.getElementById('cmp-qtabs').innerHTML=['Q6','Q5','Q7'].map(q=>
+  document.getElementById('cmp-qtabs').innerHTML=['Q7','Q6','Q5'].map(q=>
     `<button class="cmp-qtab${compareQ===q?' on':''}" onclick="setCompareQ('${q}')">${q}</button>`
   ).join('');
 }
@@ -1869,7 +2129,11 @@ function renderCmpGrid(){
     TIMESLOTS.forEach(slot=>{
       if(slot==='12pm-1pm'){ h+=`<div class="cmp-lc lc-click" onclick="switchView('menu')" title="See today's mess menu">🍽 lunch</div>`; return; }
       const occ=(lk[day]&&lk[day][slot])||[];
-      if(!occ.length){ h+=`<div class="cmp-cell emp"></div>`; return; }
+      if(!occ.length){
+        const isFreeTogether = keys.length >= 2;
+        h+=`<div class="cmp-cell emp${isFreeTogether ? ' cmp-free-together' : ''}">${isFreeTogether ? '<div class="cmp-free-tag">☕ Free together</div>' : ''}</div>`;
+        return;
+      }
       const codes=new Set(occ.map(o=>o.subj.code));
       const together = occ.length>=2 && codes.size===1;
       const clash = codes.size>=2;
@@ -1925,12 +2189,20 @@ function renderCmpTogether(){
   }
   let html=`<div class="sec-lbl">${headerLabel}</div>`;
   entries.forEach(e=>{
+    const outline = (typeof COURSE_OUTLINES !== 'undefined' && COURSE_OUTLINES[e.subj.code]) ? COURSE_OUTLINES[e.subj.code] : null;
+    const outlineBtn = outline ? `
+      <a href="${outline.file}" target="_blank" rel="noopener noreferrer" class="scard-outline-btn" style="padding:2px 8px; font-size:10px; margin-left:6px; display:inline-flex; align-items:center; gap:4px; text-decoration:none;" onclick="event.stopPropagation()">
+        <span>📄</span> <span>Outline</span>
+      </a>
+    ` : '';
+
     html+=`<div class="cmp-tcard">
       <div class="cmp-tcard-top">
         <div class="cmp-tcard-name">${e.subj.name}</div>
-        <div style="display:flex;gap:5px;flex-shrink:0">
+        <div style="display:flex;gap:5px;align-items:center;flex-shrink:0">
           <div class="cmp-tcard-slot">Slot ${e.subj.slot}</div>
           ${e.subj.room?`<div class="roomb">📍 ${e.subj.room}</div>`:''}
+          ${outlineBtn}
         </div>
       </div>
       <div class="cmp-tcard-ppl">${e.people.map(k=>`<span class="cmp-tperson"><span class="cmp-dot" style="background:${cmpColorFor(k)}"></span>${parts[k].label}${k===myKey?' (you)':''}</span>`).join('')}</div>
@@ -1938,6 +2210,86 @@ function renderCmpTogether(){
   });
   area.innerHTML=html;
 }
+
+window.cmpSearchClassmate = function(query) {
+  const dropdown = document.getElementById('cmp-search-results');
+  if (!dropdown) return;
+  const q = (query || '').trim().toLowerCase();
+  if (!q) {
+    dropdown.style.display = 'none';
+    dropdown.innerHTML = '';
+    return;
+  }
+
+  const results = [];
+  if (typeof CLASS_ATTENDANCE_DB !== 'undefined') {
+    Object.entries(CLASS_ATTENDANCE_DB).forEach(([roll, data]) => {
+      const name = data.name || '';
+      if (roll.toLowerCase().includes(q) || name.toLowerCase().includes(q)) {
+        results.push({ roll, name, key: sanitizeKey(name || roll) });
+      }
+    });
+  }
+
+  if (window._cloudRollPreferences) {
+    Object.entries(window._cloudRollPreferences).forEach(([roll, pref]) => {
+      if (pref && pref.studentName) {
+        const name = pref.studentName;
+        if (!results.some(r => r.roll === roll || r.name.toLowerCase() === name.toLowerCase())) {
+          if (roll.toLowerCase().includes(q) || name.toLowerCase().includes(q)) {
+            results.push({ roll, name, key: sanitizeKey(name) });
+          }
+        }
+      }
+    });
+  }
+
+  const topResults = results.slice(0, 8);
+  if (!topResults.length) {
+    dropdown.style.display = 'block';
+    dropdown.innerHTML = `<div style="padding:10px; font-size:11.5px; color:var(--tx3); text-align:center;">No classmates found matching "${query}".</div>`;
+    return;
+  }
+
+  dropdown.style.display = 'block';
+  dropdown.innerHTML = topResults.map(r => `
+    <div class="cmp-search-item" onclick="cmpSelectClassmate('${r.key.replace(/'/g, "\\'")}', '${r.name.replace(/'/g, "\\'")}', '${r.roll}')">
+      <div>
+        <div style="font-size:12px; font-weight:700; color:var(--tx);">${r.name}</div>
+        <div style="font-size:10px; color:var(--tx3); font-family:monospace;">${r.roll}</div>
+      </div>
+      <span class="cmp-btn" style="padding:3px 9px; font-size:11px;">Compare ➔</span>
+    </div>
+  `).join('');
+};
+
+window.cmpSelectClassmate = function(key, name, roll) {
+  const dropdown = document.getElementById('cmp-search-results');
+  const searchInput = document.getElementById('cmp-search-input');
+  if (dropdown) dropdown.style.display = 'none';
+  if (searchInput) searchInput.value = '';
+
+  if (!roster[key]) {
+    let studentPlan = null;
+    if (window._cloudRollPreferences && window._cloudRollPreferences[roll] && window._cloudRollPreferences[roll].selections) {
+      studentPlan = window._cloudRollPreferences[roll].selections;
+    }
+    roster[key] = studentPlan || {};
+  }
+
+  cmpSetFilter(key);
+};
+
+// Close dropdown on click outside
+document.addEventListener('click', (e) => {
+  const dropdown = document.getElementById('cmp-search-results');
+  const searchInput = document.getElementById('cmp-search-input');
+  if (dropdown && dropdown.style.display !== 'none') {
+    if (!dropdown.contains(e.target) && e.target !== searchInput) {
+      dropdown.style.display = 'none';
+    }
+  }
+});
 
 // ── ATTENDANCE LOGIC ─────────────────────────────────────────────────────────
 let attQ = 'Q6';

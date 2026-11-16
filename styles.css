@@ -513,6 +513,142 @@ html[data-theme="dark"] .pill-scarce{background:#3d1800;color:#f0997b}
 .cmp-tcard-ppl{display:flex;flex-wrap:wrap;gap:5px}
 .cmp-tperson{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px 3px 5px;border-radius:14px;background:var(--bg)}
 
+/* ── Compare Tab Upgrades (Search, Match Pills, Side-by-Side VS, Free Window) ── */
+.cmp-chip-match {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--bg-warn);
+  color: var(--tx-warn);
+  border: 0.5px solid var(--bd-warn);
+}
+.cmp-search-wrap {
+  position: relative;
+  margin-top: 10px;
+}
+.cmp-search-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--bd);
+  border-radius: var(--r);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  z-index: 100;
+}
+.cmp-search-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 0.5px solid var(--bd);
+  transition: background 0.15s ease;
+}
+.cmp-search-item:hover, .cmp-search-item:active {
+  background: var(--bg2);
+}
+.cmp-search-item:last-child {
+  border-bottom: none;
+}
+.cmp-vs-card {
+  border-radius: var(--rl);
+  background: var(--bg2);
+  border: 1px solid var(--bd-info);
+  padding: 14px 16px;
+  margin-bottom: 15px;
+}
+.cmp-vs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--bd);
+}
+.cmp-vs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+.cmp-vs-col {
+  background: var(--bg);
+  border: 0.5px solid var(--bd);
+  border-radius: var(--r);
+  padding: 10px 12px;
+}
+.cmp-vs-col-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--tx2);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.cmp-vs-item {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 0;
+  color: var(--tx);
+  border-bottom: 0.5px dashed var(--bd);
+}
+.cmp-vs-item:last-child {
+  border-bottom: none;
+}
+.cmp-free-sec {
+  background: var(--bg2);
+  border: 1px solid var(--bd);
+  border-radius: var(--rl);
+  padding: 12px 14px;
+  margin-bottom: 15px;
+}
+.cmp-free-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.cmp-free-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 12px;
+  background: var(--bg-success);
+  color: var(--tx-success);
+  border: 0.5px solid var(--bd-success);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cmp-cell.cmp-free-together {
+  background: rgba(30, 122, 75, 0.05);
+  border: 0.5px dashed var(--bd-success);
+}
+.cmp-free-tag {
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--tx-success);
+  margin: auto 0;
+  text-align: center;
+  opacity: 0.85;
+}
+body.fluid-bg-active .cmp-vs-card,
+body.fluid-bg-active .cmp-free-sec,
+body.fluid-bg-active .cmp-tcard {
+  background: rgba(20, 20, 24, 0.65) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
 /* ── ATTENDANCE TRACKER ── */
 .att-card { background: var(--bg2); border: .5px solid var(--bd); border-radius: var(--rl); padding: 1rem 1.1rem; margin-bottom: 12px; }
 .att-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
