@@ -216,7 +216,7 @@
   };
   window.menuToday = function () { state.date = null; renderMenu(true); };
   // used by the Agenda's "Open full menu" link
-  window.openMenuOn = function (k) { state.date = k; switchView('menu'); renderMenu(true); };
+  window.openMenuOn = function (k) { state.date = k; if (typeof switchView === 'function') switchView('menu'); renderMenu(true); };
 
   // Compact collapsible card for one day, shown inside the Daily Agenda.
   window.messMenuCardHtml = function (k) {

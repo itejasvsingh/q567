@@ -3489,8 +3489,16 @@ function flushPendingOfflineWrites() {
         } catch(e) { console.warn('PWA boot cache parse error', e); }
     }
 
-    // 3. Landing view: PWA lands on Daily Agenda; Website lands on My Planner
-    if (isPWA) {
+    // 3. Landing view: URL param/hash (?view=menu, #menu, etc.) > PWA (Daily) > Website (Planner)
+    const urlParams = new URLSearchParams(window.location.search);
+    const hash = (window.location.hash || '').toLowerCase();
+    const explicitView = urlParams.get('view') || (hash.includes('menu') ? 'menu' : (hash.includes('agenda') || hash.includes('daily') ? 'daily' : (hash.includes('att') ? 'att' : (hash.includes('compare') ? 'compare' : null))));
+
+    if (explicitView && ['plan', 'att', 'compare', 'menu', 'daily', 'master'].includes(explicitView)) {
+        switchView(explicitView);
+        if (explicitView === 'daily') renderDailySchedule();
+        if (explicitView === 'menu' && typeof renderMenu === 'function') renderMenu();
+    } else if (isPWA) {
         switchView('daily');
         renderDailySchedule();
     } else {

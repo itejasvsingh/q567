@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>IIT Madras — Mess Menu</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" id="meta-theme-color" content="#ffffff">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="IITM Mess Menu">
+<link rel="stylesheet" href="styles.css?v=74">
+<script>
+  var THEME_ICONS = { system: '🖥️', light: '☀️', dark: '🌙' };
+  function themeMode() {
+    var t = localStorage.getItem('mbaplanner_theme');
+    return t === 'light' || t === 'dark' ? t : 'system';
+  }
+  function applyTheme() {
+    var mode = themeMode();
+    var dark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+    else document.documentElement.removeAttribute('data-theme');
+    var meta = document.getElementById('meta-theme-color');
+    if (meta) meta.setAttribute('content', dark ? '#000000' : '#ffffff');
+    var btn = document.getElementById('menu-theme-btn');
+    if (btn) btn.textContent = THEME_ICONS[mode];
+  }
+  function toggleTheme() {
+    var order = ['system', 'light', 'dark'];
+    var next = order[(order.indexOf(themeMode()) + 1) % 3];
+    localStorage.setItem('mbaplanner_theme', next);
+    applyTheme();
+  }
+  applyTheme();
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+    if (themeMode() === 'system') applyTheme();
+  });
+</script>
+<style>
+  body {
+    padding-bottom: 40px;
+  }
+  .standalone-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    max-width: 820px;
+    margin: 0 auto;
+    border-bottom: 0.5px solid var(--bd);
+    background: var(--bg);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .standalone-nav-brand {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--tx);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+  }
+  .standalone-nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .standalone-container {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 16px;
+  }
+</style>
+</head>
+<body>
+
+<header class="standalone-nav">
+  <a href="index.html" class="standalone-nav-brand">
+    <span>🥘</span>
+    <span>IITM Mess Menu</span>
+  </a>
+  <div class="standalone-nav-actions">
+    <button id="menu-theme-btn" class="ios-seg-btn" onclick="toggleTheme()" style="padding: 4px 10px; font-size: 13px;" title="Change theme">🖥️</button>
+    <a href="index.html" class="ios-seg-btn" style="text-decoration: none; padding: 4px 10px; font-size: 11px; font-weight: 700; color: var(--tx-info);">
+      📋 MBA Planner ›
+    </a>
+  </div>
+</header>
+
+<main class="standalone-container">
+  <div id="menu-root"></div>
+</main>
+
+<script src="mess-menu.js"></script>
+<script src="menu.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    applyTheme();
+    if (typeof renderMenu === 'function') {
+      renderMenu(true);
+    }
+  });
+</script>
+</body>
+</html>
