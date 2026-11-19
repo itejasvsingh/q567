@@ -3826,38 +3826,58 @@ window.syncClassAttendanceToAttData = function() {
     } catch(e) {}
 
     if (!attData['Q6']) attData['Q6'] = {};
+    if (!attData['Q7']) attData['Q7'] = {};
 
-    const counts = {};
+    // Bucket session counts by quarter, determined from the date in the session ID
+    const counts = { Q6: {}, Q7: {} };
     for (const [sId, status] of Object.entries(classAtt)) {
         const parts = sId.split('_');
         if (parts.length >= 3) {
-            const code = parts.slice(2).join('_');
-            if (!counts[code]) counts[code] = { p: 0, a: 0 };
-            if (status === 'P') counts[code].p++;
-            else if (status === 'A') counts[code].a++;
+            const ymd = parts[0];       // e.g. '2027-01-05'
+            const code = parts.slice(2).join('_').replace(/\+2$/, ''); // strip twin suffix
+            const q = ymd >= '2027-01-01' ? 'Q7' : 'Q6';
+            if (!counts[q][code]) counts[q][code] = { p: 0, a: 0 };
+            if (status === 'P') counts[q][code].p++;
+            else if (status === 'A') counts[q][code].a++;
         }
     }
 
-    // Reset ALL existing keys in attData['Q6'] to live counts so unmarking resets count
+    // Sync Q6
     Object.keys(attData['Q6']).forEach(code => {
       attData['Q6'][code] = {
-        p: counts[code] ? counts[code].p : 0,
-        a: counts[code] ? counts[code].a : 0
+        p: counts.Q6[code] ? counts.Q6[code].p : 0,
+        a: counts.Q6[code] ? counts.Q6[code].a : 0
       };
     });
-
     if (typeof DATA !== 'undefined' && DATA.Q6 && DATA.Q6.subjects) {
       DATA.Q6.subjects.forEach(s => {
         attData['Q6'][s.code] = {
-          p: counts[s.code] ? counts[s.code].p : 0,
-          a: counts[s.code] ? counts[s.code].a : 0
+          p: counts.Q6[s.code] ? counts.Q6[s.code].p : 0,
+          a: counts.Q6[s.code] ? counts.Q6[s.code].a : 0
         };
       });
     }
-
-    // Keep attData in sync for any additional subjects recorded in class attendance
-    for (const [code, c] of Object.entries(counts)) {
+    for (const [code, c] of Object.entries(counts.Q6)) {
         attData['Q6'][code] = { p: c.p, a: c.a };
+    }
+
+    // Sync Q7
+    Object.keys(attData['Q7']).forEach(code => {
+      attData['Q7'][code] = {
+        p: counts.Q7[code] ? counts.Q7[code].p : 0,
+        a: counts.Q7[code] ? counts.Q7[code].a : 0
+      };
+    });
+    if (typeof DATA !== 'undefined' && DATA.Q7 && DATA.Q7.subjects) {
+      DATA.Q7.subjects.forEach(s => {
+        attData['Q7'][s.code] = {
+          p: counts.Q7[s.code] ? counts.Q7[s.code].p : 0,
+          a: counts.Q7[s.code] ? counts.Q7[s.code].a : 0
+        };
+      });
+    }
+    for (const [code, c] of Object.entries(counts.Q7)) {
+        attData['Q7'][code] = { p: c.p, a: c.a };
     }
 
     localStorage.setItem('mbaplanner_attendance', JSON.stringify(attData));
@@ -3910,13 +3930,15 @@ window.markClassAttendance = function(ymd, timeSlot, code, targetStatus, count) 
         localStorage.setItem('mbaplanner_roll_attendance', JSON.stringify(rollAtt));
     } catch(e) {}
 
-    // Realtime sync to Firebase q6_attendance
+    // Realtime sync to Firebase (quarter-specific path)
+    const attQuarter = ymd >= '2027-01-01' ? 'Q7' : 'Q6';
+    const fbAttPath = attQuarter === 'Q7' ? 'q7_attendance' : 'q6_attendance';
     if (typeof fbDb !== 'undefined' && fbDb) {
         try {
             const safeRoll = cleanRoll.replace(/[.#$[\]]/g, '_');
             const updates = {};
             for (const [id, status] of writes) {
-                updates[`q6_attendance/${safeRoll}/${id.replace(/[.#$[\]]/g, '_')}`] = status || null;
+                updates[`${fbAttPath}/${safeRoll}/${id.replace(/[.#$[\]]/g, '_')}`] = status || null;
             }
             fbDb.ref().update(updates);
             if (!window._fbConnected) {
@@ -3925,7 +3947,7 @@ window.markClassAttendance = function(ymd, timeSlot, code, targetStatus, count) 
                 saveOfflineCopy('mbaplanner_pending_q6_attendance', pendingAtt);
             }
         } catch(err) {
-            console.warn('Firebase q6_attendance write error:', err);
+            console.warn('Firebase attendance write error:', err);
         }
     }
 
