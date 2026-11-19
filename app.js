@@ -1529,6 +1529,9 @@ function switchView(v){
   }
   if(v==='att'){
     setAttQ(cQ);
+    if (typeof setCohortTerm === 'function') {
+      setCohortTerm(window.currentCohortTerm || 'Q7');
+    }
     const savedAttName = localStorage.getItem('mbaplanner_att_username');
     const savedCompareName = localStorage.getItem('mbaplanner_myname');
     const inputEl = document.getElementById('att-sync-username');
@@ -2543,22 +2546,22 @@ function loadAttendanceCloud() {
   });
 }
 
-// ── COHORT & LIVE Q6 ATTENDANCE SEARCH ──────────────────────────────────────────
-window.currentCohortTerm = 'Q6';
+// ── COHORT & LIVE ATTENDANCE SEARCH (Q7, Q6, Q5) ──────────────────────────
+window.currentCohortTerm = 'Q7';
 window.setCohortTerm = function(term) {
   window.currentCohortTerm = term;
+  const q7Btn = document.getElementById('cohort-tab-q7');
   const q6Btn = document.getElementById('cohort-tab-q6');
   const q5Btn = document.getElementById('cohort-tab-q5');
   const bothBtn = document.getElementById('cohort-tab-both');
-  if (q6Btn && q5Btn && bothBtn) {
-    q6Btn.className = 'ios-seg-btn ' + (term === 'Q6' ? 'active-p' : '');
-    q5Btn.className = 'ios-seg-btn ' + (term === 'Q5' ? 'active-p' : '');
-    bothBtn.className = 'ios-seg-btn ' + (term === 'BOTH' ? 'active-p' : '');
-  }
+  if (q7Btn) q7Btn.className = 'ios-seg-btn ' + (term === 'Q7' ? 'active-p' : '');
+  if (q6Btn) q6Btn.className = 'ios-seg-btn ' + (term === 'Q6' ? 'active-p' : '');
+  if (q5Btn) q5Btn.className = 'ios-seg-btn ' + (term === 'Q5' ? 'active-p' : '');
+  if (bothBtn) bothBtn.className = 'ios-seg-btn ' + (term === 'BOTH' ? 'active-p' : '');
   searchCohortAttendance();
 };
 
-window.getQ6AttendanceForRoll = function(query) {
+window.getQuarterAttendanceForRoll = function(q, query) {
   const cleanQuery = (query || '').trim().toUpperCase();
   if (!cleanQuery) return null;
 
@@ -2585,11 +2588,19 @@ window.getQ6AttendanceForRoll = function(query) {
 
   // 2. Gather all attendance sessions recorded for this roll
   let rollAttMap = {};
-  if (window._cloudQ6Attendance) {
+  const cloudTarget = q === 'Q7' ? window._cloudQ7Attendance : window._cloudQ6Attendance;
+  if (cloudTarget) {
+    const safeRoll = foundRoll.replace(/[.#$[\]]/g, '_');
+    if (cloudTarget[foundRoll]) Object.assign(rollAttMap, cloudTarget[foundRoll]);
+    if (cloudTarget[safeRoll]) Object.assign(rollAttMap, cloudTarget[safeRoll]);
+  }
+  // Check Q6 cloud if sessions were saved there previously
+  if (q === 'Q6' && window._cloudQ6Attendance) {
     const safeRoll = foundRoll.replace(/[.#$[\]]/g, '_');
     if (window._cloudQ6Attendance[foundRoll]) Object.assign(rollAttMap, window._cloudQ6Attendance[foundRoll]);
     if (window._cloudQ6Attendance[safeRoll]) Object.assign(rollAttMap, window._cloudQ6Attendance[safeRoll]);
   }
+
   try {
     const allRolls = JSON.parse(localStorage.getItem('mbaplanner_roll_attendance')) || {};
     if (allRolls[foundRoll]) {
@@ -2610,7 +2621,12 @@ window.getQ6AttendanceForRoll = function(query) {
   for (const [sessionId, status] of Object.entries(rollAttMap)) {
     const parts = sessionId.split('_');
     if (parts.length >= 3) {
-      const code = parts.slice(2).join('_');
+      const ymd = parts[0];
+      const isQ7Date = ymd >= '2027-01-01';
+      if (q === 'Q7' && !isQ7Date) continue;
+      if (q === 'Q6' && isQ7Date) continue;
+
+      const code = parts.slice(2).join('_').replace(/\+2$/, '');
       if (status === 'A') (absentByCode[code] = absentByCode[code] || new Set()).add(parts[0]);
       if (!counts[code]) counts[code] = { p: 0, a: 0 };
       if (status === 'P') counts[code].p++;
@@ -2619,35 +2635,37 @@ window.getQ6AttendanceForRoll = function(query) {
   }
 
   // Only fallback to attData for courses that have no session records at all
-  if (isCurrentStudent && attData && attData['Q6']) {
-    for (const [code, c] of Object.entries(attData['Q6'])) {
+  if (isCurrentStudent && attData && attData[q]) {
+    for (const [code, c] of Object.entries(attData[q])) {
       if (counts[code] === undefined && (c.p > 0 || c.a > 0)) {
         counts[code] = { p: c.p || 0, a: c.a || 0 };
       }
     }
   }
 
-  // 4. Build subject list for Q6
-  // Mandatory Core courses in Q6: MS6210 (Business Models) & MS5529 (Behavioural lab)
-  const q6Subjects = (DATA['Q6'] && DATA['Q6'].subjects) ? DATA['Q6'].subjects : [];
-  const coreCodes = ['MS6210', 'MS5529'];
+  // 4. Build subject list for quarter
+  const qSubjects = (DATA[q] && DATA[q].subjects) ? DATA[q].subjects : [];
+  const coreCourses = qSubjects.filter(s => s.isCore);
+  const coreCodes = coreCourses.map(s => s.code);
+  if (q === 'Q6' && !coreCodes.length) coreCodes.push('MS6210', 'MS5529');
+  if (q === 'Q7' && !coreCodes.length) coreCodes.push('MS6310');
 
   const subjectMap = {};
-  q6Subjects.forEach(s => { subjectMap[s.code] = s; });
+  qSubjects.forEach(s => { subjectMap[s.code] = s; });
 
   const targetCodes = new Set(coreCodes);
   let studentElectives = null;
-  if (isCurrentStudent && sel && sel['Q6']) {
-    studentElectives = Object.values(sel['Q6']);
+  if (isCurrentStudent && sel && sel[q]) {
+    studentElectives = Object.values(sel[q]);
   } else {
     try {
       const allPrefs = JSON.parse(localStorage.getItem('mbaplanner_roll_preferences')) || {};
-      if (allPrefs[foundRoll] && allPrefs[foundRoll].selections && allPrefs[foundRoll].selections['Q6']) {
-        studentElectives = Object.values(allPrefs[foundRoll].selections['Q6']);
+      if (allPrefs[foundRoll] && allPrefs[foundRoll].selections && allPrefs[foundRoll].selections[q]) {
+        studentElectives = Object.values(allPrefs[foundRoll].selections[q]);
       }
     } catch(e) {}
-    if (!studentElectives && window._cloudRollPreferences && window._cloudRollPreferences[foundRoll] && window._cloudRollPreferences[foundRoll].selections && window._cloudRollPreferences[foundRoll].selections['Q6']) {
-      studentElectives = Object.values(window._cloudRollPreferences[foundRoll].selections['Q6']);
+    if (!studentElectives && window._cloudRollPreferences && window._cloudRollPreferences[foundRoll] && window._cloudRollPreferences[foundRoll].selections && window._cloudRollPreferences[foundRoll].selections[q]) {
+      studentElectives = Object.values(window._cloudRollPreferences[foundRoll].selections[q]);
     }
   }
 
@@ -2662,11 +2680,14 @@ window.getQ6AttendanceForRoll = function(query) {
   }
   const unmarkedByCode = {};
   if (isCurrentStudent && window._attSessions) {
-    const markedCodes = new Set(Object.keys(rollAttMap).map(id => id.split('_').slice(2).join('_')));
+    const markedCodes = new Set(Object.keys(rollAttMap).map(id => id.split('_').slice(2).join('_').replace(/\+2$/, '')));
     Object.entries(window._attSessions).forEach(([code, list]) => {
-      // skip courses tracked only with the old +/- counters (no per-class marks at all)
+      const qList = list.filter(x => {
+        const isQ7 = x.y >= '2027-01-01';
+        return q === 'Q7' ? isQ7 : !isQ7;
+      });
       if (counts[code] && !markedCodes.has(code)) return;
-      const days = [...new Set(list.filter(x => !rollAttMap[x.id]).map(x => x.y))].sort();
+      const days = [...new Set(qList.filter(x => !rollAttMap[x.id]).map(x => x.y))].sort();
       if (days.length) unmarkedByCode[code] = days;
     });
   }
@@ -2727,6 +2748,7 @@ window.getQ6AttendanceForRoll = function(query) {
   const overallPctTotal = totalPlannedAll > 0 ? Math.round((totalAttended / totalPlannedAll) * 100) : 0;
 
   return {
+    quarter: q,
     roll: foundRoll,
     name: studentName,
     isCurrentStudent,
@@ -2740,6 +2762,13 @@ window.getQ6AttendanceForRoll = function(query) {
       overallPctTotal
     }
   };
+};
+
+window.getQ6AttendanceForRoll = function(query) {
+  return window.getQuarterAttendanceForRoll('Q6', query);
+};
+window.getQ7AttendanceForRoll = function(query) {
+  return window.getQuarterAttendanceForRoll('Q7', query);
 };
 
 function searchCohortAttendance() {
@@ -2763,7 +2792,7 @@ function searchCohortAttendance() {
     return;
   }
 
-  const term = window.currentCohortTerm || 'Q6';
+  const term = window.currentCohortTerm || 'Q7';
   let htmlOutput = '';
   
   let totalP = 0;
@@ -2772,10 +2801,10 @@ function searchCohortAttendance() {
   let studentName = '';
   let studentRoll = '';
 
-  // GENERATOR FOR Q6
-  const getQ6Html = () => {
-    const res = getQ6AttendanceForRoll(query);
-    if (!res) return '';
+  // GENERATOR FOR Q6 / Q7
+  const getQuarterHtml = (q) => {
+    const res = window.getQuarterAttendanceForRoll(q, query);
+    if (!res || !res.records.length) return '';
     const { roll, name, records, summary, isCurrentStudent } = res;
     
     totalP += summary.totalAttended;
@@ -2785,18 +2814,20 @@ function searchCohortAttendance() {
     if (!studentRoll) studentRoll = roll;
 
     const overallColor = summary.overallPctHeld < 85 ? 'var(--tx-danger)' : '#34C759';
+    const qTitle = q === 'Q7' ? 'Q7 Live Attendance Record' : 'Q6 Past Attendance Record';
+    const qEmoji = q === 'Q7' ? '🚀' : '🟢';
     let html = `
     <div style="background:var(--bg2); border:0.5px solid var(--bd); border-radius:14px; padding:14px; margin-bottom:12px;">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
         <div>
           <div style="font-size:15px; font-weight:800; color:var(--tx); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-            <span>🟢</span> <span>${name ? `${name} · ` : ''}<strong>${roll}</strong></span>
+            <span>${qEmoji}</span> <span>${name ? `${name} · ` : ''}<strong>${roll}</strong></span>
             ${(roll === getActiveRollNo()) 
               ? '<span class="agenda-autosave-badge" style="font-size:10.5px; font-weight:700; color:#34C759; background:rgba(52,199,89,0.12); border:0.5px solid rgba(52,199,89,0.3); padding:2px 8px; border-radius:8px;">✓ Auto-Saving</span>' 
               : `<button class="ios-seg-btn" onclick="setRollNumber('${roll}')" style="padding:2px 8px; font-size:11px; color:var(--tx-info); font-weight:700;">Set as My Profile</button>`}
           </div>
           <div style="font-size:11px; color:var(--tx2); margin-top:2px;">
-            Q6 Active Attendance Record · 14 Classes Planned Per Course
+            ${qTitle} · 14 Classes Planned Per Course
           </div>
         </div>
         ${term !== 'BOTH' ? `<button class="ios-seg-btn active-p" onclick="switchView('daily')" style="padding:4px 10px; font-size:11px;">
@@ -2938,24 +2969,28 @@ function searchCohortAttendance() {
     return html;
   };
 
+  let q7html = '';
   let q6html = '';
   let q5html = '';
 
+  if (term === 'Q7' || term === 'BOTH') {
+      q7html = getQuarterHtml('Q7');
+  }
   if (term === 'Q6' || term === 'BOTH') {
-      q6html = getQ6Html();
+      q6html = getQuarterHtml('Q6');
   }
   if (term === 'Q5' || term === 'BOTH') {
       q5html = getQ5Html();
   }
 
-  if (term === 'BOTH' && (q6html || q5html)) {
+  if (term === 'BOTH' && (q7html || q6html || q5html)) {
       const combinedPct = totalHeld > 0 ? Math.round((totalP / totalHeld) * 100) : 100;
       const combinedColor = combinedPct < 85 ? 'var(--tx-danger)' : '#34C759';
       
       htmlOutput += `
       <div style="background:var(--bg2); border:1.5px solid var(--tx-info); border-radius:14px; padding:16px; margin-bottom:16px; box-shadow: 0 4px 12px rgba(30,122,75,0.15);">
         <div style="font-size:16px; font-weight:800; color:var(--tx-info); margin-bottom:12px; display:flex; align-items:center; gap:6px;">
-          <span>🏆</span> Grand Total Combined (Q5 + Q6)
+          <span>🏆</span> Grand Total Combined (Q5 + Q6 + Q7)
         </div>
         <div style="font-size:12px; color:var(--tx2); margin-bottom:14px;">${studentName} (${studentRoll})</div>
         <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:10px;">
@@ -2980,11 +3015,14 @@ function searchCohortAttendance() {
       `;
   }
 
+  if (q7html) htmlOutput += q7html;
+  else if (term === 'Q7') htmlOutput += `<div class="cmp-empty" style="border-color: var(--bd-warn)">No Q7 courses or records found for "${query}". Check your Roll No or pick your Q7 electives in My Planner.</div>`;
+
   if (q6html) htmlOutput += q6html;
-  else if (term === 'Q6') htmlOutput += `<div class="cmp-empty" style="border-color: var(--bd-warn)">No student found matching "${query}". Check the Roll No or Name.</div>`;
+  else if (term === 'Q6') htmlOutput += `<div class="cmp-empty" style="border-color: var(--bd-warn)">No student found matching "${query}" for Q6. Check the Roll No or Name.</div>`;
 
   if (q5html) htmlOutput += q5html;
-  else if (term === 'Q5') htmlOutput += `<div class="cmp-empty" style="border-color: var(--bd-warn)">No student found matching "${query}". Check the Roll No or Name.</div>`;
+  else if (term === 'Q5') htmlOutput += `<div class="cmp-empty" style="border-color: var(--bd-warn)">No student found matching "${query}" for Q5. Check the Roll No or Name.</div>`;
 
   if (term === 'BOTH' && !htmlOutput) {
       htmlOutput = `<div class="cmp-empty" style="border-color: var(--bd-warn)">No student found matching "${query}". Check the Roll No or Name.</div>`;
@@ -3070,6 +3108,7 @@ function loadOfflineCopy(key) {
 }
 liveWeeklyCache = liveWeeklyCache || loadOfflineCopy('mbaplanner_weekly_cache');
 liveExamsCache = liveExamsCache || loadOfflineCopy('mbaplanner_exams_cache');
+window._cloudQ7Attendance = window._cloudQ7Attendance || loadOfflineCopy('mbaplanner_cloud_q7_attendance');
 window._cloudQ6Attendance = window._cloudQ6Attendance || loadOfflineCopy('mbaplanner_cloud_q6_attendance');
 window._cloudQ5Attendance = window._cloudQ5Attendance || loadOfflineCopy('mbaplanner_cloud_q5_attendance');
 window._cloudRollPreferences = window._cloudRollPreferences || loadOfflineCopy('mbaplanner_cloud_roll_preferences');
@@ -3144,7 +3183,21 @@ function refreshLiveSchedule(btnElement) {
           }
       });
 
-      // 2. Q6 Attendance Sync
+      // 2. Attendance Sync (Q7, Q6, Q5)
+      fbDb.ref('q7_attendance').once('value').then(snap => {
+        const cloudAtt = snap.val();
+        if (cloudAtt) {
+            window._cloudQ7Attendance = cloudAtt;
+            saveOfflineCopy('mbaplanner_cloud_q7_attendance', cloudAtt);
+            if (typeof searchCohortAttendance === 'function' && document.getElementById('cohort-att-table-container')) {
+                searchCohortAttendance();
+            }
+            if (typeof renderDailySchedule === 'function' && typeof currentView !== 'undefined' && currentView === 'daily') {
+                renderDailySchedule();
+            }
+        }
+      }).catch(e => console.warn('Could not fetch cloud q7 attendance.', e));
+
       fbDb.ref('q6_attendance').once('value').then(snap => {
         const cloudAtt = snap.val();
         if (cloudAtt) {
@@ -3223,6 +3276,17 @@ if (typeof fbDb !== 'undefined' && fbDb) {
     fbDb.ref('schedule').on('value', snap => {
       const data = snap.val();
       if (data) applyCloudSchedule(data);
+    });
+
+    fbDb.ref('q7_attendance').on('value', snap => {
+      const cloudAtt = snap.val();
+      if (cloudAtt) {
+        window._cloudQ7Attendance = cloudAtt;
+        saveOfflineCopy('mbaplanner_cloud_q7_attendance', cloudAtt);
+        if (typeof searchCohortAttendance === 'function' && document.getElementById('cohort-att-table-container')) {
+          searchCohortAttendance();
+        }
+      }
     });
 
     fbDb.ref('q6_attendance').on('value', snap => {
@@ -3952,18 +4016,19 @@ window.markClassAttendance = function(ymd, timeSlot, code, targetStatus, count) 
     }
 
     // Keep in-memory cloud attendance synced
-    if (window._cloudQ6Attendance) {
+    const targetCloudAtt = attQuarter === 'Q7' ? window._cloudQ7Attendance : window._cloudQ6Attendance;
+    if (targetCloudAtt) {
         const safeRoll = cleanRoll.replace(/[.#$[\]]/g, '_');
         [cleanRoll, safeRoll].forEach(r => {
-            if (!window._cloudQ6Attendance[r]) return;
+            if (!targetCloudAtt[r]) return;
             for (const [id, status] of writes) {
                 const safeId = id.replace(/[.#$[\]]/g, '_');
                 if (status) {
-                    window._cloudQ6Attendance[r][id] = status;
-                    window._cloudQ6Attendance[r][safeId] = status;
+                    targetCloudAtt[r][id] = status;
+                    targetCloudAtt[r][safeId] = status;
                 } else {
-                    delete window._cloudQ6Attendance[r][id];
-                    delete window._cloudQ6Attendance[r][safeId];
+                    delete targetCloudAtt[r][id];
+                    delete targetCloudAtt[r][safeId];
                 }
             }
         });

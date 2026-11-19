@@ -4,13 +4,14 @@
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
       <div class="panel-title" style="color: var(--tx-info); margin:0;">📊 Attendance Records & Analytics</div>
       <div class="ios-segmented" id="cohort-term-selector">
-        <button class="ios-seg-btn active-p" id="cohort-tab-q6" onclick="setCohortTerm('Q6')">🟢 Q6 Live</button>
+        <button class="ios-seg-btn active-p" id="cohort-tab-q7" onclick="setCohortTerm('Q7')">🟢 Q7 Live</button>
+        <button class="ios-seg-btn" id="cohort-tab-q6" onclick="setCohortTerm('Q6')">📁 Q6</button>
         <button class="ios-seg-btn" id="cohort-tab-q5" onclick="setCohortTerm('Q5')">📁 Q5 Official</button>
         <button class="ios-seg-btn" id="cohort-tab-both" onclick="setCohortTerm('BOTH')">📊 Combined</button>
       </div>
     </div>
     <p style="font-size:11.5px; color:var(--tx2); margin-bottom:10px; line-height:1.4;">
-      Type your Roll No (e.g. <code>MS25A071</code>) or student name to view live class-by-class records for Q6 (synced from Agenda) or view official past Q5 records.
+      Type your Roll No (e.g. <code>MS25A071</code>) or student name to view live class-by-class records for Q7/Q6 (synced from Agenda) or view official past Q5 records.
     </p>
     <div class="cmp-row" style="margin-bottom:0">
       <input type="text" id="cohort-search-input" class="cmp-input" placeholder="Enter Roll No or Name..." oninput="searchCohortAttendance()">
