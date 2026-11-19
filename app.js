@@ -5136,7 +5136,6 @@ function _renderDailyScheduleInner() {
                               : (b.data.isShifted ? warnPill('🔄 Shifted Class') : `<span class="ios-pill" style="color:${domainColor}; background:var(--bg);">${domainIcon} ${domainLabel}</span>`))
                           }
                           ${editBtnHtml}
-                          ${!cancelled ? renderOverToggleHtml(classOverId, isMarkedOver) : ''}
                       </div>
                   </div>
                   <div class="ios-class-title"${cancelled ? ' style="text-decoration:line-through; opacity:0.6;"' : ''}${isNurturingSubject ? ' onclick="triggerNurturingCelebration(event)" style="cursor:pointer;" title="Yeah! Nurturing the Inner You 🌸"' : ''}>
