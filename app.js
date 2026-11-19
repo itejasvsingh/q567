@@ -4456,14 +4456,45 @@ function _renderDailyScheduleInner() {
       let hasCls = false;
       let hasActiveCls = false;
       const ymd = dateKey ? dateKey.split(' ')[0] : '';
+      // Q6 classes ended Nov 13 — only block Q6 dates, not Q7
       const isClassesOverForDay = Boolean(
-          (DATA[quarter]?.classesOver && ymd >= '2026-11-13') ||
-          (ymd >= '2026-11-13')
+          quarter === 'Q6' && (
+              (DATA[quarter]?.classesOver && ymd >= '2026-11-13') ||
+              (ymd >= '2026-11-13')
+          )
       );
 
       // When regular classes have concluded for the quarter, do not parse recurring class slots
       if (isClassesOverForDay) {
           return { dayClasses, hasCls: false, hasActiveCls: false };
+      }
+
+      // For Q7 dates (Jan 4+), build classes from DATA.Q7.slots (static timetable)
+      if (quarter === 'Q7' && ymd >= '2027-01-04') {
+          const dayName = dateKey ? dateKey.split(' ').slice(1).join(' ') : '';
+          const q7Subjects = [
+              ...((DATA.Q7 && DATA.Q7.subjects) ? DATA.Q7.subjects.filter(s => s.isCore) : []),
+              ...Object.values(sel['Q7'] || {})
+          ];
+          // Deduplicate by code
+          const seenCodes = new Set();
+          const q7Active = q7Subjects.filter(s => { if (seenCodes.has(s.code)) return false; seenCodes.add(s.code); return true; });
+
+          if (DATA.Q7 && DATA.Q7.slots) {
+              q7Active.forEach(s => {
+                  const slotEntries = DATA.Q7.slots[s.slot] || [];
+                  slotEntries.forEach(({ d, t }) => {
+                      if (d !== dayName) return;
+                      if (t === '12pm-1pm') return;
+                      dayClasses[t] = { type: 'class', subject: s, slot: t, cancelled: false, rawStr: s.code, isShifted: false, shiftedTo: null };
+                      hasCls = true;
+                      hasActiveCls = true;
+                  });
+              });
+          }
+          hasCls = Object.keys(dayClasses).length > 0;
+          hasActiveCls = Object.values(dayClasses).some(d => !d.cancelled && !d.hidden);
+          return { dayClasses, hasCls, hasActiveCls };
       }
 
       for (const t of (dailySlots ? timeOrder : [])) {
@@ -4571,7 +4602,7 @@ function _renderDailyScheduleInner() {
   const shaastraStart = '2027-01-02';
   const shaastraEnd = '2027-01-06';
   const q7SessionStart = '2027-01-04';
-  const agendaCoverageEnd = '2027-01-10';
+  const agendaCoverageEnd = '2027-02-28';
   const maxExam = examYmds.length ? examYmds[examYmds.length - 1] : agendaCoverageEnd;
   const targetEndYmd = maxExam > agendaCoverageEnd ? maxExam : agendaCoverageEnd;
   const startYmd = dateKeys.length ? dateKeys[dateKeys.length - 1].slice(0, 10) : todayYmd;
