@@ -4619,6 +4619,9 @@ function _renderDailyScheduleInner() {
           c.setDate(c.getDate() + 1);
       }
   }
+  // Skip winter break (Dec 11 – Dec 31): jump straight from Dec 10 to Jan 1
+  dateKeys = dateKeys.filter(k => !(k.slice(0, 10) >= '2026-12-11' && k.slice(0, 10) <= '2026-12-31'));
+
   if (!window._selectedAgendaDate || !dateKeys.includes(window._selectedAgendaDate)) {
       const todayMatch = dateKeys.find(k => k.startsWith(todayYmd));
       if (todayMatch) {
